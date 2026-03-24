@@ -52,7 +52,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     setIsScanningEnabled(true);
   };
 
-  const handleBarcodeScanned = ({ data }: BarcodeScanningResult) => {
+  const handleBarcodeScanned = ({ data, type }: BarcodeScanningResult) => {
     if (hasScanned) {
       return;
     }
@@ -63,6 +63,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
     navigation.navigate('Result', {
       barcode: normalizeBarcode(data),
+      barcodeType: type,
     });
   };
 
@@ -83,8 +84,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           <View style={styles.header}>
             <Text style={styles.title}>Scan a food product</Text>
             <Text style={styles.subtitle}>
-              Point your camera at the barcode, then open the result screen to
-              see ingredient analysis placeholders.
+              Point your camera at the barcode to get ingredient flags,
+              nutrition clues, and a smarter product verdict.
             </Text>
           </View>
 
@@ -143,8 +144,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </View>
 
           <Text style={styles.footerText}>
-            This setup keeps the flow simple: scan once, then navigate to the
-            product details screen.
+            The app combines barcode lookup, ingredient analysis, and
+            nutrition-based signals to help you make a faster decision.
           </Text>
         </View>
       </View>
