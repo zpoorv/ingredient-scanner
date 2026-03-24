@@ -26,7 +26,13 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Ingredient Scanner to access your camera to scan product barcodes."
+        }
+      ],
+      "expo-barcode-scanner",
       [
         "expo-splash-screen",
         {
@@ -41,7 +47,6 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
       "reactCompiler": true
     }
   }
