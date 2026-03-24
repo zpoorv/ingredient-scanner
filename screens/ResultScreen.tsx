@@ -14,6 +14,12 @@ import {
   fetchProductByBarcode,
   type OpenFoodFactsProduct,
 } from '../services/openFoodFacts';
+import {
+  calculateHealthScore,
+  findHarmfulIngredients,
+  isHarmfulIngredientSegment,
+  splitIngredients,
+} from '../utils/healthScore';
 import type { RootStackParamList } from '../utils/navigation';
 
 type ResultScreenProps = NativeStackScreenProps<RootStackParamList, 'Result'>;
@@ -81,11 +87,22 @@ export default function ResultScreen({ route }: ResultScreenProps) {
 
   const productName =
     product?.product_name?.trim() || PLACEHOLDER_CONTENT.productName;
-  const ingredients =
-    product?.ingredients_text?.trim() || PLACEHOLDER_CONTENT.ingredients;
-  const healthScore =
-    product?.nutriscore_grade?.toUpperCase() ||
-    PLACEHOLDER_CONTENT.healthScore;
+  const productIngredients = product?.ingredients_text?.trim() || null;
+  const harmfulIngredients = findHarmfulIngredients(productIngredients);
+  const healthScore = calculateHealthScore(productIngredients);
+  const ingredientSegments = productIngredients
+    ? splitIngredients(productIngredients)
+    : [PLACEHOLDER_CONTENT.ingredients];
+  const healthScoreLabel =
+    healthScore === null ? PLACEHOLDER_CONTENT.healthScore : `${healthScore}/100`;
+  const healthScoreTone =
+    healthScore === null
+      ? colors.textMuted
+      : healthScore >= 80
+        ? colors.primary
+        : healthScore >= 60
+          ? '#C28518'
+          : colors.danger;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -116,14 +133,61 @@ export default function ResultScreen({ route }: ResultScreenProps) {
 
         <View style={styles.infoCard}>
           <Text style={styles.label}>Ingredients</Text>
-          <Text style={styles.bodyText}>{ingredients}</Text>
+          <Text style={styles.bodyText}>
+            {ingredientSegments.map((ingredient, index) => (
+              <Text
+                key={`${ingredient}-${index}`}
+                style={
+                  isHarmfulIngredientSegment(ingredient)
+                    ? styles.harmfulIngredientText
+                    : undefined
+                }
+              >
+                {ingredient}
+                {index < ingredientSegments.length - 1 ? ', ' : ''}
+              </Text>
+            ))}
+          </Text>
+
+          {harmfulIngredients.length > 0 ? (
+            <Text style={styles.warningText}>
+              Flagged ingredients:{' '}
+              {harmfulIngredients.map((ingredient) => ingredient.label).join(', ')}
+            </Text>
+          ) : (
+            <Text style={styles.statusText}>
+              {productIngredients
+                ? 'No tracked harmful ingredients were found in this ingredient list.'
+                : 'Highlighting will update when real ingredient data is available.'}
+            </Text>
+          )}
         </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.label}>Health Score</Text>
-          <View style={styles.scoreBadge}>
-            <Text style={styles.scoreText}>{healthScore}</Text>
+          <View
+            style={[
+              styles.scoreBadge,
+              {
+                backgroundColor:
+                  healthScore === null ? colors.border : healthScoreTone,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.scoreText,
+                { color: healthScore === null ? colors.text : colors.surface },
+              ]}
+            >
+              {healthScoreLabel}
+            </Text>
           </View>
+          <Text style={styles.statusText}>
+            {healthScore === null
+              ? 'Health score will be calculated once real ingredients are available.'
+              : 'Score starts at 100 and drops when tracked harmful ingredients are detected.'}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -158,6 +222,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  harmfulIngredientText: {
+    color: colors.danger,
+    fontWeight: '700',
   },
   infoCard: {
     backgroundColor: colors.surface,
@@ -198,6 +266,12 @@ const styles = StyleSheet.create({
   statusText: {
     color: colors.textMuted,
     fontSize: 14,
+    lineHeight: 21,
+  },
+  warningText: {
+    color: colors.danger,
+    fontSize: 14,
+    fontWeight: '600',
     lineHeight: 21,
   },
   value: {

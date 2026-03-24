@@ -5,7 +5,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import {
   CameraView,
   useCameraPermissions,
@@ -34,6 +37,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [cameraPermission, requestPermission] = useCameraPermissions();
   const [hasScanned, setHasScanned] = useState(false);
   const [isScanningEnabled, setIsScanningEnabled] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handlePrimaryAction = async () => {
     if (!cameraPermission?.granted) {
@@ -73,69 +77,88 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const hasPermission = cameraPermission.granted;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Scan a food product</Text>
-          <Text style={styles.subtitle}>
-            Point your camera at the barcode, then open the result screen to see
-            ingredient analysis placeholders.
-          </Text>
-        </View>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Scan a food product</Text>
+            <Text style={styles.subtitle}>
+              Point your camera at the barcode, then open the result screen to
+              see ingredient analysis placeholders.
+            </Text>
+          </View>
 
-        <View style={styles.scannerCard}>
-          {hasPermission ? (
-            <CameraView
-              barcodeScannerSettings={{ barcodeTypes: SUPPORTED_BARCODE_TYPES }}
-              facing="back"
-              onBarcodeScanned={
-                isScanningEnabled ? handleBarcodeScanned : undefined
-              }
-              style={styles.camera}
-            >
-              <View style={styles.overlay}>
-                <View style={styles.scanFrame} />
-                <Text style={styles.overlayText}>
-                  {isScanningEnabled
-                    ? 'Looking for a barcode...'
-                    : 'Tap the button below to start scanning'}
+          <View style={styles.scannerCard}>
+            {hasPermission ? (
+              <View style={styles.cameraContainer}>
+                <CameraView
+                  barcodeScannerSettings={{
+                    barcodeTypes: SUPPORTED_BARCODE_TYPES,
+                  }}
+                  facing="back"
+                  onBarcodeScanned={
+                    isScanningEnabled ? handleBarcodeScanned : undefined
+                  }
+                  style={styles.camera}
+                />
+
+                <View pointerEvents="none" style={styles.overlay}>
+                  <View style={styles.scanFrame} />
+                  <Text style={styles.overlayText}>
+                    {isScanningEnabled
+                      ? 'Looking for a barcode...'
+                      : 'Tap the button below to start scanning'}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.permissionFallback}>
+                <Text style={styles.permissionTitle}>Camera access needed</Text>
+                <Text style={styles.permissionText}>
+                  Allow camera access so the app can scan product barcodes.
                 </Text>
               </View>
-            </CameraView>
-          ) : (
-            <View style={styles.permissionFallback}>
-              <Text style={styles.permissionTitle}>Camera access needed</Text>
-              <Text style={styles.permissionText}>
-                Allow camera access so the app can scan product barcodes.
-              </Text>
-            </View>
-          )}
+            )}
+          </View>
         </View>
 
-        <View style={styles.buttonWrapper}>
-          <PrimaryButton
-            disabled={hasPermission && isScanningEnabled}
-            label={
-              hasPermission
-                ? isScanningEnabled
-                  ? 'Scanning...'
-                  : 'Scan Barcode'
-                : 'Allow Camera Access'
-            }
-            onPress={handlePrimaryAction}
-          />
-        </View>
+        <View
+          style={[
+            styles.bottomSection,
+            { paddingBottom: Math.max(insets.bottom + 12, 24) },
+          ]}
+        >
+          <View style={styles.buttonWrapper}>
+            <PrimaryButton
+              disabled={hasPermission && isScanningEnabled}
+              label={
+                hasPermission
+                  ? isScanningEnabled
+                    ? 'Scanning...'
+                    : 'Scan Barcode'
+                  : 'Allow Camera Access'
+              }
+              onPress={handlePrimaryAction}
+            />
+          </View>
 
-        <Text style={styles.footerText}>
-          This setup keeps the flow simple: scan once, then navigate to the
-          product details screen.
-        </Text>
+          <Text style={styles.footerText}>
+            This setup keeps the flow simple: scan once, then navigate to the
+            product details screen.
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  bottomSection: {
+    alignItems: 'center',
+    gap: 16,
+    paddingTop: 20,
+    width: '100%',
+  },
   buttonWrapper: {
     maxWidth: 320,
     width: '100%',
@@ -143,22 +166,33 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
+  cameraContainer: {
+    flex: 1,
+  },
   container: {
     alignItems: 'center',
     flex: 1,
-    gap: 24,
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingTop: 20,
+  },
+  content: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 24,
+    width: '100%',
   },
   footerText: {
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
+    maxWidth: 320,
     textAlign: 'center',
   },
   header: {
+    alignItems: 'center',
     gap: 8,
     maxWidth: 360,
+    width: '100%',
   },
   loadingContainer: {
     alignItems: 'center',
@@ -215,7 +249,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     elevation: 2,
-    height: 420,
+    flex: 1,
+    minHeight: 320,
     maxWidth: 360,
     overflow: 'hidden',
     width: '100%',

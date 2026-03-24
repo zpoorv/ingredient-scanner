@@ -3,6 +3,8 @@ import 'react-native-gesture-handler';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { colors } from './constants/colors';
 import HomeScreen from './screens/HomeScreen';
@@ -26,28 +28,32 @@ const navigationTheme = {
 
 export default function App() {
   return (
-    <NavigationContainer theme={navigationTheme}>
-      <StatusBar style="dark" />
-      <Stack.Navigator
-        screenOptions={{
-          animation: 'slide_from_right',
-          contentStyle: { backgroundColor: colors.background },
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-        }}
-      >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'Ingredient Scanner' }}
-        />
-        <Stack.Screen
-          name="Result"
-          component={ResultScreen}
-          options={{ title: 'Product Details' }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <NavigationContainer theme={navigationTheme}>
+          <StatusBar style="dark" />
+          <Stack.Navigator
+            screenOptions={{
+              animation: 'slide_from_right',
+              contentStyle: { backgroundColor: colors.background },
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: colors.surface },
+              headerTintColor: colors.text,
+            }}
+          >
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{ title: 'Ingredient Scanner' }}
+            />
+            <Stack.Screen
+              name="Result"
+              component={ResultScreen}
+              options={{ title: 'Product Details' }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
