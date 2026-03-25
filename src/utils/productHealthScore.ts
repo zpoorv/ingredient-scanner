@@ -1,4 +1,4 @@
-import type { ResolvedProduct } from '../services/productLookup';
+import type { ResolvedProduct } from '../types/product';
 import {
   HEALTH_SCORE_BASE,
   HEALTH_SCORE_EXPLANATION_REASON_COUNT,

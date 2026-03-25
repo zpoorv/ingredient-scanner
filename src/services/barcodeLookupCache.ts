@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs/index';
 
-import type { ResolvedProduct } from './productLookup';
+import type { ResolvedProduct } from '../types/product';
 
 const BARCODE_LOOKUP_CACHE_STORAGE_KEY = 'ingredient-scanner/barcode-cache/v1';
 const BARCODE_LOOKUP_CACHE_MAX_ENTRIES = 48;

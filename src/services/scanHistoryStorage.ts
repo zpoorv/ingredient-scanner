@@ -5,7 +5,7 @@ import {
 } from '../constants/dietProfiles';
 import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs/index';
 import type { HealthScoreGrade } from '../constants/productHealthScore';
-import type { ResolvedProduct } from './productLookup';
+import type { ResolvedProduct } from '../types/product';
 import {
   buildScanHistorySnapshot,
   type ScanHistoryRiskLevel,

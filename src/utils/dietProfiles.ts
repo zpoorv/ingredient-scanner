@@ -6,7 +6,7 @@ import {
   type DietProfileDefinition,
   type DietProfileId,
 } from '../constants/dietProfiles';
-import type { ResolvedProduct } from '../services/productLookup';
+import type { ResolvedProduct } from '../types/product';
 import {
   getHealthScoreGradeLabel,
   type ProductHealthScore,

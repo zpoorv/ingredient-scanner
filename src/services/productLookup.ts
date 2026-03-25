@@ -1,8 +1,13 @@
 import {
   fetchProductByBarcode,
-  type OpenFoodFactsNutriments,
-  type OpenFoodFactsProduct,
 } from './openFoodFacts';
+import type {
+  OpenFoodFactsNutriments,
+  OpenFoodFactsProduct,
+  ProductSourceInfo,
+  ResolvedNutrition,
+  ResolvedProduct,
+} from '../types/product';
 import {
   deriveProductNameFromCategories,
   deriveProductNameFromIngredients,
@@ -11,51 +16,6 @@ import {
   readBarcodeLookupCache,
   writeBarcodeLookupCache,
 } from './barcodeLookupCache';
-
-export type ProductSourceStatus = 'used' | 'missed';
-
-export type ProductSourceInfo = {
-  id: 'open_food_facts' | 'ingredient_ocr';
-  label: string;
-  note: string;
-  status: ProductSourceStatus;
-};
-
-export type ResolvedNutrition = {
-  calories100g?: number | null;
-  carbohydrates100g?: number | null;
-  fat100g?: number | null;
-  fiber100g?: number | null;
-  potassium100g?: number | null;
-  protein100g?: number | null;
-  salt100g?: number | null;
-  saturatedFat100g?: number | null;
-  sodium100g?: number | null;
-  sugar100g?: number | null;
-};
-
-export type ResolvedProduct = {
-  additiveCount: number;
-  additiveTags: string[];
-  allergens: string[];
-  barcode: string;
-  brand: string | null;
-  categories: string[];
-  code: string;
-  ecoScore: string | null;
-  imageUrl: string | null;
-  ingredientsImageUrl: string | null;
-  ingredientsText: string | null;
-  labels: string[];
-  name: string;
-  nameReason: string | null;
-  novaGroup: number | null;
-  nutrition: ResolvedNutrition;
-  nutritionImageUrl: string | null;
-  nutriScore: string | null;
-  quantity: string | null;
-  sources: ProductSourceInfo[];
-};
 
 export class ProductLookupError extends Error {
   kind: 'network' | 'service';

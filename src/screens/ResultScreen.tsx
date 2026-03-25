@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
-import { InteractionManager } from 'react-native';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
+  InteractionManager,
   Pressable,
   ScrollView,
   Share,
@@ -27,9 +27,8 @@ import {
   type DietProfileId,
 } from '../constants/dietProfiles';
 import type { RootStackParamList } from '../navigation/types';
-import {
-  type ProductSourceInfo,
-} from '../services/productLookup';
+import type { ProductSourceInfo } from '../types/product';
+import type { ScanResultSource } from '../types/scanner';
 import { loadDietProfile } from '../services/dietProfileStorage';
 import { saveScanToHistory } from '../services/scanHistoryStorage';
 import { getGradeTone } from '../utils/gradeTone';
@@ -151,7 +150,7 @@ function getHealthScoreTheme(score: number | null) {
   };
 }
 
-function getScanCompletionCopy(resultSource: 'barcode' | 'ingredient-ocr') {
+function getScanCompletionCopy(resultSource: ScanResultSource) {
   if (resultSource === 'ingredient-ocr') {
     return {
       body: 'Ingredient text captured and analyzed.',
@@ -187,7 +186,7 @@ function getQuickUseGuidance(score: number | null, isFoodProduct: boolean) {
 
 function getSourceAttributionText(
   sources: ProductSourceInfo[] | undefined,
-  resultSource: 'barcode' | 'ingredient-ocr'
+  resultSource: ScanResultSource
 ) {
   if (resultSource === 'ingredient-ocr') {
     return 'Based on text read from your ingredient photo and the app scoring rules.';

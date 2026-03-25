@@ -1,5 +1,6 @@
 import type { DietProfileId } from '../constants/dietProfiles';
-import type { ResolvedProduct } from '../services/productLookup';
+import type { ResolvedProduct } from '../types/product';
+import type { ScanResultSource } from '../types/scanner';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -20,6 +21,6 @@ export type RootStackParamList = {
     persistToHistory?: boolean;
     profileId?: DietProfileId;
     product: ResolvedProduct;
-    resultSource?: 'barcode' | 'ingredient-ocr';
+    resultSource?: ScanResultSource;
   };
 };

@@ -1,51 +1,7 @@
 import { OPEN_FOOD_FACTS_BASE_URL } from '../constants/api';
+import type { OpenFoodFactsProduct } from '../types/product';
 import { createBarcodeLookupCandidates } from '../utils/barcode';
 import { fetchJsonWithTimeout } from './http';
-
-export type OpenFoodFactsNutriments = {
-  'energy-kcal_100g'?: number;
-  carbohydrates_100g?: number;
-  energy_100g?: number;
-  fat_100g?: number;
-  fiber_100g?: number;
-  potassium_100g?: number;
-  proteins_100g?: number;
-  salt_100g?: number;
-  'saturated-fat_100g'?: number;
-  sodium_100g?: number;
-  sugars_100g?: number;
-};
-
-export type OpenFoodFactsProduct = {
-  additives_n?: number;
-  additives_tags?: string[];
-  allergens?: string;
-  allergens_from_ingredients?: string;
-  allergens_tags?: string[];
-  brands?: string;
-  categories?: string;
-  categories_tags?: string[];
-  code?: string;
-  ecoscore_grade?: string;
-  generic_name?: string;
-  generic_name_en?: string;
-  image_front_small_url?: string;
-  image_front_url?: string;
-  image_ingredients_url?: string;
-  image_nutrition_url?: string;
-  ingredients_text?: string;
-  ingredients_text_en?: string;
-  labels?: string;
-  labels_tags?: string[];
-  nova_group?: number;
-  nova_groups?: string;
-  nutriscore_grade?: string;
-  nutriments?: OpenFoodFactsNutriments;
-  nutrition_grades?: string;
-  product_name?: string;
-  product_name_en?: string;
-  quantity?: string;
-};
 
 type OpenFoodFactsResponse = {
   product?: OpenFoodFactsProduct;

@@ -37,7 +37,7 @@ function expandUpcEToUpcA(upcEValue: string): string | null {
     return null;
   }
 
-  const candidates: Array<{ numberSystem: string; payload: string; checkDigit?: string }> =
+  const candidates: { numberSystem: string; payload: string; checkDigit?: string }[] =
     [];
 
   if (digits.length === 8) {

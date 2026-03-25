@@ -3,7 +3,7 @@ import {
   type DietProfileId,
 } from '../constants/dietProfiles';
 import type { HealthScoreGrade } from '../constants/productHealthScore';
-import type { ResolvedProduct } from '../services/productLookup';
+import type { ResolvedProduct } from '../types/product';
 import { formatProductName } from './productDisplay';
 import { applyDietProfile, getDietProfileDefinition } from './dietProfiles';
 import {

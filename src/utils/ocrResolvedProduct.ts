@@ -1,4 +1,4 @@
-import type { ResolvedProduct } from '../services/productLookup';
+import type { ResolvedProduct } from '../types/product';
 
 type BuildOcrResolvedProductInput = {
   ingredientsText: string;

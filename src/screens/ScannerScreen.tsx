@@ -25,14 +25,10 @@ import {
   resolveProductByBarcode,
 } from '../services/productLookup';
 import type { RootStackParamList } from '../navigation/types';
+import type { LastScanResult, ScannerState } from '../types/scanner';
 import { normalizeBarcode } from '../utils/barcode';
 
 type ScannerScreenProps = NativeStackScreenProps<RootStackParamList, 'Scanner'>;
-type ScannerState = 'ready' | 'loading' | 'empty' | 'error';
-type LastScan = {
-  barcode: string;
-  barcodeType?: string | null;
-};
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000;
 
@@ -64,7 +60,7 @@ function getHelperText(scannerState: ScannerState) {
 
 function getStatusContent(
   scannerState: ScannerState,
-  lastScan: LastScan | null,
+  lastScan: LastScanResult | null,
   errorMessage: string | null
 ) {
   if (scannerState === 'loading') {
@@ -111,7 +107,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
   const [isLookupInFlight, setIsLookupInFlight] = useState(false);
-  const [lastScan, setLastScan] = useState<LastScan | null>(null);
+  const [lastScan, setLastScan] = useState<LastScanResult | null>(null);
   const [manualBarcodeInput, setManualBarcodeInput] = useState('');
   const [manualEntryError, setManualEntryError] = useState<string | null>(null);
   const [scannerState, setScannerState] = useState<ScannerState>('ready');

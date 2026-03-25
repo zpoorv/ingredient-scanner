@@ -2,7 +2,7 @@ import {
   DEFAULT_DIET_PROFILE_ID,
   type DietProfileId,
 } from '../constants/dietProfiles';
-import type { ResolvedProduct } from '../services/productLookup';
+import type { ResolvedProduct } from '../types/product';
 import { explainIngredient } from './ingredientExplanations';
 import { highlightIngredients } from './ingredientHighlighting';
 import { formatProductName } from './productDisplay';
@@ -19,7 +19,7 @@ export type ShareableResultData = {
   verdict: string;
 };
 
-function uniqueValues(values: Array<string | null | undefined>) {
+function uniqueValues(values: (string | null | undefined)[]) {
   return Array.from(new Set(values.filter(Boolean))) as string[];
 }
 

@@ -20,10 +20,10 @@ export const HEALTH_SCORE_BASE = 78;
 export const HEALTH_SCORE_MISSING_INGREDIENTS_PENALTY = 22;
 export const HEALTH_SCORE_EXPLANATION_REASON_COUNT = 3;
 
-export const HEALTH_SCORE_GRADE_BANDS: Array<{
+export const HEALTH_SCORE_GRADE_BANDS: {
   grade: HealthScoreGrade;
   minScore: number;
-}> = [
+}[] = [
   { grade: 'A', minScore: 85 },
   { grade: 'B', minScore: 72 },
   { grade: 'C', minScore: 58 },
