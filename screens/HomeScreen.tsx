@@ -23,6 +23,7 @@ type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const HOME_FEATURES = [
   'Live barcode scanning with Expo camera',
+  'Ingredient label OCR from a photographed image',
   'Open Food Facts product lookup before navigation',
   'Ingredient, nutrition, and profile-aware analysis on the result screen',
   'Saved scan history with search and quick reopen',
@@ -146,6 +147,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                   navigation.navigate('Scanner', { profileId: selectedProfileId })
                 }
               />
+              <Pressable
+                onPress={() =>
+                  navigation.navigate('IngredientOcr', {
+                    profileId: selectedProfileId,
+                  })
+                }
+                style={styles.secondaryAction}
+              >
+                <Text style={styles.secondaryActionText}>Scan Ingredient Label</Text>
+              </Pressable>
               <Pressable
                 onPress={() => navigation.navigate('History')}
                 style={styles.secondaryAction}

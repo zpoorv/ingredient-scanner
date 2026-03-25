@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors } from '../constants/colors';
 import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
+import IngredientOcrScreen from '../screens/IngredientOcrScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import type { RootStackParamList } from './types';
@@ -49,6 +50,11 @@ export default function RootNavigator() {
           name="Scanner"
           component={ScannerScreen}
           options={{ title: 'Scan Barcode' }}
+        />
+        <Stack.Screen
+          name="IngredientOcr"
+          component={IngredientOcrScreen}
+          options={{ title: 'Scan Ingredients' }}
         />
         <Stack.Screen
           name="Result"

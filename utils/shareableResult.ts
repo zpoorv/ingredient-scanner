@@ -10,7 +10,9 @@ import { analyzeProduct } from './productInsights';
 import { isLikelyFoodProduct } from './productType';
 
 export type ShareableResultData = {
+  companyName: string | null;
   gradeLabel: string;
+  imageUrl: string | null;
   productName: string;
   score: number;
   topRiskyIngredients: string[];
@@ -52,7 +54,9 @@ export function buildShareableResultData(
   }
 
   return {
+    companyName: product.brand?.trim() || null,
     gradeLabel: insights.gradeLabel || 'N/A',
+    imageUrl: product.imageUrl || null,
     productName: formatProductName(product.name),
     score: insights.smartScore ?? 0,
     topRiskyIngredients,
@@ -65,6 +69,7 @@ export function buildShareableResultCaption(data: ShareableResultData) {
     data.topRiskyIngredients.length > 0
       ? `Top watch-outs: ${data.topRiskyIngredients.join(', ')}.`
       : 'No major ingredient flags were highlighted in this quick scan.';
+  const companyLine = data.companyName ? `Brand: ${data.companyName}\n` : '';
 
-  return `${data.productName}\nScore: ${data.score}/100 • Grade ${data.gradeLabel}\n${ingredientsLine}\nVerdict: ${data.verdict}`;
+  return `${data.productName}\n${companyLine}Score: ${data.score}/100 • Grade ${data.gradeLabel}\n${ingredientsLine}\nVerdict: ${data.verdict}`;
 }

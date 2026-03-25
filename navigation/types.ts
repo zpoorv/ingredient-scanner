@@ -4,6 +4,11 @@ import type { ResolvedProduct } from '../services/productLookup';
 export type RootStackParamList = {
   Home: undefined;
   History: undefined;
+  IngredientOcr:
+    | {
+        profileId?: DietProfileId;
+      }
+    | undefined;
   Scanner:
     | {
         profileId?: DietProfileId;
@@ -15,5 +20,6 @@ export type RootStackParamList = {
     persistToHistory?: boolean;
     profileId?: DietProfileId;
     product: ResolvedProduct;
+    resultSource?: 'barcode' | 'ingredient-ocr';
   };
 };

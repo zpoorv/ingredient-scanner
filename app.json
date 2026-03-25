@@ -19,7 +19,14 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.ingredientscanner"
     },
     "web": {
       "output": "static",
@@ -32,7 +39,13 @@
           "cameraPermission": "Allow Ingredient Scanner to access your camera to scan product barcodes."
         }
       ],
-      "expo-barcode-scanner",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Ingredient Scanner to use your camera to photograph ingredient labels.",
+          "photosPermission": "Allow Ingredient Scanner to access your photos so you can import ingredient label images."
+        }
+      ],
       [
         "expo-splash-screen",
         {

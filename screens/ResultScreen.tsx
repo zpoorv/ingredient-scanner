@@ -16,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import ViewShot from 'react-native-view-shot';
 
 import IngredientExplanationModal from '../components/IngredientExplanationModal';
+import ProductSuggestionsCard from '../components/ProductSuggestionsCard';
 import ShareResultCard from '../components/ShareResultCard';
 import { colors } from '../constants/colors';
 import {
@@ -39,6 +40,7 @@ import {
 } from '../utils/ingredientHighlighting';
 import { formatProductName } from '../utils/productDisplay';
 import { analyzeProduct, type ProductMetric } from '../utils/productInsights';
+import { getAlternativeProductSuggestions } from '../utils/productSuggestions';
 import { isLikelyFoodProduct } from '../utils/productType';
 import {
   buildShareableResultCaption,
@@ -148,11 +150,18 @@ function getHealthScoreTheme(score: number | null) {
 }
 
 export default function ResultScreen({ navigation, route }: ResultScreenProps) {
-  const { barcode, barcodeType, persistToHistory, product } = route.params;
+  const {
+    barcode,
+    barcodeType,
+    persistToHistory,
+    product,
+    resultSource = 'barcode',
+  } = route.params;
   const shareCardRef = useRef<ViewShot | null>(null);
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [isSharing, setIsSharing] = useState(false);
+  const [isShareCardImageReady, setIsShareCardImageReady] = useState(false);
   const [hasResolvedProfile, setHasResolvedProfile] = useState(
     Boolean(route.params.profileId)
   );
@@ -167,6 +176,14 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const barcodeFormatLabel = barcodeType
     ? barcodeType.replace(/_/g, ' ').toUpperCase()
     : null;
+  const heroEyebrow =
+    resultSource === 'ingredient-ocr' ? 'Ingredient Label OCR' : 'Scanned Barcode';
+  const heroPrimaryText =
+    resultSource === 'ingredient-ocr' ? 'Ingredient text extracted' : barcode;
+  const heroBodyText =
+    resultSource === 'ingredient-ocr'
+      ? 'This result comes from OCR text extracted from a photographed ingredient label, then analyzed with the same ingredient scoring pipeline.'
+      : 'Product data was fetched before this screen opened, so you can review the result immediately.';
   const highlightedIngredients = highlightIngredients(product?.ingredientsText);
   const explainedIngredients = highlightedIngredients.map((ingredient) => {
     const explanationLookup = explainIngredient(ingredient.ingredient);
@@ -194,12 +211,20 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     )
   );
   const insights = product ? analyzeProduct(product, selectedProfileId) : null;
+  const alternativeSuggestions = getAlternativeProductSuggestions(
+    product,
+    selectedProfileId
+  );
   const healthScoreTheme = getHealthScoreTheme(insights?.smartScore ?? null);
   const gradeTone = getGradeTone(insights?.gradeLabel);
   const selectedIngredientExplanation: IngredientExplanationLookup | null =
     selectedIngredient ? explainIngredient(selectedIngredient.ingredient) : null;
   const shareableResult = buildShareableResultData(product, selectedProfileId);
   const shareCardWidth = Math.min(windowWidth - 64, 360);
+
+  useEffect(() => {
+    setIsShareCardImageReady(!shareableResult?.imageUrl);
+  }, [shareableResult?.imageUrl]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: displayProductName });
@@ -274,6 +299,11 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     setIsSharing(true);
 
     try {
+      if (shareableResult.imageUrl && !isShareCardImageReady) {
+        await Image.prefetch(shareableResult.imageUrl);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
       const imageUri = await shareCardRef.current.capture?.();
       const shareMessage = buildShareableResultCaption(shareableResult);
 
@@ -312,21 +342,21 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               ref={shareCardRef}
               style={{ width: shareCardWidth }}
             >
-              <ShareResultCard data={shareableResult} />
+              <ShareResultCard
+                data={shareableResult}
+                onImageLoadEnd={() => setIsShareCardImageReady(true)}
+              />
             </ViewShot>
           </View>
         ) : null}
 
         <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>Scanned Barcode</Text>
-          <Text style={styles.barcodeText}>{barcode}</Text>
-          {barcodeFormatLabel ? (
+          <Text style={styles.heroEyebrow}>{heroEyebrow}</Text>
+          <Text style={styles.barcodeText}>{heroPrimaryText}</Text>
+          {resultSource === 'barcode' && barcodeFormatLabel ? (
             <Text style={styles.statusText}>Format: {barcodeFormatLabel}</Text>
           ) : null}
-          <Text style={styles.statusText}>
-            Product data was fetched before this screen opened, so you can review
-            the result immediately.
-          </Text>
+          <Text style={styles.statusText}>{heroBodyText}</Text>
         </View>
 
         <View style={styles.infoCard}>
@@ -490,6 +520,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             </Text>
           )}
         </View>
+
+        <ProductSuggestionsCard suggestions={alternativeSuggestions} />
 
         <View style={styles.infoCard}>
           <Text style={styles.label}>Ingredients</Text>

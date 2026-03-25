@@ -11,7 +11,7 @@ import {
 export type ProductSourceStatus = 'used' | 'missed';
 
 export type ProductSourceInfo = {
-  id: 'open_food_facts';
+  id: 'open_food_facts' | 'ingredient_ocr';
   label: string;
   note: string;
   status: ProductSourceStatus;

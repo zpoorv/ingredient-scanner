@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import { useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BarcodeScannerPanel from '../components/BarcodeScannerPanel';
+import ManualBarcodeEntry from '../components/ManualBarcodeEntry';
 import PrimaryButton from '../components/PrimaryButton';
 import { colors } from '../constants/colors';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
@@ -106,6 +106,8 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLookupInFlight, setIsLookupInFlight] = useState(false);
   const [lastScan, setLastScan] = useState<LastScan | null>(null);
+  const [manualBarcodeInput, setManualBarcodeInput] = useState('');
+  const [manualEntryError, setManualEntryError] = useState<string | null>(null);
   const [scannerState, setScannerState] = useState<ScannerState>('ready');
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -122,6 +124,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
     setCameraResetKey((value) => value + 1);
     setIsLookupInFlight(false);
     setLastScan(null);
+    setManualEntryError(null);
     setScannerState('ready');
   }, [isFocused]);
 
@@ -130,6 +133,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
     barcodeType?: string | null
   ) => {
     setErrorMessage(null);
+    setManualEntryError(null);
     setIsLookupInFlight(true);
     setLastScan({ barcode, barcodeType: barcodeType ?? null });
     setScannerState('loading');
@@ -191,9 +195,25 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
 
   const handleResetScanner = () => {
     setErrorMessage(null);
+    setManualEntryError(null);
     setCameraResetKey((value) => value + 1);
     setLastScan(null);
     setScannerState('ready');
+  };
+
+  const handleManualLookup = () => {
+    if (isLookupInFlight) {
+      return;
+    }
+
+    const barcode = normalizeBarcode(manualBarcodeInput);
+
+    if (!barcode || !/\d{6,}/.test(barcode)) {
+      setManualEntryError('Enter a valid barcode number with at least 6 digits.');
+      return;
+    }
+
+    void lookupProduct(barcode, null);
   };
 
   const handlePermissionRequest = async () => {
@@ -269,6 +289,19 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
                 />
               </View>
             )}
+
+            <ManualBarcodeEntry
+              disabled={isLookupInFlight}
+              errorMessage={manualEntryError}
+              onChangeText={(value) => {
+                setManualBarcodeInput(value);
+                if (manualEntryError) {
+                  setManualEntryError(null);
+                }
+              }}
+              onSubmit={handleManualLookup}
+              value={manualBarcodeInput}
+            />
           </View>
 
           <View style={styles.statusCard}>

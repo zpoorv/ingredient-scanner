@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../constants/colors';
 import { getGradeTone } from '../utils/gradeTone';
@@ -6,6 +6,7 @@ import type { ShareableResultData } from '../utils/shareableResult';
 
 type ShareResultCardProps = {
   data: ShareableResultData;
+  onImageLoadEnd?: () => void;
 };
 
 function getShareTheme(gradeLabel: string) {
@@ -50,7 +51,10 @@ function getShareTheme(gradeLabel: string) {
   }
 }
 
-export default function ShareResultCard({ data }: ShareResultCardProps) {
+export default function ShareResultCard({
+  data,
+  onImageLoadEnd,
+}: ShareResultCardProps) {
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
@@ -86,6 +90,11 @@ export default function ShareResultCard({ data }: ShareResultCardProps) {
           <Text numberOfLines={3} style={styles.productName}>
             {data.productName}
           </Text>
+          {data.companyName ? (
+            <Text numberOfLines={1} style={styles.companyName}>
+              {data.companyName}
+            </Text>
+          ) : null}
           <Text style={[styles.verdictLabel, { color: scoreTheme.accent }]}>
             {scoreTheme.label}
           </Text>
@@ -99,12 +108,26 @@ export default function ShareResultCard({ data }: ShareResultCardProps) {
             styles.scoreOrb,
             {
               backgroundColor: scoreTheme.accent,
-              borderColor: `${scoreTheme.accent}55`,
             },
           ]}
         >
-          <Text style={styles.scoreValue}>{data.score}</Text>
-          <Text style={styles.scoreSuffix}>/100</Text>
+          {data.imageUrl ? (
+            <>
+              <ImageBackground
+                imageStyle={styles.scoreOrbImage}
+                onLoadEnd={onImageLoadEnd}
+                source={{ uri: data.imageUrl }}
+                style={styles.scoreOrbMedia}
+              />
+              <View style={styles.scoreOrbOverlay} />
+            </>
+          ) : (
+            <View style={styles.scoreOrbFallback} />
+          )}
+          <View style={styles.scoreOrbContent}>
+            <Text style={styles.scoreValue}>{data.score}</Text>
+            <Text style={styles.scoreSuffix}>/100</Text>
+          </View>
         </View>
       </View>
 
@@ -157,6 +180,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: 20,
     width: '100%',
+  },
+  companyName: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   emptyText: {
     color: colors.text,
@@ -215,11 +244,30 @@ const styles = StyleSheet.create({
   scoreOrb: {
     alignItems: 'center',
     borderRadius: 999,
-    borderWidth: 8,
     height: 110,
     justifyContent: 'center',
-    minWidth: 110,
-    paddingHorizontal: 10,
+    position: 'relative',
+    width: 110,
+    overflow: 'hidden',
+  },
+  scoreOrbContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    zIndex: 1,
+  },
+  scoreOrbFallback: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scoreOrbImage: {
+    borderRadius: 999,
+  },
+  scoreOrbMedia: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scoreOrbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(23, 33, 31, 0.28)',
   },
   scoreSuffix: {
     color: colors.surface,
