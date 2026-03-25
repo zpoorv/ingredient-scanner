@@ -1,10 +1,4 @@
 import {
-  fetchFoodDataCentralByBarcode,
-  isFoodDataCentralConfigured,
-  type FoodDataCentralFood,
-  type FoodDataCentralFoodNutrient,
-} from './foodDataCentral';
-import {
   fetchProductByBarcode,
   type OpenFoodFactsNutriments,
   type OpenFoodFactsProduct,
@@ -14,10 +8,10 @@ import {
   deriveProductNameFromIngredients,
 } from '../utils/productName';
 
-export type ProductSourceStatus = 'used' | 'missed' | 'optional';
+export type ProductSourceStatus = 'used' | 'missed';
 
 export type ProductSourceInfo = {
-  id: 'open_food_facts' | 'food_data_central';
+  id: 'open_food_facts';
   label: string;
   note: string;
   status: ProductSourceStatus;
@@ -113,10 +107,6 @@ function humanizeTag(tag: string) {
   return toTitleCase(normalizedTag.replace(/-/g, ' '));
 }
 
-function uniqueValues(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.filter(Boolean).map((value) => value!.trim())));
-}
-
 function normalizeGrade(grade?: string | null) {
   if (!grade?.trim()) {
     return null;
@@ -150,69 +140,9 @@ function extractNutritionFromOpenFoodFacts(
   };
 }
 
-function extractFdcNutrientValue(
-  nutrients: FoodDataCentralFoodNutrient[] | undefined,
-  nutrientNames: string[]
-) {
-  const matchingNutrient = nutrients?.find((nutrient) =>
-    nutrientNames.includes(nutrient.nutrientName)
-  );
-
-  return matchingNutrient?.value ?? null;
-}
-
-function extractNutritionFromFoodDataCentral(
-  product: FoodDataCentralFood | null
-): ResolvedNutrition {
-  if (!product?.foodNutrients?.length) {
-    return {};
-  }
-
-  return {
-    calories100g: extractFdcNutrientValue(product.foodNutrients, ['Energy']),
-    carbohydrates100g: extractFdcNutrientValue(product.foodNutrients, [
-      'Carbohydrate, by difference',
-    ]),
-    fat100g: extractFdcNutrientValue(product.foodNutrients, [
-      'Total lipid (fat)',
-    ]),
-    fiber100g: extractFdcNutrientValue(product.foodNutrients, [
-      'Fiber, total dietary',
-    ]),
-    protein100g: extractFdcNutrientValue(product.foodNutrients, ['Protein']),
-    saturatedFat100g: extractFdcNutrientValue(product.foodNutrients, [
-      'Fatty acids, total saturated',
-    ]),
-    sodium100g: extractFdcNutrientValue(product.foodNutrients, ['Sodium, Na']),
-    sugar100g: extractFdcNutrientValue(product.foodNutrients, ['Total Sugars']),
-  };
-}
-
-function mergeNutrition(
-  primaryNutrition: ResolvedNutrition,
-  secondaryNutrition: ResolvedNutrition
-): ResolvedNutrition {
-  return {
-    calories100g: primaryNutrition.calories100g ?? secondaryNutrition.calories100g,
-    carbohydrates100g:
-      primaryNutrition.carbohydrates100g ?? secondaryNutrition.carbohydrates100g,
-    fat100g: primaryNutrition.fat100g ?? secondaryNutrition.fat100g,
-    fiber100g: primaryNutrition.fiber100g ?? secondaryNutrition.fiber100g,
-    potassium100g:
-      primaryNutrition.potassium100g ?? secondaryNutrition.potassium100g,
-    protein100g: primaryNutrition.protein100g ?? secondaryNutrition.protein100g,
-    salt100g: primaryNutrition.salt100g ?? secondaryNutrition.salt100g,
-    saturatedFat100g:
-      primaryNutrition.saturatedFat100g ?? secondaryNutrition.saturatedFat100g,
-    sodium100g: primaryNutrition.sodium100g ?? secondaryNutrition.sodium100g,
-    sugar100g: primaryNutrition.sugar100g ?? secondaryNutrition.sugar100g,
-  };
-}
-
 function resolveDisplayName(
   barcode: string,
-  offProduct: OpenFoodFactsProduct | null,
-  fdcProduct: FoodDataCentralFood | null
+  offProduct: OpenFoodFactsProduct | null
 ) {
   const officialName =
     offProduct?.product_name?.trim() ||
@@ -249,20 +179,13 @@ function resolveDisplayName(
     };
   }
 
-  if (fdcProduct?.description?.trim()) {
-    return {
-      name: fdcProduct.description.trim(),
-      reason: 'Name enriched from USDA FoodData Central.',
-    };
-  }
-
   return {
     name: `Catalog entry ${offProduct?.code?.trim() || barcode}`,
     reason: 'Open Food Facts does not provide a reliable product name for this barcode yet.',
   };
 }
 
-function resolveCategories(offProduct: OpenFoodFactsProduct | null, fdcProduct: FoodDataCentralFood | null) {
+function resolveCategories(offProduct: OpenFoodFactsProduct | null) {
   const offCategories = splitCommaSeparatedValues(offProduct?.categories);
 
   if (offCategories.length > 0) {
@@ -275,7 +198,7 @@ function resolveCategories(offProduct: OpenFoodFactsProduct | null, fdcProduct: 
     return offCategoryTags;
   }
 
-  return fdcProduct?.foodCategory ? [fdcProduct.foodCategory] : [];
+  return [];
 }
 
 function resolveLabels(offProduct: OpenFoodFactsProduct | null) {
@@ -302,11 +225,9 @@ function resolveAllergens(offProduct: OpenFoodFactsProduct | null) {
 
 function buildSourceInfo(
   offProduct: OpenFoodFactsProduct | null,
-  offError: unknown,
-  fdcProduct: FoodDataCentralFood | null,
-  _fdcError: unknown
+  offError: unknown
 ): ProductSourceInfo[] {
-  const sources: ProductSourceInfo[] = [
+  return [
     {
       id: 'open_food_facts',
       label: 'Open Food Facts',
@@ -318,32 +239,6 @@ function buildSourceInfo(
       status: offProduct ? 'used' : 'missed',
     },
   ];
-
-  if (fdcProduct) {
-    sources.push({
-      id: 'food_data_central',
-      label: 'USDA FoodData Central',
-      note: 'Used as a secondary source to enrich brand or nutrition data when an exact GTIN match exists.',
-      status: 'used',
-    });
-  }
-
-  return sources;
-}
-
-function buildNameCandidates(offProduct: OpenFoodFactsProduct | null) {
-  return uniqueValues([
-    offProduct?.product_name,
-    offProduct?.product_name_en,
-    offProduct?.generic_name,
-    offProduct?.generic_name_en,
-    deriveProductNameFromCategories(
-      offProduct?.categories || offProduct?.categories_tags
-    ),
-    deriveProductNameFromIngredients(
-      offProduct?.ingredients_text || offProduct?.ingredients_text_en
-    ),
-  ]);
 }
 
 export async function resolveProductByBarcode(
@@ -392,51 +287,32 @@ async function performProductLookup(
     offError = error;
   }
 
-  let fdcProduct: FoodDataCentralFood | null = null;
-  let fdcError: unknown = null;
-
-  try {
-    fdcProduct = await fetchFoodDataCentralByBarcode(
-      barcode,
-      barcodeType,
-      buildNameCandidates(offProduct)
-    );
-  } catch (error) {
-    fdcError = error;
-  }
-
-  if (!offProduct && !fdcProduct) {
-    if (offError || fdcError) {
-      const lookupError = offError || fdcError;
-      const kind = isNetworkError(lookupError) ? 'network' : 'service';
+  if (!offProduct) {
+    if (offError) {
+      const kind = isNetworkError(offError) ? 'network' : 'service';
 
       throw new ProductLookupError(
         kind,
         kind === 'network'
-          ? 'No internet connection. Turn internet back on and tap Retry Lookup.'
-          : 'Product data providers are not reachable right now. Tap Retry Lookup in a moment.'
+          ? 'No internet connection. Turn internet back on and scan again.'
+          : 'Product data could not be reached right now. Scan again in a moment.'
       );
     }
 
     return null;
   }
 
-  const { name, reason } = resolveDisplayName(barcode, offProduct, fdcProduct);
-  const primaryNutrition = extractNutritionFromOpenFoodFacts(offProduct?.nutriments);
-  const fallbackNutrition = extractNutritionFromFoodDataCentral(fdcProduct);
+  const { name, reason } = resolveDisplayName(barcode, offProduct);
+  const nutrition = extractNutritionFromOpenFoodFacts(offProduct?.nutriments);
 
   return {
     additiveCount: offProduct?.additives_n || 0,
     additiveTags: offProduct?.additives_tags?.map(humanizeTag) || [],
     allergens: resolveAllergens(offProduct),
     barcode,
-    brand:
-      offProduct?.brands?.trim() ||
-      fdcProduct?.brandOwner?.trim() ||
-      fdcProduct?.brandName?.trim() ||
-      null,
-    categories: resolveCategories(offProduct, fdcProduct),
-    code: offProduct?.code?.trim() || fdcProduct?.gtinUpc?.trim() || barcode,
+    brand: offProduct?.brands?.trim() || null,
+    categories: resolveCategories(offProduct),
+    code: offProduct?.code?.trim() || barcode,
     ecoScore: normalizeGrade(offProduct?.ecoscore_grade),
     imageUrl:
       offProduct?.image_front_url || offProduct?.image_front_small_url || null,
@@ -444,23 +320,17 @@ async function performProductLookup(
     ingredientsText:
       offProduct?.ingredients_text?.trim() ||
       offProduct?.ingredients_text_en?.trim() ||
-      fdcProduct?.ingredients?.trim() ||
       null,
     labels: resolveLabels(offProduct),
     name,
     nameReason: reason,
     novaGroup: offProduct?.nova_group ?? null,
-    nutrition: mergeNutrition(primaryNutrition, fallbackNutrition),
+    nutrition,
     nutritionImageUrl: offProduct?.image_nutrition_url || null,
     nutriScore: normalizeGrade(
       offProduct?.nutriscore_grade || offProduct?.nutrition_grades
     ),
-    quantity:
-      offProduct?.quantity?.trim() ||
-      fdcProduct?.packageWeight?.trim() ||
-      (fdcProduct?.servingSize && fdcProduct?.servingSizeUnit
-        ? `${fdcProduct.servingSize} ${fdcProduct.servingSizeUnit}`
-        : null),
-    sources: buildSourceInfo(offProduct, offError, fdcProduct, fdcError),
+    quantity: offProduct?.quantity?.trim() || null,
+    sources: buildSourceInfo(offProduct, offError),
   };
 }

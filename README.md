@@ -8,7 +8,6 @@ and reviewing ingredient, additive, and nutrition signals in a clean mobile flow
 - Barcode scanning with `expo-camera`
 - Duplicate-scan protection while a lookup is in flight
 - Product lookup from Open Food Facts
-- Optional USDA FoodData Central enrichment when configured and matched
 - Ingredient risk highlighting with `safe`, `caution`, and `high-risk` states
 - Tap-to-explain ingredient modal with short plain-English notes
 - Deterministic health score with grade and explanation
@@ -37,18 +36,6 @@ npx expo start
 ```
 
 This project works best with Node 20+ for Expo and Metro.
-
-## Optional Environment
-
-You can add a USDA API key for secondary nutrition enrichment:
-
-```bash
-EXPO_PUBLIC_USDA_API_KEY=your_key_here
-```
-
-Notes:
-- USDA data is only shown when a real FoodData Central match is found and used.
-- If the key is not set, the app still works normally with Open Food Facts.
 
 ## App Flow
 
@@ -96,7 +83,6 @@ Notes:
 |   |-- ResultScreen.tsx
 |   `-- ScannerScreen.tsx
 |-- services/
-|   |-- foodDataCentral.ts
 |   |-- http.ts
 |   |-- openFoodFacts.ts
 |   |-- productLookup.ts
