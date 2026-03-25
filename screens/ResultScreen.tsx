@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Sharing from 'expo-sharing';
+import * as Haptics from 'expo-haptics';
 import { InteractionManager } from 'react-native';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -150,6 +151,57 @@ function getHealthScoreTheme(score: number | null) {
   };
 }
 
+function getScanCompletionCopy(resultSource: 'barcode' | 'ingredient-ocr') {
+  if (resultSource === 'ingredient-ocr') {
+    return {
+      body: 'Ingredient text captured and analyzed.',
+      label: 'Label Read Successfully',
+    };
+  }
+
+  return {
+    body: 'Barcode matched and product details loaded.',
+    label: 'Scan Complete',
+  };
+}
+
+function getQuickUseGuidance(score: number | null, isFoodProduct: boolean) {
+  if (!isFoodProduct || score === null) {
+    return 'Not scored as a food item';
+  }
+
+  if (score >= 80) {
+    return 'Good for regular use';
+  }
+
+  if (score >= 60) {
+    return 'Okay in moderation';
+  }
+
+  if (score >= 40) {
+    return 'Best kept occasional';
+  }
+
+  return 'Not ideal for frequent use';
+}
+
+function getSourceAttributionText(
+  sources: ProductSourceInfo[] | undefined,
+  resultSource: 'barcode' | 'ingredient-ocr'
+) {
+  if (resultSource === 'ingredient-ocr') {
+    return 'Based on text read from your ingredient photo and the app scoring rules.';
+  }
+
+  const primarySource = sources?.find((source) => source.status === 'used');
+
+  if (!primarySource) {
+    return 'Based on the product details available at scan time.';
+  }
+
+  return `Based on product details from ${primarySource.label}.`;
+}
+
 export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const {
     barcode,
@@ -189,6 +241,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     resultSource === 'ingredient-ocr'
       ? 'This result comes from OCR text extracted from a photographed ingredient label, then analyzed with the same ingredient scoring pipeline.'
       : 'Product data was fetched before this screen opened, so you can review the result immediately.';
+  const scanCompletionCopy = getScanCompletionCopy(resultSource);
   const insights = analysisResult?.insights ?? null;
   const ingredientAnalysis = analysisResult?.ingredientAnalysis ?? null;
   const alternativeSuggestions = analysisResult?.suggestions ?? [];
@@ -206,6 +259,14 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const shareCardWidth = useMemo(
     () => Math.min(windowWidth - 64, 360),
     [windowWidth]
+  );
+  const quickUseGuidance = useMemo(
+    () => getQuickUseGuidance(insights?.smartScore ?? null, isFoodProduct),
+    [insights?.smartScore, isFoodProduct]
+  );
+  const sourceAttributionText = useMemo(
+    () => getSourceAttributionText(product?.sources, resultSource),
+    [product?.sources, resultSource]
   );
 
   useLayoutEffect(() => {
@@ -251,6 +312,10 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       interactionHandle.cancel();
     };
   }, [product, selectedProfileId]);
+
+  useEffect(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
 
   useEffect(() => {
     if (persistToHistory === false || !hasResolvedProfile) {
@@ -353,42 +418,30 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
           </View>
         ) : null}
 
-        <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>{heroEyebrow}</Text>
-          <Text style={styles.barcodeText}>{heroPrimaryText}</Text>
-          {resultSource === 'barcode' && barcodeFormatLabel ? (
-            <Text style={styles.statusText}>Format: {barcodeFormatLabel}</Text>
-          ) : null}
-          <Text style={styles.statusText}>{heroBodyText}</Text>
-        </View>
-
-        <View style={styles.infoCard}>
-          <Text style={styles.label}>Health Score</Text>
-          <View style={styles.profileRow}>
-            <Text style={styles.profileLabel}>Scoring Mode</Text>
+        <View style={styles.scoreHeroCard}>
+          <View style={styles.scoreHeroTopRow}>
+            <View style={styles.completionPill}>
+              <Ionicons color={colors.success} name="checkmark-circle" size={16} />
+              <Text style={styles.completionPillText}>{scanCompletionCopy.label}</Text>
+            </View>
             <View style={styles.profileChip}>
               <Text style={styles.profileChipText}>
                 {insights?.profileLabel || 'Loading...'}
               </Text>
             </View>
           </View>
-          {insights?.profileSummary ? (
-            <Text style={styles.statusText}>{insights.profileSummary}</Text>
-          ) : null}
+
+          <Text style={styles.scoreHeroProductName}>{displayProductName}</Text>
+          <Text style={styles.scoreHeroSubtext}>{scanCompletionCopy.body}</Text>
 
           {!analysisResult ? (
             <ResultCardSkeleton />
           ) : insights && isFoodProduct ? (
             <>
-              <View
-                style={[
-                  styles.healthScorePanel,
-                  { backgroundColor: healthScoreTheme.background },
-                ]}
-              >
+              <View style={styles.scoreHeroMainRow}>
                 <View
                   style={[
-                    styles.scoreBadge,
+                    styles.scoreHeroBadge,
                     {
                       backgroundColor:
                         insights.smartScore === null
@@ -403,7 +456,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 >
                   <Text
                     style={[
-                      styles.scoreText,
+                      styles.scoreHeroValue,
                       {
                         color:
                           insights.smartScore === null
@@ -412,22 +465,34 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                       },
                     ]}
                   >
-                    {insights.smartScore === null
-                      ? 'N/A'
-                      : `${insights.smartScore}/100`}
+                    {insights.smartScore === null ? 'N/A' : insights.smartScore}
                   </Text>
-                </View>
-                <View style={styles.healthScoreText}>
                   <Text
                     style={[
-                      styles.healthScoreLabel,
+                      styles.scoreHeroSuffix,
+                      {
+                        color:
+                          insights.smartScore === null
+                            ? colors.textMuted
+                            : colors.surface,
+                      },
+                    ]}
+                  >
+                    /100
+                  </Text>
+                </View>
+
+                <View style={styles.scoreHeroTextBlock}>
+                  <Text
+                    style={[
+                      styles.scoreHeroGrade,
                       { color: gradeTone.color },
                     ]}
                   >
                     {`Grade ${insights.gradeLabel} • ${healthScoreTheme.label}`}
                   </Text>
-                  <Text style={styles.value}>{insights.verdict}</Text>
-                  <Text style={styles.statusText}>{insights.summary}</Text>
+                  <Text style={styles.scoreHeroVerdict}>{quickUseGuidance}</Text>
+                  <Text style={styles.scoreHeroSummary}>{insights.summary}</Text>
                 </View>
               </View>
 
@@ -454,9 +519,17 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 </Text>
               </View>
 
-              {insights.highlights.length > 0 ? (
+              {insights.cautions.length > 0 ? (
                 <View style={styles.messageGroup}>
-                  {insights.highlights.slice(0, 3).map((highlight) => (
+                  {insights.cautions.slice(0, 2).map((caution) => (
+                    <Text key={caution} style={styles.cautionText}>
+                      • {caution}
+                    </Text>
+                  ))}
+                </View>
+              ) : insights.highlights.length > 0 ? (
+                <View style={styles.messageGroup}>
+                  {insights.highlights.slice(0, 2).map((highlight) => (
                     <Text key={highlight} style={styles.goodText}>
                       • {highlight}
                     </Text>
@@ -464,21 +537,34 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 </View>
               ) : null}
 
-              {insights.cautions.length > 0 ? (
-                <View style={styles.messageGroup}>
-                  {insights.cautions.slice(0, 3).map((caution) => (
-                    <Text key={caution} style={styles.cautionText}>
-                      • {caution}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
+              <View style={styles.trustBlock}>
+                <Text style={styles.trustLabel}>Source</Text>
+                <Text style={styles.trustText}>{sourceAttributionText}</Text>
+                <Text style={styles.disclaimerText}>
+                  Quick food-information guide only, not medical advice.
+                </Text>
+              </View>
             </>
           ) : (
-            <Text style={styles.statusText}>
-              Health scoring is only shown for edible food and drink products.
-            </Text>
+            <View style={styles.trustBlock}>
+              <Text style={styles.scoreHeroVerdict}>Not scored as food</Text>
+              <Text style={styles.scoreHeroSummary}>
+                Health scoring is only shown for edible food and drink products.
+              </Text>
+              <Text style={styles.disclaimerText}>
+                Quick product-information guide only, not medical advice.
+              </Text>
+            </View>
           )}
+        </View>
+
+        <View style={styles.heroCard}>
+          <Text style={styles.heroEyebrow}>{heroEyebrow}</Text>
+          <Text style={styles.heroMetaPrimary}>{heroPrimaryText}</Text>
+          {resultSource === 'barcode' && barcodeFormatLabel ? (
+            <Text style={styles.heroMetaSecondary}>Format: {barcodeFormatLabel}</Text>
+          ) : null}
+          <Text style={styles.heroMetaSecondary}>{heroBodyText}</Text>
         </View>
 
         <View style={styles.infoCard}>
@@ -762,6 +848,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
+  completionPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.successMuted,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  completionPillText: {
+    color: colors.success,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
   cautionText: {
     color: colors.warning,
     fontSize: 14,
@@ -769,8 +872,13 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   contentContainer: {
-    gap: 16,
+    gap: 18,
     padding: 24,
+  },
+  disclaimerText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   goodText: {
     color: colors.success,
@@ -807,10 +915,23 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   heroCard: {
-    backgroundColor: colors.primaryMuted,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 24,
-    gap: 10,
-    padding: 24,
+    borderWidth: 1,
+    gap: 8,
+    padding: 20,
+  },
+  heroMetaPrimary: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  heroMetaSecondary: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
   },
   hiddenShareCapture: {
     left: -9999,
@@ -820,9 +941,9 @@ const styles = StyleSheet.create({
   },
   heroEyebrow: {
     color: colors.primary,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   infoCard: {
@@ -881,7 +1002,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   messageGroup: {
-    gap: 6,
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    gap: 8,
+    padding: 14,
   },
   metaText: {
     color: colors.textMuted,
@@ -917,7 +1041,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryMuted,
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
   profileChipText: {
     color: colors.primary,
@@ -948,7 +1072,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     backgroundColor: colors.border,
     borderRadius: 999,
-    height: 10,
+    height: 12,
     overflow: 'hidden',
     width: '100%',
   },
@@ -960,6 +1084,76 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  scoreHeroBadge: {
+    alignItems: 'center',
+    borderRadius: 28,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 148,
+    minWidth: 148,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+  },
+  scoreHeroCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 28,
+    borderWidth: 1,
+    gap: 16,
+    padding: 22,
+  },
+  scoreHeroGrade: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  scoreHeroMainRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 18,
+  },
+  scoreHeroProductName: {
+    color: colors.text,
+    fontSize: 30,
+    fontWeight: '800',
+    lineHeight: 36,
+  },
+  scoreHeroSubtext: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  scoreHeroSuffix: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  scoreHeroSummary: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  scoreHeroTextBlock: {
+    flex: 1,
+    gap: 6,
+  },
+  scoreHeroTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  scoreHeroValue: {
+    fontSize: 44,
+    fontWeight: '800',
+    lineHeight: 48,
+  },
+  scoreHeroVerdict: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 34,
   },
   safeText: {
     color: colors.success,
@@ -1068,6 +1262,24 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 21,
+  },
+  trustBlock: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    gap: 6,
+    padding: 16,
+  },
+  trustLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  trustText: {
+    color: colors.text,
+    fontSize: 14,
     lineHeight: 21,
   },
 });

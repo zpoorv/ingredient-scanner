@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -51,13 +52,13 @@ function getOverlayLabel(scannerState: ScannerState) {
 function getHelperText(scannerState: ScannerState) {
   switch (scannerState) {
     case 'loading':
-      return 'Hold steady while we fetch product details from Open Food Facts.';
+      return 'Hold steady while we fetch product details.';
     case 'empty':
-      return 'This barcode is paused so you do not get duplicate empty results.';
+      return 'That barcode is paused so you do not get repeated empty results.';
     case 'error':
-      return 'The scanner is paused until you retry or reset the current lookup.';
+      return 'The scanner is paused until you reset and try again.';
     default:
-      return 'Center the barcode inside the frame for the fastest detection.';
+      return 'Center the barcode inside the frame for the fastest read.';
   }
 }
 
@@ -69,17 +70,17 @@ function getStatusContent(
   if (scannerState === 'loading') {
     return {
       body: lastScan
-        ? `Barcode ${lastScan.barcode} detected. Fetching product data now.`
-        : 'Fetching product data now.',
+        ? `Barcode ${lastScan.barcode} detected. We are loading the product details now.`
+        : 'We are loading the product details now.',
       eyebrow: 'Lookup In Progress',
-      title: 'Checking Open Food Facts',
+      title: 'Checking the product details',
     };
   }
 
   if (scannerState === 'empty') {
     return {
       body: lastScan
-        ? `No product entry was found for ${lastScan.barcode}. You can reset the scanner and try a different package.`
+        ? `No product entry was found for ${lastScan.barcode}. You can scan a different package right away.`
         : 'No product entry was found for this barcode.',
       eyebrow: 'No Product Found',
       title: 'This barcode is not in the catalog yet',
@@ -90,15 +91,15 @@ function getStatusContent(
     return {
       body:
         errorMessage ||
-        'The product lookup failed before we could open the result screen.',
+        'The product lookup stopped before we could open the result screen.',
       eyebrow: 'Lookup Failed',
-      title: 'We could not load that product',
+      title: 'We could not load this product',
     };
   }
 
   return {
     body:
-      'Point your camera at a retail barcode. The app will pause scanning while it looks up the product so the same code is not submitted twice.',
+      'Point your camera at a retail barcode. We pause scanning during each lookup so the same code is not sent twice.',
     eyebrow: 'Scanner Ready',
     title: 'Scan a packaged food barcode',
   };
@@ -179,6 +180,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
         return;
       }
 
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.push('Result', {
         barcode,
         barcodeType,
@@ -363,14 +365,22 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
           </View>
 
           <View style={styles.statusCard}>
-            <Text style={styles.statusEyebrow}>{statusContent.eyebrow}</Text>
+            <View style={styles.statusHeaderRow}>
+              <Text style={styles.statusEyebrow}>{statusContent.eyebrow}</Text>
+              <View style={styles.statusSourceChip}>
+                <Text style={styles.statusSourceChipText}>Open Food Facts</Text>
+              </View>
+            </View>
             <Text style={styles.statusTitle}>{statusContent.title}</Text>
             <Text style={styles.statusBody}>{statusContent.body}</Text>
+            <Text style={styles.statusHint}>
+              Quick product-information guide only. Check the package if any detail looks incomplete.
+            </Text>
 
             {scannerState === 'loading' ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.primary} size="small" />
-                <Text style={styles.loadingText}>Fetching product details...</Text>
+                <Text style={styles.loadingText}>Loading details from the catalog...</Text>
               </View>
             ) : null}
 
@@ -484,7 +494,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 28,
     borderWidth: 1,
-    gap: 14,
+    gap: 12,
     padding: 20,
   },
   statusEyebrow: {
@@ -492,6 +502,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  statusHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statusHint: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  statusSourceChip: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusSourceChipText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   statusTitle: {
