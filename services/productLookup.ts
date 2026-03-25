@@ -304,7 +304,7 @@ function buildSourceInfo(
   offProduct: OpenFoodFactsProduct | null,
   offError: unknown,
   fdcProduct: FoodDataCentralFood | null,
-  fdcError: unknown
+  _fdcError: unknown
 ): ProductSourceInfo[] {
   const sources: ProductSourceInfo[] = [
     {
@@ -319,27 +319,14 @@ function buildSourceInfo(
     },
   ];
 
-  if (!isFoodDataCentralConfigured()) {
+  if (fdcProduct) {
     sources.push({
       id: 'food_data_central',
       label: 'USDA FoodData Central',
-      note: 'Optional enrichment is available if you add EXPO_PUBLIC_USDA_API_KEY for better US nutrition fallback.',
-      status: 'optional',
+      note: 'Used as a secondary source to enrich brand or nutrition data when an exact GTIN match exists.',
+      status: 'used',
     });
-
-    return sources;
   }
-
-  sources.push({
-    id: 'food_data_central',
-    label: 'USDA FoodData Central',
-    note: fdcProduct
-      ? 'Used as a secondary source to enrich brand or nutrition data when an exact GTIN match exists.'
-      : fdcError
-        ? 'Configured, but the USDA enrichment request failed during this lookup.'
-        : 'Configured, but no exact GTIN match was found for this barcode.',
-    status: fdcProduct ? 'used' : 'missed',
-  });
 
   return sources;
 }

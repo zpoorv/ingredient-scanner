@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ const HOME_FEATURES = [
   'Live barcode scanning with Expo camera',
   'Open Food Facts product lookup before navigation',
   'Ingredient and nutrition analysis on the result screen',
+  'Saved scan history with search and quick reopen',
 ];
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
@@ -52,10 +53,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             { paddingBottom: Math.max(insets.bottom + 12, 24) },
           ]}
         >
-          <PrimaryButton
-            label="Open Scanner"
-            onPress={() => navigation.navigate('Scanner')}
-          />
+          <View style={styles.footerActions}>
+            <PrimaryButton
+              label="Open Scanner"
+              onPress={() => navigation.navigate('Scanner')}
+            />
+            <Pressable
+              onPress={() => navigation.navigate('History')}
+              style={styles.secondaryAction}
+            >
+              <Text style={styles.secondaryActionText}>View Scan History</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -128,6 +137,9 @@ const styles = StyleSheet.create({
   footer: {
     width: '100%',
   },
+  footerActions: {
+    gap: 12,
+  },
   heroBlock: {
     gap: 14,
     paddingTop: 8,
@@ -135,6 +147,20 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    minHeight: 50,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  secondaryActionText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '700',
   },
   subtitle: {
     color: colors.textMuted,

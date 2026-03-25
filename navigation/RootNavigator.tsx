@@ -2,6 +2,7 @@ import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { colors } from '../constants/colors';
+import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ScannerScreen from '../screens/ScannerScreen';
@@ -38,6 +39,11 @@ export default function RootNavigator() {
           name="Home"
           component={HomeScreen}
           options={{ title: 'Ingredient Scanner' }}
+        />
+        <Stack.Screen
+          name="History"
+          component={HistoryScreen}
+          options={{ title: 'Scan History' }}
         />
         <Stack.Screen
           name="Scanner"

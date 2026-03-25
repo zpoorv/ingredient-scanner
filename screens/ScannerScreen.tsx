@@ -20,6 +20,7 @@ import {
   ProductLookupError,
   resolveProductByBarcode,
 } from '../services/productLookup';
+import { saveScanToHistory } from '../services/scanHistoryStorage';
 import type { RootStackParamList } from '../navigation/types';
 import { normalizeBarcode } from '../utils/barcode';
 
@@ -101,6 +102,7 @@ function getStatusContent(
 
 export default function ScannerScreen({ navigation }: ScannerScreenProps) {
   const [cameraPermission, requestPermission] = useCameraPermissions();
+  const [cameraResetKey, setCameraResetKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLookupInFlight, setIsLookupInFlight] = useState(false);
   const [lastScan, setLastScan] = useState<LastScan | null>(null);
@@ -115,6 +117,7 @@ export default function ScannerScreen({ navigation }: ScannerScreenProps) {
     }
 
     setErrorMessage(null);
+    setCameraResetKey((value) => value + 1);
     setIsLookupInFlight(false);
     setLastScan(null);
     setScannerState('ready');
@@ -139,6 +142,16 @@ export default function ScannerScreen({ navigation }: ScannerScreenProps) {
       if (!product) {
         setScannerState('empty');
         return;
+      }
+
+      try {
+        await saveScanToHistory({
+          barcode,
+          barcodeType,
+          product,
+        });
+      } catch {
+        // History persistence should not block the result flow.
       }
 
       navigation.push('Result', {
@@ -184,6 +197,7 @@ export default function ScannerScreen({ navigation }: ScannerScreenProps) {
 
   const handleResetScanner = () => {
     setErrorMessage(null);
+    setCameraResetKey((value) => value + 1);
     setLastScan(null);
     setScannerState('ready');
   };
@@ -200,6 +214,13 @@ export default function ScannerScreen({ navigation }: ScannerScreenProps) {
     await requestPermission();
   };
 
+  const handleCameraMountError = (message: string) => {
+    setErrorMessage(
+      message || 'The scanner could not start correctly. Reset it and try again.'
+    );
+    setScannerState('error');
+  };
+
   if (!cameraPermission) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -211,7 +232,8 @@ export default function ScannerScreen({ navigation }: ScannerScreenProps) {
   const hasPermission = cameraPermission.granted;
   const statusContent = getStatusContent(scannerState, lastScan, errorMessage);
   const scannerHeight =
-    windowHeight < 700 ? 286 : windowHeight < 780 ? 320 : 380;
+    windowHeight < 700 ? 330 : windowHeight < 780 ? 360 : 400;
+  const cameraKey = `scanner-${cameraResetKey}-${isFocused ? 'focused' : 'idle'}`;
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
@@ -239,10 +261,12 @@ export default function ScannerScreen({ navigation }: ScannerScreenProps) {
 
             {hasPermission ? (
               <BarcodeScannerPanel
+                cameraKey={cameraKey}
                 helperText={getHelperText(scannerState)}
                 height={scannerHeight}
                 isActive={isFocused && scannerState === 'ready' && !isLookupInFlight}
                 isFocused={isFocused}
+                onCameraMountError={handleCameraMountError}
                 onBarcodeScanned={handleBarcodeScanned}
                 overlayLabel={getOverlayLabel(scannerState)}
               />

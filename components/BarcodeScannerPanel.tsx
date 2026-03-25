@@ -12,23 +12,31 @@ const SUPPORTED_BARCODE_TYPES = [
   'ean8',
   'upc_a',
   'upc_e',
+  'code39',
+  'code93',
   'code128',
+  'codabar',
+  'itf14',
 ] satisfies BarcodeType[];
 
 type BarcodeScannerPanelProps = {
+  cameraKey: string;
   helperText: string;
   height: number;
   isActive: boolean;
   isFocused: boolean;
+  onCameraMountError?: (message: string) => void;
   onBarcodeScanned: (result: BarcodeScanningResult) => void;
   overlayLabel: string;
 };
 
 export default function BarcodeScannerPanel({
+  cameraKey,
   helperText,
   height,
   isActive,
   isFocused,
+  onCameraMountError,
   onBarcodeScanned,
   overlayLabel,
 }: BarcodeScannerPanelProps) {
@@ -39,10 +47,12 @@ export default function BarcodeScannerPanel({
       <View style={styles.cameraContainer}>
         {isFocused ? (
           <CameraView
+            key={cameraKey}
             barcodeScannerSettings={{
               barcodeTypes: SUPPORTED_BARCODE_TYPES,
             }}
             facing="back"
+            onMountError={(event) => onCameraMountError?.(event.message)}
             onBarcodeScanned={isActive ? onBarcodeScanned : undefined}
             style={styles.camera}
           />

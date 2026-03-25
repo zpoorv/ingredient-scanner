@@ -1,14 +1,18 @@
 import {
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import IngredientExplanationModal from '../components/IngredientExplanationModal';
 import { colors } from '../constants/colors';
+import { saveScanToHistory } from '../services/scanHistoryStorage';
 import {
   type ProductSourceInfo,
 } from '../services/productLookup';
@@ -17,6 +21,10 @@ import {
   type HighlightedIngredient,
 } from '../utils/ingredientHighlighting';
 import type { RootStackParamList } from '../navigation/types';
+import {
+  explainIngredient,
+  type IngredientExplanationLookup,
+} from '../utils/ingredientExplanations';
 import { analyzeProduct, type ProductMetric } from '../utils/productInsights';
 
 type ResultScreenProps = NativeStackScreenProps<RootStackParamList, 'Result'>;
@@ -41,6 +49,17 @@ function getIngredientToneColor(risk: HighlightedIngredient['risk']) {
       return colors.warning;
     default:
       return colors.success;
+  }
+}
+
+function getIngredientToneBackground(risk: HighlightedIngredient['risk']) {
+  switch (risk) {
+    case 'high-risk':
+      return colors.dangerMuted;
+    case 'caution':
+      return colors.warningMuted;
+    default:
+      return colors.successMuted;
   }
 }
 
@@ -112,11 +131,22 @@ function getHealthScoreTheme(score: number | null) {
 
 export default function ResultScreen({ route }: ResultScreenProps) {
   const { barcode, barcodeType, product } = route.params;
+  const [selectedIngredient, setSelectedIngredient] =
+    useState<HighlightedIngredient | null>(null);
 
   const barcodeFormatLabel = barcodeType
     ? barcodeType.replace(/_/g, ' ').toUpperCase()
     : null;
   const highlightedIngredients = highlightIngredients(product?.ingredientsText);
+  const explainedIngredients = highlightedIngredients.map((ingredient) => {
+    const explanationLookup = explainIngredient(ingredient.ingredient);
+
+    return {
+      ...ingredient,
+      explanationLookup,
+      displayName: explanationLookup.explanation?.name || ingredient.ingredient,
+    };
+  });
   const highRiskIngredients = Array.from(
     new Set(
       highlightedIngredients
@@ -135,6 +165,32 @@ export default function ResultScreen({ route }: ResultScreenProps) {
   );
   const insights = product ? analyzeProduct(product) : null;
   const healthScoreTheme = getHealthScoreTheme(insights?.smartScore ?? null);
+  const selectedIngredientExplanation: IngredientExplanationLookup | null =
+    selectedIngredient ? explainIngredient(selectedIngredient.ingredient) : null;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const persistHistoryEntry = async () => {
+      try {
+        await saveScanToHistory({
+          barcode,
+          barcodeType,
+          product,
+        });
+      } catch (error) {
+        if (__DEV__ && isMounted) {
+          console.warn('Failed to save scan history entry', error);
+        }
+      }
+    };
+
+    void persistHistoryEntry();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [barcode, barcodeType, product]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -203,7 +259,7 @@ export default function ResultScreen({ route }: ResultScreenProps) {
                       { color: healthScoreTheme.text },
                     ]}
                   >
-                    {healthScoreTheme.label}
+                    {`Grade ${insights.gradeLabel} • ${healthScoreTheme.label}`}
                   </Text>
                   <Text style={styles.value}>{insights.verdict}</Text>
                   <Text style={styles.statusText}>{insights.summary}</Text>
@@ -309,21 +365,41 @@ export default function ResultScreen({ route }: ResultScreenProps) {
 
         <View style={styles.infoCard}>
           <Text style={styles.label}>Ingredients</Text>
-          {highlightedIngredients.length > 0 ? (
-            <Text style={styles.bodyText}>
-              {highlightedIngredients.map((ingredient, index) => (
-                <Text
-                  key={ingredient.id}
-                  style={{
-                    color: getIngredientToneColor(ingredient.risk),
-                    fontWeight: ingredient.risk === 'safe' ? '600' : '700',
-                  }}
-                >
-                  {ingredient.ingredient}
-                  {index < highlightedIngredients.length - 1 ? ', ' : ''}
-                </Text>
-              ))}
-            </Text>
+          {explainedIngredients.length > 0 ? (
+            <>
+              <View style={styles.ingredientWrap}>
+                {explainedIngredients.map((ingredient) => (
+                  <Pressable
+                    key={ingredient.id}
+                    accessibilityHint="Shows a short explanation for this ingredient"
+                    accessibilityRole="button"
+                    onPress={() => setSelectedIngredient(ingredient)}
+                    style={[
+                      styles.ingredientChip,
+                      {
+                        backgroundColor: getIngredientToneBackground(ingredient.risk),
+                        borderColor: getIngredientToneColor(ingredient.risk),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.ingredientChipText,
+                        {
+                          color: getIngredientToneColor(ingredient.risk),
+                          fontWeight: ingredient.risk === 'safe' ? '600' : '700',
+                        },
+                      ]}
+                    >
+                      {ingredient.displayName}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.statusText}>
+                Tap an ingredient to see a short explanation.
+              </Text>
+            </>
           ) : (
             <Text style={styles.statusText}>
               Ingredient details will appear when source data is available.
@@ -441,6 +517,11 @@ export default function ResultScreen({ route }: ResultScreenProps) {
           )}
         </View>
       </ScrollView>
+      <IngredientExplanationModal
+        lookup={selectedIngredientExplanation}
+        onClose={() => setSelectedIngredient(null)}
+        visible={selectedIngredient !== null}
+      />
     </SafeAreaView>
   );
 }
@@ -537,6 +618,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     padding: 20,
+  },
+  ingredientChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  ingredientChipText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  ingredientWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   label: {
     color: colors.textMuted,
