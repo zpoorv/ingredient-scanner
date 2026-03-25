@@ -138,6 +138,12 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   }, [isFocused]);
 
   useEffect(() => {
+    if (!isFocused) {
+      setIsAppActive(false);
+      return;
+    }
+
+    setIsAppActive(AppState.currentState === 'active');
     const subscription = AppState.addEventListener(
       'change',
       (nextState: AppStateStatus) => {
@@ -148,7 +154,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [isFocused]);
 
   const lookupProduct = async (
     barcode: string,
