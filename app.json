@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "ingredient-scanner",
-    "slug": "ingredient-scanner",
+    "name": "Inqoura",
+    "slug": "inqoura",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ingredientscanner",
+    "scheme": "inqoura",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.zpoorv.inqoura",
       "supportsTablet": true
     },
     "android": {
@@ -19,6 +20,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
+      "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
@@ -26,24 +28,25 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.ingredientscanner"
+      "package": "com.zpoorv.inqoura"
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@react-native-google-signin/google-signin",
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Ingredient Scanner to access your camera to scan product barcodes."
+          "cameraPermission": "Allow Inqoura to access your camera to scan product barcodes."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Allow Ingredient Scanner to use your camera to photograph ingredient labels.",
-          "photosPermission": "Allow Ingredient Scanner to access your photos so you can import ingredient label images."
+          "cameraPermission": "Allow Inqoura to use your camera to photograph ingredient labels.",
+          "photosPermission": "Allow Inqoura to access your photos so you can import ingredient label images."
         }
       ],
       [
@@ -57,7 +60,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "reactCompiler": true

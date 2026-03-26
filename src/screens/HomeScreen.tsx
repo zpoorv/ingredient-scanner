@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import DietProfileModal from '../components/DietProfileModal';
 import PrimaryButton from '../components/PrimaryButton';
+import { APP_NAME } from '../constants/branding';
 import { colors } from '../constants/colors';
 import {
   DEFAULT_DIET_PROFILE_ID,
@@ -18,6 +19,8 @@ import {
   markDietProfileIntroSeen,
   saveDietProfile,
 } from '../services/dietProfileStorage';
+import { logoutAuth } from '../services/authService';
+import { getAuthSession, subscribeAuthSession } from '../store';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -36,6 +39,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
   const [draftProfileId, setDraftProfileId] = useState<DietProfileId>(
     DEFAULT_DIET_PROFILE_ID
+  );
+  const [accountEmail, setAccountEmail] = useState(getAuthSession().user?.email ?? '');
+  const [accountProvider, setAccountProvider] = useState(
+    getAuthSession().user?.provider ?? 'email'
+  );
+  const [accountDisplayName, setAccountDisplayName] = useState(
+    getAuthSession().user?.displayName ?? ''
   );
   const [isFirstLaunchProfileFlow, setIsFirstLaunchProfileFlow] = useState(false);
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
@@ -64,6 +74,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       ),
     });
   }, [navigation, selectedProfileId]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAuthSession((session) => {
+      setAccountEmail(session.user?.email ?? '');
+      setAccountDisplayName(session.user?.displayName ?? '');
+      setAccountProvider(session.user?.provider ?? 'email');
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,6 +160,18 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </Text>
             </View>
 
+            <View style={styles.accountCard}>
+              <Text style={styles.accountLabel}>Account</Text>
+              <Text style={styles.accountTitle}>
+                {accountDisplayName || accountEmail || `Signed in to ${APP_NAME}`}
+              </Text>
+              <Text style={styles.accountText}>
+                {accountProvider === 'google'
+                  ? 'Signed in with Google through Firebase Authentication.'
+                  : 'Signed in with email and password through Firebase Authentication.'}
+              </Text>
+            </View>
+
             <View style={styles.footerActions}>
               <PrimaryButton
                 label="Open Scanner"
@@ -163,6 +195,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               >
                 <Text style={styles.secondaryActionText}>View Scan History</Text>
               </Pressable>
+              <Pressable
+                onPress={() => void logoutAuth()}
+                style={styles.secondaryAction}
+              >
+                <Text style={styles.secondaryActionText}>Log Out</Text>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
@@ -179,6 +217,31 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 }
 
 const styles = StyleSheet.create({
+  accountCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 8,
+    padding: 18,
+  },
+  accountLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  accountText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  accountTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
   backgroundGlow: {
     backgroundColor: colors.primaryMuted,
     borderBottomLeftRadius: 40,

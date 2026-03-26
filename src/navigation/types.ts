@@ -5,16 +5,19 @@ import type { ScanResultSource } from '../types/scanner';
 export type RootStackParamList = {
   Home: undefined;
   History: undefined;
+  Login: undefined;
   IngredientOcr:
     | {
         profileId?: DietProfileId;
       }
     | undefined;
+  ResetPassword: undefined;
   Scanner:
     | {
         profileId?: DietProfileId;
       }
     | undefined;
+  SignUp: undefined;
   Result: {
     barcode: string;
     barcodeType?: string | null;

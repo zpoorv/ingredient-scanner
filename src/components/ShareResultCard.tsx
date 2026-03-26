@@ -1,5 +1,6 @@
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 
+import { APP_NAME } from '../constants/branding';
 import { colors } from '../constants/colors';
 import { getGradeTone } from '../utils/gradeTone';
 import type { ShareableResultData } from '../utils/shareableResult';
@@ -75,7 +76,7 @@ export default function ShareResultCard({
       <View style={styles.header}>
         <View style={[styles.pill, { backgroundColor: colors.surface }]}>
           <Text style={[styles.pillText, { color: scoreTheme.accent }]}>
-            Ingredient Scanner
+            {APP_NAME}
           </Text>
         </View>
         <View style={[styles.pill, { backgroundColor: scoreTheme.background }]}>
