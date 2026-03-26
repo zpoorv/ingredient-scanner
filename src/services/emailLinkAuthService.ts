@@ -19,6 +19,7 @@ import {
 } from './authStorage';
 import { getFirebaseAuth } from './firebaseAuth';
 import { getFirebaseAuthLinkUrl } from './firebaseApp';
+import { syncCurrentUserProfileToFirestore } from './userProfileService';
 
 export function getEmailLinkActionSettings(): ActionCodeSettings {
   return {
@@ -79,7 +80,11 @@ export async function completeEmailLinkSignIn(url: string) {
     );
 
     await clearPendingEmailLinkAddress();
-    return await storeAuthenticatedUser(credentials.user);
+
+    const authUser = await storeAuthenticatedUser(credentials.user);
+    await syncCurrentUserProfileToFirestore();
+
+    return authUser;
   } catch (error) {
     await clearPendingEmailLinkAddress();
     normalizeFirebaseFailure(error);

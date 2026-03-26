@@ -29,6 +29,7 @@ import {
 import { getEmailLinkActionSettings } from './emailLinkAuthService';
 import { getFirebaseAuth } from './firebaseAuth';
 import { signOutNativeGoogle } from './googleSignInService';
+import { syncCurrentUserProfileToFirestore } from './userProfileService';
 
 export async function hydrateAuthSession() {
   const auth = getFirebaseAuth();
@@ -56,7 +57,10 @@ export async function hydrateAuthSession() {
     // If reload fails due to connectivity, keep the last Firebase-authenticated user.
   }
 
-  return storeAuthenticatedUser(firebaseUser);
+  const authUser = await storeAuthenticatedUser(firebaseUser);
+  void syncCurrentUserProfileToFirestore();
+
+  return authUser;
 }
 
 export async function signUpWithEmail(input: EmailPasswordSignUpInput) {
@@ -116,7 +120,10 @@ export async function loginWithEmail(input: EmailPasswordLoginInput) {
       );
     }
 
-    return await storeAuthenticatedUser(credentials.user);
+    const authUser = await storeAuthenticatedUser(credentials.user);
+    await syncCurrentUserProfileToFirestore();
+
+    return authUser;
   } catch (error) {
     normalizeFirebaseFailure(error);
   }
@@ -132,7 +139,10 @@ export async function signInWithGoogleIdToken(idToken: string) {
     const credential = GoogleAuthProvider.credential(idToken);
     const credentials = await signInWithCredential(auth, credential);
 
-    return await storeAuthenticatedUser(credentials.user);
+    const authUser = await storeAuthenticatedUser(credentials.user);
+    await syncCurrentUserProfileToFirestore();
+
+    return authUser;
   } catch (error) {
     normalizeFirebaseFailure(error);
   }

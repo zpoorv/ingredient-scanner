@@ -5,7 +5,7 @@ import { clearAuthenticatedSession, AuthServiceError } from './authHelpers';
 import { deleteRemoteUserData } from './cloudUserDataService';
 import { clearDietProfile, clearDietProfileIntroSeen } from './dietProfileStorage';
 import { getFirebaseAuth } from './firebaseAuth';
-import { clearScanHistory } from './scanHistoryStorage';
+import { clearScanHistoryForUser } from './scanHistoryStorage';
 import { clearAppearanceMode } from './themePreferenceStorage';
 import { clearUserProfile } from './userProfileService';
 
@@ -47,7 +47,7 @@ export async function deleteCurrentAccount() {
     clearAuthenticatedSession(),
     clearDietProfile(),
     clearDietProfileIntroSeen(),
-    clearScanHistory(),
+    clearScanHistoryForUser(sessionUser.id),
     clearUserProfile(sessionUser.id),
   ]);
 }

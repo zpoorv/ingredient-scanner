@@ -18,7 +18,8 @@ import {
   saveRemoteScanHistoryEntry,
 } from './cloudUserDataService';
 
-const SCAN_HISTORY_STORAGE_KEY = 'ingredient-scanner/history/v1';
+const LEGACY_SCAN_HISTORY_STORAGE_KEY = 'ingredient-scanner/history/v1';
+const SCAN_HISTORY_STORAGE_KEY_PREFIX = 'inqoura/history/v2';
 
 export type ScanHistoryEntry = {
   barcode: string;
@@ -107,9 +108,83 @@ function normalizeHistoryEntry(entry: ScanHistoryEntry): ScanHistoryEntry {
 }
 
 async function writeHistory(entries: ScanHistoryEntry[]) {
+  await writeHistoryForScope(getActiveHistoryScopeId(), entries);
+}
+
+function getHistoryStorageKey(scopeId: string) {
+  return `${SCAN_HISTORY_STORAGE_KEY_PREFIX}/${scopeId}`;
+}
+
+function getHistoryScopeIdForUser(uid?: string | null) {
+  return uid ? `user:${uid}` : 'guest';
+}
+
+function getActiveHistoryScopeId() {
+  return getHistoryScopeIdForUser(getAuthSession().user?.id);
+}
+
+async function parseHistoryEntries(rawValue: string | null) {
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+
+    if (Array.isArray(parsedValue)) {
+      return sortHistoryEntries(
+        parsedValue.filter(isValidHistoryEntry).map(normalizeHistoryEntry)
+      );
+    }
+  } catch {
+    return [];
+  }
+
+  return [];
+}
+
+async function loadScopedHistoryEntries(scopeId: string) {
+  const scopedRawValue = await AsyncStorage.getItem(getHistoryStorageKey(scopeId));
+
+  if (scopedRawValue !== null) {
+    return parseHistoryEntries(scopedRawValue);
+  }
+
+  if (scopeId !== 'guest') {
+    return [];
+  }
+
+  const legacyEntries = await parseHistoryEntries(
+    await AsyncStorage.getItem(LEGACY_SCAN_HISTORY_STORAGE_KEY)
+  );
+
+  if (legacyEntries.length > 0) {
+    // Keep pre-account device history available only for guest mode.
+    await writeHistoryForScope(scopeId, legacyEntries);
+  }
+
+  return legacyEntries;
+}
+
+async function writeHistoryForScope(scopeId: string, entries: ScanHistoryEntry[]) {
+  // History is scoped per account to avoid leaking one user's scans into another session.
   await AsyncStorage.setItem(
-    SCAN_HISTORY_STORAGE_KEY,
+    getHistoryStorageKey(scopeId),
     JSON.stringify(sortHistoryEntries(entries))
+  );
+}
+
+async function clearHistoryForScope(scopeId: string) {
+  await AsyncStorage.removeItem(getHistoryStorageKey(scopeId));
+}
+
+function haveHistoryEntriesChanged(
+  currentEntries: ScanHistoryEntry[],
+  nextEntries: ScanHistoryEntry[]
+) {
+  return (
+    JSON.stringify(sortHistoryEntries(currentEntries)) !==
+    JSON.stringify(sortHistoryEntries(nextEntries))
   );
 }
 
@@ -136,24 +211,8 @@ function mergeHistoryEntries(
 }
 
 export async function loadScanHistory(): Promise<ScanHistoryEntry[]> {
-  const rawValue = await AsyncStorage.getItem(SCAN_HISTORY_STORAGE_KEY);
-  let localEntries: ScanHistoryEntry[] = [];
-
-  if (!rawValue) {
-    localEntries = [];
-  } else {
-    try {
-      const parsedValue = JSON.parse(rawValue);
-
-      if (Array.isArray(parsedValue)) {
-        localEntries = sortHistoryEntries(
-          parsedValue.filter(isValidHistoryEntry).map(normalizeHistoryEntry)
-        );
-      }
-    } catch {
-      localEntries = [];
-    }
-  }
+  const historyScopeId = getActiveHistoryScopeId();
+  const localEntries = await loadScopedHistoryEntries(historyScopeId);
 
   const sessionUser = getAuthSession().user;
 
@@ -173,8 +232,8 @@ export async function loadScanHistory(): Promise<ScanHistoryEntry[]> {
 
   const mergedEntries = mergeHistoryEntries(localEntries, remoteEntries);
 
-  if (mergedEntries.length !== localEntries.length) {
-    await writeHistory(mergedEntries);
+  if (haveHistoryEntriesChanged(localEntries, mergedEntries)) {
+    await writeHistoryForScope(historyScopeId, mergedEntries);
   }
 
   return mergedEntries;
@@ -223,11 +282,17 @@ export async function deleteScanHistoryEntries(ids: string[]) {
 }
 
 export async function clearScanHistory() {
+  await clearScanHistoryForUser(getAuthSession().user?.id);
+}
+
+export async function clearScanHistoryForUser(uid?: string | null) {
   const sessionUser = getAuthSession().user;
+  const targetUid = uid ?? sessionUser?.id ?? null;
+  const historyScopeId = getHistoryScopeIdForUser(targetUid);
 
-  await AsyncStorage.removeItem(SCAN_HISTORY_STORAGE_KEY);
+  await clearHistoryForScope(historyScopeId);
 
-  if (sessionUser) {
-    await replaceRemoteScanHistory(sessionUser.id, []);
+  if (targetUid) {
+    await replaceRemoteScanHistory(targetUid, []);
   }
 }
