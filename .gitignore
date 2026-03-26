@@ -26,6 +26,7 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 firebase-debug.log*
+*.hprof
 
 # macOS
 .DS_Store
@@ -37,10 +38,13 @@ firebase-debug.log*
 google-services.json
 GoogleService-Info.plist
 play-service-account.json
+.firebase/
 
 # local planning/docs
 docs/
 .tmp*
+captures/
+screenshots/
 
 # typescript
 *.tsbuildinfo
@@ -50,6 +54,9 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Android local machine config
+local.properties
 
 # only for codex
 AGENTS.md

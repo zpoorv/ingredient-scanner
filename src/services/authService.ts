@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
+  onAuthStateChanged,
   reload,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -19,12 +20,10 @@ import {
   validateLoginInput,
   validateSignUpInput,
 } from '../utils/authValidation';
-import { loadStoredAuthSessionUser } from './authStorage';
 import {
   AuthServiceError,
   clearAuthenticatedSession,
   normalizeFirebaseFailure,
-  setStoredAuthSession,
   storeAuthenticatedUser,
 } from './authHelpers';
 import { getEmailLinkActionSettings } from './emailLinkAuthService';
@@ -32,16 +31,32 @@ import { getFirebaseAuth } from './firebaseAuth';
 import { signOutNativeGoogle } from './googleSignInService';
 
 export async function hydrateAuthSession() {
-  const storedSessionUser = await loadStoredAuthSessionUser();
+  const auth = getFirebaseAuth();
+  const firebaseUser = await new Promise<ReturnType<typeof getFirebaseAuth>['currentUser']>(
+    (resolve, reject) => {
+      const unsubscribe = onAuthStateChanged(
+        auth,
+        (user) => {
+          unsubscribe();
+          resolve(user);
+        },
+        reject
+      );
+    }
+  );
 
-  if (!storedSessionUser) {
+  if (!firebaseUser) {
     await clearAuthenticatedSession();
     return null;
   }
 
-  await setStoredAuthSession(storedSessionUser);
+  try {
+    await reload(firebaseUser);
+  } catch {
+    // If reload fails due to connectivity, keep the last Firebase-authenticated user.
+  }
 
-  return storedSessionUser;
+  return storeAuthenticatedUser(firebaseUser);
 }
 
 export async function signUpWithEmail(input: EmailPasswordSignUpInput) {

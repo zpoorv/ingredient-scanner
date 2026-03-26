@@ -87,15 +87,11 @@ export async function replaceRemoteScanHistory(uid: string, entries: ScanHistory
 }
 
 export async function deleteRemoteUserData(uid: string) {
-  try {
-    const historyDocs = await getDocs(getHistoryCollectionRef(uid));
-    const batch = writeBatch(getDb());
+  const historyDocs = await getDocs(getHistoryCollectionRef(uid));
+  const batch = writeBatch(getDb());
 
-    historyDocs.docs.forEach((item) => batch.delete(item.ref));
-    batch.delete(getUserDocRef(uid));
+  historyDocs.docs.forEach((item) => batch.delete(item.ref));
+  batch.delete(getUserDocRef(uid));
 
-    await batch.commit();
-  } catch {
-    // Local account deletion should still be allowed even if remote cleanup cannot complete.
-  }
+  await batch.commit();
 }

@@ -33,6 +33,12 @@ export async function deleteCurrentAccount() {
       );
     }
 
+    if (error instanceof Error) {
+      throw new AuthServiceError(
+        'We could not fully remove your cloud data right now. Try again before deleting the account.'
+      );
+    }
+
     throw new AuthServiceError('We could not delete your account right now.');
   }
 
