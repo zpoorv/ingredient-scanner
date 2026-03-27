@@ -50,6 +50,17 @@ export async function loadDietProfile(): Promise<DietProfileId> {
   const scopeId = getDietProfileScopeId(sessionUser?.id);
   const localProfileId = await loadScopedDietProfile(scopeId);
 
+  const resolvedProfileId = localProfileId ?? DEFAULT_DIET_PROFILE_ID;
+  setSessionDietProfile(resolvedProfileId);
+
+  return resolvedProfileId;
+}
+
+export async function syncDietProfileForCurrentUser(): Promise<DietProfileId> {
+  const sessionUser = getAuthSession().user;
+  const scopeId = getDietProfileScopeId(sessionUser?.id);
+  const localProfileId = await loadScopedDietProfile(scopeId);
+
   if (!sessionUser) {
     const guestProfileId = localProfileId ?? DEFAULT_DIET_PROFILE_ID;
     setSessionDietProfile(guestProfileId);

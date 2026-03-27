@@ -14,10 +14,10 @@ import {
 } from '../constants/dietProfiles';
 import type { RootStackParamList } from '../navigation/types';
 import {
-  loadDietProfile,
   loadDietProfileIntroSeen,
   markDietProfileIntroSeen,
   saveDietProfile,
+  syncDietProfileForCurrentUser,
 } from '../services/dietProfileStorage';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
 import { getAuthSession, subscribeAuthSession } from '../store';
@@ -98,7 +98,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
     const restoreProfile = async () => {
       const [savedProfileId, hasSeenIntro] = await Promise.all([
-        loadDietProfile(),
+        syncDietProfileForCurrentUser(),
         loadDietProfileIntroSeen(),
       ]);
 

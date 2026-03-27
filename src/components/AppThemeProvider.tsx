@@ -13,6 +13,7 @@ import { subscribeAuthSession } from '../store';
 import {
   loadAppearanceMode,
   saveAppearanceMode,
+  syncAppearanceModeForCurrentUser,
 } from '../services/themePreferenceStorage';
 
 type AppThemeContextValue = {
@@ -33,10 +34,16 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
     const restoreAppearanceMode = async () => {
       requestId += 1;
       const currentRequestId = requestId;
-      const mode = await loadAppearanceMode();
+      const localMode = await loadAppearanceMode();
 
       if (isMounted && currentRequestId === requestId) {
-        setAppearanceModeState(mode);
+        setAppearanceModeState(localMode);
+      }
+
+      const syncedMode = await syncAppearanceModeForCurrentUser();
+
+      if (isMounted && currentRequestId === requestId) {
+        setAppearanceModeState(syncedMode);
       }
     };
 

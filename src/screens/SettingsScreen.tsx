@@ -19,7 +19,10 @@ import type { RootStackParamList } from '../navigation/types';
 import { deleteCurrentAccount } from '../services/accountDeletionService';
 import { AuthServiceError } from '../services/authHelpers';
 import { logoutAuth } from '../services/authService';
-import { loadDietProfile, saveDietProfile } from '../services/dietProfileStorage';
+import {
+  saveDietProfile,
+  syncDietProfileForCurrentUser,
+} from '../services/dietProfileStorage';
 import { loadUserProfile } from '../services/userProfileService';
 
 type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -46,7 +49,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       const loadSettings = async () => {
         const [profile, savedDietProfileId] = await Promise.all([
           loadUserProfile(),
-          loadDietProfile(),
+          syncDietProfileForCurrentUser(),
         ]);
 
         if (!isMounted) {

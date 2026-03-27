@@ -30,7 +30,7 @@ import type { RootStackParamList } from '../navigation/types';
 import type { ProductSourceInfo } from '../types/product';
 import type { ScanResultSource } from '../types/scanner';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
-import { loadDietProfile } from '../services/dietProfileStorage';
+import { syncDietProfileForCurrentUser } from '../services/dietProfileStorage';
 import { saveScanToHistory } from '../services/scanHistoryStorage';
 import { getGradeTone } from '../utils/gradeTone';
 import {
@@ -311,7 +311,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     let isMounted = true;
 
     const restoreProfile = async () => {
-      const savedProfileId = await loadDietProfile();
+      const savedProfileId = await syncDietProfileForCurrentUser();
 
       if (isMounted) {
         setSelectedProfileId(savedProfileId);
