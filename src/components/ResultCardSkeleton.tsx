@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { colors } from '../constants/colors';
+import { useAppTheme } from './AppThemeProvider';
 
 type ResultCardSkeletonProps = {
   compact?: boolean;
@@ -9,6 +10,9 @@ type ResultCardSkeletonProps = {
 export default function ResultCardSkeleton({
   compact = false,
 }: ResultCardSkeletonProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={[styles.card, compact && styles.cardCompact]}>
       <View style={[styles.line, styles.lineShort]} />
@@ -25,47 +29,50 @@ export default function ResultCardSkeleton({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    gap: 12,
-    padding: 18,
-  },
-  cardCompact: {
-    gap: 10,
-    paddingVertical: 16,
-  },
-  chip: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 32,
-    width: 92,
-  },
-  chipMedium: {
-    width: 116,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 4,
-  },
-  chipWide: {
-    width: 132,
-  },
-  line: {
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 14,
-  },
-  lineFull: {
-    width: '100%',
-  },
-  lineMedium: {
-    width: '72%',
-  },
-  lineShort: {
-    width: '44%',
-  },
-});
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.background,
+      borderRadius: 18,
+      gap: 12,
+      padding: 18,
+    },
+    cardCompact: {
+      gap: 10,
+      paddingVertical: 16,
+    },
+    chip: {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: 32,
+      width: 92,
+    },
+    chipMedium: {
+      width: 116,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginTop: 4,
+    },
+    chipWide: {
+      width: 132,
+    },
+    line: {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: 14,
+    },
+    lineFull: {
+      width: '100%',
+    },
+    lineMedium: {
+      width: '72%',
+    },
+    lineShort: {
+      width: '44%',
+    },
+  });

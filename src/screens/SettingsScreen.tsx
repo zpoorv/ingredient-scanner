@@ -5,17 +5,21 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import DietProfileModal from '../components/DietProfileModal';
+import OptionPickerModal from '../components/OptionPickerModal';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
 import { useAppTheme } from '../components/AppThemeProvider';
+import { APP_LOOK_DEFINITIONS, getAppLookDefinition } from '../constants/appLooks';
 import { APP_NAME } from '../constants/branding';
 import {
   DEFAULT_DIET_PROFILE_ID,
   DIET_PROFILE_DEFINITIONS,
   type DietProfileId,
 } from '../constants/dietProfiles';
-import type { AppearanceMode } from '../models/preferences';
+import { getShareCardStyleDefinition, SHARE_CARD_STYLE_DEFINITIONS } from '../constants/shareCardStyles';
+import type { AppLookId, AppearanceMode } from '../models/preferences';
 import type { RootStackParamList } from '../navigation/types';
+import type { ShareCardStyleId } from '../models/shareCardStyle';
 import { deleteCurrentAccount } from '../services/accountDeletionService';
 import { AuthServiceError } from '../services/authHelpers';
 import { logoutAuth } from '../services/authService';
@@ -24,42 +28,75 @@ import {
   syncDietProfileForCurrentUser,
 } from '../services/dietProfileStorage';
 import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
-import { loadUserProfile } from '../services/userProfileService';
+import { saveShareCardStyleId, syncShareCardStyleForCurrentUser } from '../services/shareCardPreferenceStorage';
+import {
+  loadUserProfile,
+  saveCurrentUserPreferences,
+} from '../services/userProfileService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 
 type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 export default function SettingsScreen({ navigation }: SettingsScreenProps) {
-  const { appearanceMode, colors, setAppearanceMode } = useAppTheme();
+  const { appLookId, appearanceMode, colors, setAppLookId, setAppearanceMode } =
+    useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [dietProfileId, setDietProfileId] = useState<DietProfileId>(
     DEFAULT_DIET_PROFILE_ID
   );
+  const [draftAppLookId, setDraftAppLookId] = useState<AppLookId>(appLookId);
   const [draftDietProfileId, setDraftDietProfileId] = useState<DietProfileId>(
     DEFAULT_DIET_PROFILE_ID
   );
+  const [draftShareCardStyleId, setDraftShareCardStyleId] =
+    useState<ShareCardStyleId>('classic');
+  const [historyInsightsEnabled, setHistoryInsightsEnabled] = useState(true);
+  const [isAppLookModalVisible, setIsAppLookModalVisible] = useState(false);
   const [isDietProfileVisible, setIsDietProfileVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isShareCardStyleModalVisible, setIsShareCardStyleModalVisible] =
+    useState(false);
   const [profileName, setProfileName] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
   const [roleLabel, setRoleLabel] = useState('User');
+  const [premiumEntitlement, setPremiumEntitlement] = useState(getPremiumSession());
   const [premiumLabel, setPremiumLabel] = useState(
-    getPremiumSession().isPremium ? 'Active' : 'Free'
+    getPremiumSession().isPremium ? 'Premium' : 'Basic'
   );
+  const [shareCardStyleId, setShareCardStyleId] =
+    useState<ShareCardStyleId>('classic');
+
+  const selectedAppLook = getAppLookDefinition(appLookId);
+  const selectedShareCardStyle = getShareCardStyleDefinition(shareCardStyleId);
+
+  const appLookOptions = APP_LOOK_DEFINITIONS.map((definition) => ({
+    description: definition.description,
+    disabled: definition.isPremiumOnly && !premiumEntitlement.isPremium,
+    id: definition.id,
+    label: definition.label,
+  }));
+  const shareCardStyleOptions = SHARE_CARD_STYLE_DEFINITIONS.map((definition) => ({
+    description: definition.description,
+    disabled: definition.isPremiumOnly && !premiumEntitlement.isPremium,
+    id: definition.id,
+    label: definition.label,
+  }));
 
   useFocusEffect(
     useCallback(() => {
       let isMounted = true;
       const unsubscribePremium = subscribePremiumSession((entitlement) => {
         if (isMounted) {
-          setPremiumLabel(entitlement.isPremium ? 'Active' : 'Free');
+          setPremiumEntitlement(entitlement);
+          setPremiumLabel(entitlement.isPremium ? 'Premium' : 'Basic');
         }
       });
 
       const loadSettings = async () => {
-        const [profile, savedDietProfileId] = await Promise.all([
+        const [profile, savedDietProfileId, savedShareCardStyleId, entitlement] = await Promise.all([
           loadUserProfile(),
           syncDietProfileForCurrentUser(),
+          syncShareCardStyleForCurrentUser(),
           loadCurrentPremiumEntitlement(),
         ]);
 
@@ -69,8 +106,12 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
         setDietProfileId(savedDietProfileId);
         setDraftDietProfileId(savedDietProfileId);
+        setDraftAppLookId(profile?.appLookId ?? appLookId);
+        setDraftShareCardStyleId(savedShareCardStyleId);
+        setHistoryInsightsEnabled(profile?.historyInsightsEnabled ?? true);
         setProfileEmail(profile?.email ?? '');
         setProfileName(profile?.name ?? '');
+        setPremiumLabel(entitlement.isPremium ? 'Premium' : 'Basic');
         setRoleLabel(
           profile?.role === 'admin'
             ? 'Admin'
@@ -78,6 +119,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
               ? 'Premium'
               : 'User'
         );
+        setShareCardStyleId(savedShareCardStyleId);
       };
 
       void loadSettings();
@@ -86,7 +128,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         isMounted = false;
         unsubscribePremium();
       };
-    }, [])
+    }, [appLookId])
   );
 
   const selectedProfile =
@@ -131,6 +173,28 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     await saveDietProfile(draftDietProfileId);
     setDietProfileId(draftDietProfileId);
     setIsDietProfileVisible(false);
+  };
+
+  const handleApplyAppLook = async () => {
+    await setAppLookId(draftAppLookId);
+    setIsAppLookModalVisible(false);
+  };
+
+  const handleApplyShareCardStyle = async () => {
+    await saveShareCardStyleId(draftShareCardStyleId);
+    setShareCardStyleId(draftShareCardStyleId);
+    setIsShareCardStyleModalVisible(false);
+  };
+
+  const handleToggleHistoryInsights = async () => {
+    if (!premiumEntitlement.isPremium) {
+      navigation.navigate('Premium', { featureId: 'history-personalization' });
+      return;
+    }
+
+    const nextValue = !historyInsightsEnabled;
+    setHistoryInsightsEnabled(nextValue);
+    await saveCurrentUserPreferences({ historyInsightsEnabled: nextValue });
   };
 
   return (
@@ -189,7 +253,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         >
           <SettingsRow
             onPress={() => navigation.navigate('Premium')}
-            subtitle="Manage premium access and future Google Play billing."
+            subtitle="Basic includes limited OCR and sharing. Premium removes ads and unlocks extra styles."
             title="Premium"
             value={premiumLabel}
           />
@@ -219,10 +283,32 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             })}
           </View>
           <SettingsRow
+            onPress={() => setIsAppLookModalVisible(true)}
+            subtitle={selectedAppLook.description}
+            title="App Look"
+            value={selectedAppLook.shortLabel}
+          />
+          <SettingsRow
             onPress={() => setIsDietProfileVisible(true)}
             subtitle={selectedProfile.description}
             title="Diet Profile"
             value={selectedProfile.shortLabel}
+          />
+          <SettingsRow
+            onPress={() => setIsShareCardStyleModalVisible(true)}
+            subtitle={selectedShareCardStyle.description}
+            title="Share Card Style"
+            value={selectedShareCardStyle.label}
+          />
+          <SettingsRow
+            onPress={() => void handleToggleHistoryInsights()}
+            subtitle={
+              premiumEntitlement.isPremium
+                ? 'Show premium weekly scan patterns and healthier streak insights.'
+                : 'Premium unlocks history insights like weekly harmful-product counts.'
+            }
+            title="History Insights"
+            value={premiumEntitlement.isPremium ? (historyInsightsEnabled ? 'On' : 'Off') : 'Premium'}
           />
         </SettingsSection>
 
@@ -259,6 +345,26 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         onSelect={setDraftDietProfileId}
         selectedProfileId={draftDietProfileId}
         visible={isDietProfileVisible}
+      />
+      <OptionPickerModal
+        colors={colors}
+        onApply={() => void handleApplyAppLook()}
+        onRequestClose={() => setIsAppLookModalVisible(false)}
+        onSelect={setDraftAppLookId}
+        options={appLookOptions}
+        selectedId={draftAppLookId}
+        title="Choose app look"
+        visible={isAppLookModalVisible}
+      />
+      <OptionPickerModal
+        colors={colors}
+        onApply={() => void handleApplyShareCardStyle()}
+        onRequestClose={() => setIsShareCardStyleModalVisible(false)}
+        onSelect={setDraftShareCardStyleId}
+        options={shareCardStyleOptions}
+        selectedId={draftShareCardStyleId}
+        title="Choose share-card style"
+        visible={isShareCardStyleModalVisible}
       />
     </SafeAreaView>
   );

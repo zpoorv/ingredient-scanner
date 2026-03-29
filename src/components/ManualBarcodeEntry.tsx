@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors } from '../constants/colors';
+import { useAppTheme } from './AppThemeProvider';
 import PrimaryButton from './PrimaryButton';
 
 type ManualBarcodeEntryProps = {
@@ -18,6 +19,9 @@ export default function ManualBarcodeEntry({
   onSubmit,
   value,
 }: ManualBarcodeEntryProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Type Barcode Number</Text>
@@ -47,42 +51,45 @@ export default function ManualBarcodeEntry({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 28,
-    borderWidth: 1,
-    gap: 12,
-    padding: 20,
-  },
-  description: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 19,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: 17,
-    minHeight: 54,
-    paddingHorizontal: 16,
-  },
-  inputDisabled: {
-    opacity: 0.7,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-});
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 28,
+      borderWidth: 1,
+      gap: 12,
+      padding: 20,
+    },
+    description: {
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 21,
+    },
+    errorText: {
+      color: colors.danger,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 19,
+    },
+    input: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 16,
+      borderWidth: 1,
+      color: colors.text,
+      fontSize: 17,
+      minHeight: 54,
+      paddingHorizontal: 16,
+    },
+    inputDisabled: {
+      opacity: 0.7,
+    },
+    label: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '800',
+    },
+  });

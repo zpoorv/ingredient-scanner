@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -15,10 +15,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAppTheme } from '../components/AppThemeProvider';
 import BarcodeScannerPanel from '../components/BarcodeScannerPanel';
 import ManualBarcodeEntry from '../components/ManualBarcodeEntry';
 import PrimaryButton from '../components/PrimaryButton';
-import { colors } from '../constants/colors';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
 import {
   ProductLookupError,
@@ -103,6 +103,8 @@ function getStatusContent(
 }
 
 export default function ScannerScreen({ navigation, route }: ScannerScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [cameraPermission, requestPermission] = useCameraPermissions();
   const [cameraResetKey, setCameraResetKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -422,145 +424,148 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   );
 }
 
-const styles = StyleSheet.create({
-  backgroundGlow: {
-    backgroundColor: colors.primaryMuted,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    height: 220,
-    left: -24,
-    opacity: 0.55,
-    position: 'absolute',
-    right: -24,
-    top: -32,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-  },
-  content: {
-    gap: 20,
-  },
-  scrollContent: {
-    gap: 18,
-  },
-  eyebrowChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  eyebrowText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
-  },
-  header: {
-    gap: 10,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  loadingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  loadingText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  permissionCard: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 30,
-    borderWidth: 1,
-    gap: 12,
-    padding: 24,
-  },
-  permissionText: {
-    color: colors.textMuted,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  permissionTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  safeArea: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  statusBody: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  statusCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 28,
-    borderWidth: 1,
-    gap: 12,
-    padding: 20,
-  },
-  statusEyebrow: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  statusHeaderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statusHint: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  statusSourceChip: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statusSourceChipText: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  statusTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 26,
-    fontWeight: '800',
-    lineHeight: 32,
-  },
-});
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
+    backgroundGlow: {
+      backgroundColor: colors.primaryMuted,
+      borderBottomLeftRadius: 40,
+      borderBottomRightRadius: 40,
+      height: 220,
+      left: -24,
+      opacity: 0.55,
+      position: 'absolute',
+      right: -24,
+      top: -32,
+    },
+    container: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+    },
+    content: {
+      gap: 20,
+    },
+    scrollContent: {
+      gap: 18,
+    },
+    eyebrowChip: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+    },
+    eyebrowText: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.2,
+      textTransform: 'uppercase',
+    },
+    header: {
+      gap: 10,
+    },
+    loadingContainer: {
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      flex: 1,
+      justifyContent: 'center',
+    },
+    loadingRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 10,
+    },
+    loadingText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    permissionCard: {
+      alignItems: 'flex-start',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 30,
+      borderWidth: 1,
+      gap: 12,
+      padding: 24,
+    },
+    permissionText: {
+      color: colors.textMuted,
+      fontSize: 16,
+      lineHeight: 24,
+    },
+    permissionTitle: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    safeArea: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    statusBody: {
+      color: colors.textMuted,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    statusCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 28,
+      borderWidth: 1,
+      gap: 12,
+      padding: 20,
+    },
+    statusEyebrow: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
+    },
+    statusHeaderRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    statusHint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    statusSourceChip: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    statusSourceChipText: {
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    statusTitle: {
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: '800',
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontSize: 15,
+      lineHeight: 23,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 26,
+      fontWeight: '800',
+      lineHeight: 32,
+    },
+  });

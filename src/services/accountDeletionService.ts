@@ -1,14 +1,17 @@
 import { deleteUser } from 'firebase/auth';
 
 import { getAuthSession } from '../store';
+import { clearAppLookIdForUser } from './appLookPreferenceStorage';
 import { clearAuthenticatedSession, AuthServiceError } from './authHelpers';
 import { deleteRemoteUserData } from './cloudUserDataService';
 import {
   clearDietProfileForUser,
   clearDietProfileIntroSeen,
 } from './dietProfileStorage';
+import { clearFeatureUsageForUser } from './featureUsageStorage';
 import { getFirebaseAuth } from './firebaseAuth';
 import { clearScanHistoryForUser } from './scanHistoryStorage';
+import { clearShareCardStyleForUser } from './shareCardPreferenceStorage';
 import { clearAppearanceModeForUser } from './themePreferenceStorage';
 import { clearUserProfile } from './userProfileService';
 
@@ -46,11 +49,14 @@ export async function deleteCurrentAccount() {
   }
 
   await Promise.all([
+    clearAppLookIdForUser(sessionUser.id),
     clearAppearanceModeForUser(sessionUser.id),
     clearAuthenticatedSession(),
     clearDietProfileForUser(sessionUser.id),
     clearDietProfileIntroSeen(),
+    clearFeatureUsageForUser(sessionUser.id),
     clearScanHistoryForUser(sessionUser.id),
+    clearShareCardStyleForUser(sessionUser.id),
     clearUserProfile(sessionUser.id),
   ]);
 }

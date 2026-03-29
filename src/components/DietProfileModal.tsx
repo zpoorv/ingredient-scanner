@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -5,7 +6,7 @@ import {
   DIET_PROFILE_DEFINITIONS,
   type DietProfileId,
 } from '../constants/dietProfiles';
-import { colors } from '../constants/colors';
+import { useAppTheme } from './AppThemeProvider';
 import PrimaryButton from './PrimaryButton';
 
 type DietProfileModalProps = {
@@ -23,6 +24,8 @@ export default function DietProfileModal({
   selectedProfileId,
   visible,
 }: DietProfileModalProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const selectedProfile =
     DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === selectedProfileId) ||
     DIET_PROFILE_DEFINITIONS[0];
@@ -101,91 +104,94 @@ export default function DietProfileModal({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(16, 23, 22, 0.52)',
-  },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  footer: {
-    paddingTop: 4,
-  },
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  profileCard: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 8,
-    padding: 16,
-  },
-  profileCardSelected: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-  },
-  profileDescription: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  profileList: {
-    gap: 12,
-  },
-  profileName: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  profileNameSelected: {
-    color: colors.primary,
-  },
-  selectedBadge: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  selectedBadgeText: {
-    color: colors.surface,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 28,
-    borderWidth: 1,
-    gap: 14,
-    maxHeight: '88%',
-    padding: 22,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 33,
-  },
-});
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.scanOverlay,
+    },
+    eyebrow: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    footer: {
+      paddingTop: 4,
+    },
+    overlay: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 20,
+    },
+    profileCard: {
+      backgroundColor: colors.background,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: 8,
+      padding: 16,
+    },
+    profileCardSelected: {
+      backgroundColor: colors.primaryMuted,
+      borderColor: colors.primary,
+    },
+    profileDescription: {
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 21,
+    },
+    profileHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    profileList: {
+      gap: 12,
+    },
+    profileName: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    profileNameSelected: {
+      color: colors.primary,
+    },
+    selectedBadge: {
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    selectedBadgeText: {
+      color: colors.surface,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
+    },
+    sheet: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 28,
+      borderWidth: 1,
+      gap: 14,
+      maxHeight: '88%',
+      padding: 22,
+    },
+    subtitle: {
+      color: colors.textMuted,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '800',
+      lineHeight: 33,
+    },
+  });

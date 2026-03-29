@@ -5,7 +5,8 @@ import {
   isDietProfileId,
 } from '../constants/dietProfiles';
 import type { AuthUser } from '../models/auth';
-import { isAppearanceMode } from '../models/preferences';
+import { isAppLookId, isAppearanceMode } from '../models/preferences';
+import { isShareCardStyleId } from '../models/shareCardStyle';
 import { getAuthSession } from '../store';
 import type { UserProfile } from '../models/userProfile';
 import { getFirebaseAuth } from './firebaseAuth';
@@ -21,14 +22,17 @@ function buildDefaultProfileFromAuthUser(authUser: AuthUser): UserProfile {
 
   return {
     age: null,
+    appLookId: 'classic',
     appearanceMode: 'light',
     countryCode: null,
     createdAt: authUser.createdAt || now,
     dietProfileId: DEFAULT_DIET_PROFILE_ID,
     email: authUser.email,
+    historyInsightsEnabled: true,
     name: authUser.displayName ?? '',
     plan: 'free',
     role: 'user',
+    shareCardStyleId: 'classic',
     uid: authUser.id,
     updatedAt: authUser.updatedAt || now,
   };
@@ -71,21 +75,62 @@ function resolveDietProfileIdValue(
   return baseDietProfileId;
 }
 
+function resolveAppLookIdValue(
+  remoteAppLookId: string | null | undefined,
+  localAppLookId: string | null | undefined,
+  baseAppLookId: UserProfile['appLookId']
+): UserProfile['appLookId'] {
+  if (isAppLookId(remoteAppLookId)) {
+    return remoteAppLookId;
+  }
+
+  if (isAppLookId(localAppLookId)) {
+    return localAppLookId;
+  }
+
+  return baseAppLookId;
+}
+
+function resolveShareCardStyleIdValue(
+  remoteShareCardStyleId: string | null | undefined,
+  localShareCardStyleId: string | null | undefined,
+  baseShareCardStyleId: UserProfile['shareCardStyleId']
+): UserProfile['shareCardStyleId'] {
+  if (isShareCardStyleId(remoteShareCardStyleId)) {
+    return remoteShareCardStyleId;
+  }
+
+  if (isShareCardStyleId(localShareCardStyleId)) {
+    return localShareCardStyleId;
+  }
+
+  return baseShareCardStyleId;
+}
+
 async function resolveUserProfile(baseProfile: UserProfile) {
   const [localProfile, remoteProfile] = await Promise.all([
     loadStoredUserProfile(baseProfile.uid),
     loadRemoteUserProfile(baseProfile.uid),
   ]);
   const remoteAppearanceMode = remoteProfile?.appearanceMode;
+  const remoteAppLookId = remoteProfile?.appLookId;
   const localAppearanceMode = localProfile?.appearanceMode;
+  const localAppLookId = localProfile?.appLookId;
   const remoteDietProfileId = remoteProfile?.dietProfileId;
   const localDietProfileId = localProfile?.dietProfileId;
+  const remoteShareCardStyleId = remoteProfile?.shareCardStyleId;
+  const localShareCardStyleId = localProfile?.shareCardStyleId;
 
   return {
     profile: {
       ...baseProfile,
       ...(localProfile ?? {}),
       ...(remoteProfile ?? {}),
+      appLookId: resolveAppLookIdValue(
+        remoteAppLookId,
+        localAppLookId,
+        baseProfile.appLookId
+      ),
       createdAt:
         remoteProfile?.createdAt ??
         localProfile?.createdAt ??
@@ -101,8 +146,17 @@ async function resolveUserProfile(baseProfile: UserProfile) {
         localDietProfileId,
         baseProfile.dietProfileId
       ),
+      historyInsightsEnabled:
+        remoteProfile?.historyInsightsEnabled ??
+        localProfile?.historyInsightsEnabled ??
+        baseProfile.historyInsightsEnabled,
       plan: remoteProfile?.plan ?? localProfile?.plan ?? baseProfile.plan,
       role: remoteProfile?.role ?? localProfile?.role ?? baseProfile.role,
+      shareCardStyleId: resolveShareCardStyleIdValue(
+        remoteShareCardStyleId,
+        localShareCardStyleId,
+        baseProfile.shareCardStyleId
+      ),
       uid: baseProfile.uid,
       updatedAt: remoteProfile?.updatedAt ?? localProfile?.updatedAt ?? baseProfile.updatedAt,
     },
@@ -150,7 +204,14 @@ async function saveUserProfilePatch(
   patch: Partial<
     Pick<
       UserProfile,
-      'age' | 'appearanceMode' | 'countryCode' | 'dietProfileId' | 'name'
+      | 'age'
+      | 'appLookId'
+      | 'appearanceMode'
+      | 'countryCode'
+      | 'dietProfileId'
+      | 'historyInsightsEnabled'
+      | 'name'
+      | 'shareCardStyleId'
     >
   >
 ) {
@@ -195,11 +256,23 @@ export async function saveUserProfile(
 }
 
 export async function saveCurrentUserPreferences(
-  input: Pick<UserProfile, 'appearanceMode' | 'dietProfileId'>
+  input: Partial<
+    Pick<
+      UserProfile,
+      | 'appLookId'
+      | 'appearanceMode'
+      | 'dietProfileId'
+      | 'historyInsightsEnabled'
+      | 'shareCardStyleId'
+    >
+  >
 ) {
   return saveUserProfilePatch({
+    appLookId: input.appLookId,
     appearanceMode: input.appearanceMode,
     dietProfileId: input.dietProfileId,
+    historyInsightsEnabled: input.historyInsightsEnabled,
+    shareCardStyleId: input.shareCardStyleId,
   });
 }
 

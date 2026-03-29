@@ -4,6 +4,7 @@ import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   InteractionManager,
   Pressable,
@@ -17,27 +18,42 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
+import { useAppTheme } from '../components/AppThemeProvider';
 import IngredientExplanationModal from '../components/IngredientExplanationModal';
 import ProductSuggestionsCard from '../components/ProductSuggestionsCard';
 import ResultCardSkeleton from '../components/ResultCardSkeleton';
+import ShareCardPickerModal from '../components/ShareCardPickerModal';
 import ShareResultCard from '../components/ShareResultCard';
-import { colors } from '../constants/colors';
+import type { AppColors } from '../constants/theme';
 import {
   DEFAULT_DIET_PROFILE_ID,
   type DietProfileId,
 } from '../constants/dietProfiles';
 import type { PremiumEntitlement } from '../models/premium';
+import type { ShareCardStyleId } from '../models/shareCardStyle';
 import type { RootStackParamList } from '../navigation/types';
 import type { ProductSourceInfo } from '../types/product';
 import type { ScanResultSource } from '../types/scanner';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
 import { syncDietProfileForCurrentUser } from '../services/dietProfileStorage';
 import {
-  hasPremiumFeatureAccess,
+  consumeFeatureQuota,
+  loadFeatureQuotaSnapshot,
+  type FeatureQuotaSnapshot,
+} from '../services/featureUsageStorage';
+import {
   loadCurrentPremiumEntitlement,
 } from '../services/premiumEntitlementService';
 import { saveScanToHistory } from '../services/scanHistoryStorage';
+import {
+  saveShareCardStyleId,
+  syncShareCardStyleForCurrentUser,
+} from '../services/shareCardPreferenceStorage';
 import { getPremiumSession, subscribePremiumSession } from '../store';
+import {
+  getShareCardStyleDefinition,
+  SHARE_CARD_STYLE_DEFINITIONS,
+} from '../constants/shareCardStyles';
 import { getGradeTone } from '../utils/gradeTone';
 import {
   type IngredientExplanationLookup,
@@ -57,7 +73,7 @@ import { buildShareableResultCaption } from '../utils/shareableResult';
 
 type ResultScreenProps = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
-function getToneColor(tone: 'good' | 'neutral' | 'warning') {
+function getToneColor(colors: AppColors, tone: 'good' | 'neutral' | 'warning') {
   if (tone === 'good') {
     return colors.success;
   }
@@ -69,7 +85,7 @@ function getToneColor(tone: 'good' | 'neutral' | 'warning') {
   return colors.textMuted;
 }
 
-function getIngredientToneColor(risk: HighlightedIngredient['risk']) {
+function getIngredientToneColor(colors: AppColors, risk: HighlightedIngredient['risk']) {
   switch (risk) {
     case 'high-risk':
       return colors.danger;
@@ -80,7 +96,7 @@ function getIngredientToneColor(risk: HighlightedIngredient['risk']) {
   }
 }
 
-function getIngredientToneBackground(risk: HighlightedIngredient['risk']) {
+function getIngredientToneBackground(colors: AppColors, risk: HighlightedIngredient['risk']) {
   switch (risk) {
     case 'high-risk':
       return colors.dangerMuted;
@@ -102,7 +118,7 @@ function getIngredientRiskLabel(risk: HighlightedIngredient['risk']) {
   }
 }
 
-function getSourceTone(status: ProductSourceInfo['status']) {
+function getSourceTone(colors: AppColors, status: ProductSourceInfo['status']) {
   switch (status) {
     case 'used':
       return colors.success;
@@ -117,7 +133,7 @@ function getOffScoreTone(grade?: string | null) {
   return getGradeTone(grade);
 }
 
-function getHealthScoreTheme(score: number | null) {
+function getHealthScoreTheme(colors: AppColors, score: number | null) {
   if (score === null) {
     return {
       accent: colors.textMuted,
@@ -209,6 +225,8 @@ function getSourceAttributionText(
 }
 
 export default function ResultScreen({ navigation, route }: ResultScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     barcode,
     barcodeType,
@@ -217,9 +235,12 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     resultSource = 'barcode',
   } = route.params;
   const shareCardRef = useRef<ViewShot | null>(null);
+  const shareCardImageReadyRef = useRef(false);
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [isShareCaptureMounted, setIsShareCaptureMounted] = useState(false);
+  const [, setShareCardImageReady] = useState(false);
+  const [isSharePickerVisible, setIsSharePickerVisible] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [hasResolvedProfile, setHasResolvedProfile] = useState(
     Boolean(route.params.profileId)
@@ -239,6 +260,12 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
     getPremiumSession()
   );
+  const [shareCardStyleId, setShareCardStyleId] =
+    useState<ShareCardStyleId>('classic');
+  const [captureShareCardStyleId, setCaptureShareCardStyleId] =
+    useState<ShareCardStyleId>('classic');
+  const [shareQuotaSnapshot, setShareQuotaSnapshot] =
+    useState<FeatureQuotaSnapshot | null>(null);
   const displayProductName = useMemo(
     () => formatProductName(product?.name),
     [product?.name]
@@ -279,8 +306,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     product.adminMetadata?.hasCustomAlternatives,
   ]);
   const healthScoreTheme = useMemo(
-    () => getHealthScoreTheme(insights?.smartScore ?? null),
-    [insights?.smartScore]
+    () => getHealthScoreTheme(colors, insights?.smartScore ?? null),
+    [colors, insights?.smartScore]
   );
   const gradeTone = useMemo(
     () => getGradeTone(insights?.gradeLabel),
@@ -305,6 +332,24 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     adminConfig?.resultDisclaimer ||
     'Quick food-information guide only, not medical advice.';
   const showSourceAttribution = adminConfig?.showSourceAttribution ?? true;
+  const selectedShareCardStyle = useMemo(
+    () =>
+      getShareCardStyleDefinition(
+        premiumEntitlement.isPremium ? shareCardStyleId : 'classic'
+      ),
+    [premiumEntitlement.isPremium, shareCardStyleId]
+  );
+  const shareLimitText = useMemo(() => {
+    if (shareQuotaSnapshot?.isUnlimited) {
+      return 'Premium sharing is unlimited and ad-free.';
+    }
+
+    if (shareQuotaSnapshot) {
+      return `${shareQuotaSnapshot.remaining} of 5 basic share exports left today.`;
+    }
+
+    return 'Checking your daily share allowance.';
+  }, [shareQuotaSnapshot]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ title: displayProductName });
@@ -336,10 +381,34 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   }, [route.params.profileId]);
 
   useEffect(() => {
-    const unsubscribe = subscribePremiumSession(setPremiumEntitlement);
-    void loadCurrentPremiumEntitlement();
+    let isMounted = true;
 
-    return unsubscribe;
+    const restoreShareAccess = async () => {
+      const entitlement = await loadCurrentPremiumEntitlement();
+      const [quotaSnapshot, syncedShareCardStyleId] = await Promise.all([
+        loadFeatureQuotaSnapshot('share-result-card', entitlement),
+        syncShareCardStyleForCurrentUser(),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setPremiumEntitlement(entitlement);
+      setShareQuotaSnapshot(quotaSnapshot);
+      setShareCardStyleId(entitlement.isPremium ? syncedShareCardStyleId : 'classic');
+    };
+
+    const unsubscribe = subscribePremiumSession((entitlement) => {
+      setPremiumEntitlement(entitlement);
+      void restoreShareAccess();
+    });
+    void restoreShareAccess();
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -422,29 +491,95 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     selectedProfileId,
   ]);
 
+  const updateShareCardImageReady = (ready: boolean) => {
+    shareCardImageReadyRef.current = ready;
+    setShareCardImageReady(ready);
+  };
+
+  const handleOpenSharePicker = () => {
+    if (!shareableResult || isSharing) {
+      return;
+    }
+
+    setIsSharePickerVisible(true);
+  };
+
+  const handleSelectShareCardStyle = (styleId: ShareCardStyleId) => {
+    if (!premiumEntitlement.isPremium && styleId !== 'classic') {
+      return;
+    }
+
+    setShareCardStyleId(styleId);
+
+    if (premiumEntitlement.isPremium) {
+      void saveShareCardStyleId(styleId);
+    }
+  };
+
+  const waitForShareCardToRender = async (needsRemoteImage: boolean) => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    if (!needsRemoteImage) {
+      return;
+    }
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      if (shareCardImageReadyRef.current) {
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+  };
+
   const handleShareResult = async () => {
     if (!shareableResult || isSharing) {
       return;
     }
 
-    if (!hasPremiumFeatureAccess('share-result-card', premiumEntitlement)) {
+    const entitlement = await loadCurrentPremiumEntitlement();
+    const selectedStyleId = entitlement.isPremium ? shareCardStyleId : 'classic';
+    const quotaResult = await consumeFeatureQuota('share-result-card', entitlement);
+
+    setPremiumEntitlement(entitlement);
+    setShareQuotaSnapshot(quotaResult.snapshot);
+
+    if (!quotaResult.allowed) {
+      Alert.alert(
+        'Daily share limit reached',
+        'Basic includes 5 result-card exports per day. Premium adds unlimited sharing and five extra share-card styles.',
+        [
+          { style: 'cancel', text: 'Not now' },
+          {
+            text: 'View Premium',
+            onPress: () => navigation.navigate('Premium', { featureId: 'share-result-card' }),
+          },
+        ]
+      );
+      return;
+    }
+
+    if (!entitlement.isPremium && selectedStyleId !== 'classic') {
+      setIsSharePickerVisible(false);
       navigation.navigate('Premium', { featureId: 'share-result-card' });
       return;
     }
 
     setIsSharing(true);
+    setIsSharePickerVisible(false);
+    setCaptureShareCardStyleId(selectedStyleId);
     setIsShareCaptureMounted(true);
+    updateShareCardImageReady(!Boolean(shareableResult.imageUrl));
 
     try {
       // Keep the off-screen capture surface unmounted until the user shares so
       // we do not hold a second large product image in memory during normal browsing.
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-      await new Promise((resolve) => setTimeout(resolve, 80));
-
       if (shareableResult.imageUrl) {
         await Image.prefetch(shareableResult.imageUrl);
-        await new Promise((resolve) => setTimeout(resolve, 250));
       }
+
+      await waitForShareCardToRender(Boolean(shareableResult.imageUrl));
 
       const imageUri = await shareCardRef.current?.capture?.();
       const shareMessage = buildShareableResultCaption(shareableResult);
@@ -467,6 +602,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         console.warn('Failed to share result card', error);
       }
     } finally {
+      updateShareCardImageReady(false);
       setIsShareCaptureMounted(false);
       setIsSharing(false);
     }
@@ -488,6 +624,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               <ShareResultCard
                 data={shareableResult}
                 footerText={adminConfig?.shareFooterText ?? null}
+                onImageLoadEnd={() => updateShareCardImageReady(true)}
+                variantId={captureShareCardStyleId}
               />
             </ViewShot>
           </View>
@@ -711,8 +849,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                     style={[
                       styles.ingredientRow,
                       {
-                        backgroundColor: getIngredientToneBackground(ingredient.risk),
-                        borderColor: getIngredientToneColor(ingredient.risk),
+                        backgroundColor: getIngredientToneBackground(colors, ingredient.risk),
+                        borderColor: getIngredientToneColor(colors, ingredient.risk),
                       },
                     ]}
                   >
@@ -721,7 +859,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                         style={[
                           styles.ingredientRowText,
                           {
-                            color: getIngredientToneColor(ingredient.risk),
+                            color: getIngredientToneColor(colors, ingredient.risk),
                             fontWeight: ingredient.risk === 'safe' ? '600' : '700',
                           },
                         ]}
@@ -733,7 +871,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                       style={[
                         styles.ingredientRiskBadge,
                         {
-                          backgroundColor: getIngredientToneColor(ingredient.risk),
+                          backgroundColor: getIngredientToneColor(colors, ingredient.risk),
                         },
                       ]}
                     >
@@ -834,13 +972,24 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             </View>
           ) : null}
 
-          {product?.novaGroup ? (
-            <Text style={styles.statusText}>NOVA group: {product.novaGroup}</Text>
-          ) : null}
-          {product?.ecoScore ? (
-            <Text style={styles.statusText}>Eco-Score: {product.ecoScore}</Text>
-          ) : null}
-        </View>
+        {product?.novaGroup ? (
+          <Text style={styles.statusText}>NOVA group: {product.novaGroup}</Text>
+        ) : null}
+        {product?.ecoScore ? (
+          <Text style={styles.statusText}>Eco-Score: {product.ecoScore}</Text>
+        ) : null}
+      </View>
+
+        {shareableResult ? (
+          <View style={styles.infoCard}>
+            <Text style={styles.label}>Sharing</Text>
+            <Text style={styles.statusText}>{shareLimitText}</Text>
+            <Text style={styles.statusText}>
+              Current share-card style: {selectedShareCardStyle.label}
+              {premiumEntitlement.isPremium ? '' : ' • Premium unlocks 5 more styles.'}
+            </Text>
+          </View>
+        ) : null}
 
         {showSourceAttribution ? (
           <View style={styles.infoCard}>
@@ -851,7 +1000,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                   <View
                     style={[
                       styles.sourceDot,
-                      { backgroundColor: getSourceTone(source.status) },
+                      { backgroundColor: getSourceTone(colors, source.status) },
                     ]}
                   />
                   <View style={styles.sourceTextBlock}>
@@ -870,14 +1019,10 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       </ScrollView>
       {shareableResult ? (
         <Pressable
-          accessibilityLabel={
-            hasPremiumFeatureAccess('share-result-card', premiumEntitlement)
-              ? 'Share result card'
-              : 'Unlock premium sharing'
-          }
+          accessibilityLabel="Share result card"
           accessibilityRole="button"
           disabled={isSharing}
-          onPress={handleShareResult}
+          onPress={handleOpenSharePicker}
           style={({ pressed }) => [
             styles.floatingShareButton,
             { bottom: Math.max(insets.bottom + 20, 36) },
@@ -890,9 +1035,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             name={
               isSharing
                 ? 'hourglass-outline'
-                : hasPremiumFeatureAccess('share-result-card', premiumEntitlement)
-                  ? 'share-social-outline'
-                  : 'lock-closed-outline'
+                : 'share-social-outline'
             }
             size={24}
           />
@@ -903,27 +1046,54 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         onClose={() => setSelectedIngredient(null)}
         visible={selectedIngredient !== null}
       />
+      {shareableResult ? (
+        <ShareCardPickerModal
+          dailyLimitText={shareLimitText}
+          footerText={adminConfig?.shareFooterText ?? null}
+          isPremium={premiumEntitlement.isPremium}
+          isSharing={isSharing}
+          onClose={() => setIsSharePickerVisible(false)}
+          onSelectStyle={handleSelectShareCardStyle}
+          onShare={() => {
+            void handleShareResult();
+          }}
+          onUpgrade={() => {
+            setIsSharePickerVisible(false);
+            navigation.navigate('Premium', { featureId: 'share-result-card' });
+          }}
+          selectedStyleId={premiumEntitlement.isPremium ? shareCardStyleId : 'classic'}
+          shareData={shareableResult}
+          styleDefinitions={SHARE_CARD_STYLE_DEFINITIONS}
+          visible={isSharePickerVisible}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const MetricChip = memo(function MetricChip({ metric }: { metric: ProductMetric }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View
       style={[
         styles.metricChip,
-        { borderColor: getToneColor(metric.tone) },
+        { borderColor: getToneColor(colors, metric.tone) },
       ]}
     >
       <Text style={styles.metricLabel}>{metric.label}</Text>
-      <Text style={[styles.metricValue, { color: getToneColor(metric.tone) }]}>
+      <Text style={[styles.metricValue, { color: getToneColor(colors, metric.tone) }]}>
         {metric.value}
       </Text>
     </View>
   );
 });
 
-const styles = StyleSheet.create({
+const createStyles = (
+  colors: AppColors
+) =>
+  StyleSheet.create({
   barcodeText: {
     color: colors.text,
     fontSize: 28,
@@ -1369,4 +1539,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-});
+  });

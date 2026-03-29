@@ -42,7 +42,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
       entitlement.isPremium ? 'Premium is active' : 'Premium checkout comes next',
       entitlement.isPremium
         ? 'This account already has premium access from its synced entitlement.'
-        : `The paywall architecture is ready. Connect ${PREMIUM_MONTHLY_PRODUCT_ID} to Google Play Billing next.`
+        : `The plan architecture is ready. Connect ${PREMIUM_MONTHLY_PRODUCT_ID} to Google Play Billing next so premium can remove daily limits, rewarded ads, and basic-plan caps.`
     );
   };
 
@@ -62,7 +62,8 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
             {entitlement.isPremium ? 'Premium is active on this account' : 'Unlock premium tools'}
           </Text>
           <Text style={styles.subtitle}>
-            {highlightedFeature?.description || PREMIUM_PRICE_PREVIEW_COPY}
+            {highlightedFeature?.description ||
+              `Basic includes 5 OCR scans and 5 share-card exports per day. ${PREMIUM_PRICE_PREVIEW_COPY}`}
           </Text>
           <View
             style={[
@@ -103,10 +104,11 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
         ) : null}
 
         <View style={styles.noteCard}>
-          <Text style={styles.noteTitle}>Architecture status</Text>
+          <Text style={styles.noteTitle}>Plan status</Text>
           <Text style={styles.noteText}>
-            Entitlement is already synced through the account profile. Billing can plug into the
-            same premium state without rewriting these screens.
+            Basic access is live with daily quotas, while premium already unlocks unlimited OCR,
+            extra share styles, extra app looks, and history insights through the same synced
+            entitlement state.
           </Text>
         </View>
 

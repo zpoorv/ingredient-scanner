@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAppTheme } from '../components/AppThemeProvider';
 import DietProfileModal from '../components/DietProfileModal';
+import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import PrimaryButton from '../components/PrimaryButton';
 import { APP_NAME } from '../constants/branding';
 import {
@@ -22,15 +23,21 @@ import {
 } from '../services/dietProfileStorage';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
 import {
-  hasPremiumFeatureAccess,
+  loadFeatureQuotaSnapshot,
+  type FeatureQuotaSnapshot,
+} from '../services/featureUsageStorage';
+import {
   loadCurrentPremiumEntitlement,
 } from '../services/premiumEntitlementService';
+import { loadScanHistory } from '../services/scanHistoryStorage';
+import { loadUserProfile } from '../services/userProfileService';
 import {
   getAuthSession,
   getPremiumSession,
   subscribeAuthSession,
   subscribePremiumSession,
 } from '../store';
+import { buildHistoryInsights, type HistoryInsight } from '../utils/historyPersonalization';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -66,9 +73,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     body: string | null;
     title: string | null;
   } | null>(null);
+  const [historyInsights, setHistoryInsights] = useState<HistoryInsight[]>([]);
+  const [historyInsightsEnabled, setHistoryInsightsEnabled] = useState(true);
   const [isHistoryEnabled, setIsHistoryEnabled] = useState(true);
   const [isIngredientOcrEnabled, setIsIngredientOcrEnabled] = useState(true);
   const [isFirstLaunchProfileFlow, setIsFirstLaunchProfileFlow] = useState(false);
+  const [ocrQuotaSnapshot, setOcrQuotaSnapshot] = useState<FeatureQuotaSnapshot | null>(
+    null
+  );
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
   const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
     getPremiumSession()
@@ -96,17 +108,46 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }, [navigation, styles, selectedProfileId]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const refreshPremiumState = async () => {
+      const entitlement = await loadCurrentPremiumEntitlement();
+      const [quotaSnapshot, profile, historyEntries] = await Promise.all([
+        loadFeatureQuotaSnapshot('ingredient-ocr', entitlement),
+        loadUserProfile(),
+        loadScanHistory(),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setPremiumEntitlement(entitlement);
+      setOcrQuotaSnapshot(quotaSnapshot);
+      setHistoryInsightsEnabled(profile?.historyInsightsEnabled ?? true);
+      setHistoryInsights(
+        entitlement.isPremium && (profile?.historyInsightsEnabled ?? true)
+          ? buildHistoryInsights(historyEntries)
+          : []
+      );
+    };
+
     const unsubscribe = subscribeAuthSession((session) => {
       setAccountEmail(session.user?.email ?? '');
       setAccountDisplayName(session.user?.displayName ?? '');
       setAccountEmailVerified(session.user?.emailVerified ?? false);
       setAccountProvider(session.user?.provider ?? 'email');
+      void refreshPremiumState();
     });
-    const unsubscribePremium = subscribePremiumSession(setPremiumEntitlement);
+    const unsubscribePremium = subscribePremiumSession((entitlement) => {
+      setPremiumEntitlement(entitlement);
+      void refreshPremiumState();
+    });
 
-    void loadCurrentPremiumEntitlement();
+    void refreshPremiumState();
 
     return () => {
+      isMounted = false;
       unsubscribe();
       unsubscribePremium();
     };
@@ -260,24 +301,42 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                         : styles.premiumBadgeTextInactive,
                     ]}
                   >
-                    {premiumEntitlement.isPremium ? 'Active' : 'Free'}
+                    {premiumEntitlement.isPremium ? 'Premium' : 'Basic'}
                   </Text>
                 </View>
               </View>
               <Text style={styles.premiumCardText}>
                 {premiumEntitlement.isPremium
-                  ? 'Premium-only tools are unlocked across this signed-in account.'
-                  : 'Ingredient OCR and result-card sharing are ready for premium billing.'}
+                  ? 'Unlimited OCR, ad-free scanning, premium share styles, and history insights are active on this account.'
+                  : 'Basic includes 5 OCR scans and 5 share-card exports per day. Watch an ad to unlock one extra OCR scan after the daily cap.'}
               </Text>
               <Pressable
                 onPress={() => navigation.navigate('Premium')}
                 style={styles.premiumAction}
               >
                 <Text style={styles.premiumActionText}>
-                  {premiumEntitlement.isPremium ? 'Manage Premium' : 'View Premium'}
+                  {premiumEntitlement.isPremium ? 'Manage Premium' : 'Compare Plans'}
                 </Text>
               </Pressable>
             </View>
+
+            {isIngredientOcrEnabled && ocrQuotaSnapshot ? (
+              <View style={styles.profileSummaryCard}>
+                <Text style={styles.profileSummaryLabel}>Ingredient OCR Access</Text>
+                <Text style={styles.profileSummaryTitle}>
+                  {ocrQuotaSnapshot.isUnlimited
+                    ? 'Unlimited scans today'
+                    : `${ocrQuotaSnapshot.remaining} scan${ocrQuotaSnapshot.remaining === 1 ? '' : 's'} left today`}
+                </Text>
+                <Text style={styles.profileSummaryText}>
+                  {ocrQuotaSnapshot.isUnlimited
+                    ? 'Premium keeps ingredient OCR available all day without rewarded ads.'
+                    : ocrQuotaSnapshot.remaining && ocrQuotaSnapshot.remaining > 0
+                      ? 'Basic keeps OCR open with a daily cap. Rewarded ads can extend it one scan at a time.'
+                      : 'Your 5 basic OCR scans are used for today. Watch an ad inside OCR to unlock one more scan.'}
+                </Text>
+              </View>
+            ) : null}
 
             <View style={styles.accountCard}>
               <Text style={styles.accountLabel}>Account</Text>
@@ -293,6 +352,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </Text>
             </View>
 
+            {premiumEntitlement.isPremium &&
+            historyInsightsEnabled &&
+            historyInsights.length > 0 ? (
+              <HistoryInsightsCard colors={colors} insights={historyInsights} />
+            ) : null}
+
             <View style={styles.footerActions}>
               <PrimaryButton
                 label="Open Scanner"
@@ -302,24 +367,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               />
               {isIngredientOcrEnabled ? (
                 <Pressable
-                  onPress={() => {
-                    if (hasPremiumFeatureAccess('ingredient-ocr', premiumEntitlement)) {
-                      navigation.navigate('IngredientOcr', {
-                        profileId: selectedProfileId,
-                      });
-                      return;
-                    }
-
-                    navigation.navigate('Premium', {
-                      featureId: 'ingredient-ocr',
-                    });
-                  }}
+                  onPress={() =>
+                    navigation.navigate('IngredientOcr', {
+                      profileId: selectedProfileId,
+                    })
+                  }
                   style={styles.secondaryAction}
                 >
                   <Text style={styles.secondaryActionText}>
-                    {hasPremiumFeatureAccess('ingredient-ocr', premiumEntitlement)
+                    {ocrQuotaSnapshot?.isUnlimited
                       ? 'Scan Ingredient Label'
-                      : 'Unlock Ingredient OCR'}
+                      : `Scan Ingredient Label${
+                          ocrQuotaSnapshot ? ` (${ocrQuotaSnapshot.remaining} left)` : ''
+                        }`}
                   </Text>
                 </Pressable>
               ) : null}

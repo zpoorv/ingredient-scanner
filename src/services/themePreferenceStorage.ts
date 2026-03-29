@@ -38,8 +38,13 @@ async function writeScopedAppearanceMode(scopeId: string, mode: AppearanceMode) 
 }
 
 export async function loadAppearanceMode(): Promise<AppearanceMode> {
-  const sessionUser = getAuthSession().user;
-  const scopeId = getAppearanceModeScopeId(sessionUser?.id);
+  return loadAppearanceModeForUser(getAuthSession().user?.id);
+}
+
+export async function loadAppearanceModeForUser(
+  uid?: string | null
+): Promise<AppearanceMode> {
+  const scopeId = getAppearanceModeScopeId(uid);
   return (await loadScopedAppearanceMode(scopeId)) ?? 'light';
 }
 

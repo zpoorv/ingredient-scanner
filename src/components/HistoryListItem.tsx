@@ -1,7 +1,7 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../constants/colors';
+import { useAppTheme } from './AppThemeProvider';
 import type { ScanHistoryEntry } from '../services/scanHistoryStorage';
 import { getDietProfileDefinition } from '../utils/dietProfiles';
 import { getGradeTone } from '../utils/gradeTone';
@@ -35,6 +35,8 @@ function HistoryListItem({
   onPress,
   selectionMode = false,
 }: HistoryListItemProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const gradeTone = getGradeTone(entry.gradeLabel);
   const profile = getDietProfileDefinition(entry.profileId);
 
@@ -106,95 +108,98 @@ function HistoryListItem({
 
 export default memo(HistoryListItem);
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 10,
-    padding: 18,
-  },
-  deleteChip: {
-    backgroundColor: colors.dangerMuted,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  deleteChipText: {
-    color: colors.danger,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  footerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  footerActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  gradeText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  headerRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  metaText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  name: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  scoreBadge: {
-    borderRadius: 999,
-    minWidth: 74,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  scoreText: {
-    fontSize: 13,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  summaryText: {
-    color: colors.text,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  selectionChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  selectionChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  selectionChipText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  selectionChipTextSelected: {
-    color: colors.surface,
-  },
-  timestampText: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-});
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: 10,
+      padding: 18,
+    },
+    deleteChip: {
+      backgroundColor: colors.dangerMuted,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    deleteChipText: {
+      color: colors.danger,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    footerRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    footerActions: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 8,
+    },
+    gradeText: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    headerRow: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: 12,
+    },
+    metaText: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    name: {
+      color: colors.text,
+      flex: 1,
+      fontSize: 18,
+      fontWeight: '700',
+      lineHeight: 24,
+    },
+    scoreBadge: {
+      borderRadius: 999,
+      minWidth: 74,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    scoreText: {
+      fontSize: 13,
+      fontWeight: '800',
+      textAlign: 'center',
+    },
+    summaryText: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    selectionChip: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    selectionChipSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    selectionChipText: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    selectionChipTextSelected: {
+      color: colors.surface,
+    },
+    timestampText: {
+      color: colors.textMuted,
+      fontSize: 13,
+    },
+  });

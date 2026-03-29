@@ -11,16 +11,22 @@ import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAppTheme } from '../components/AppThemeProvider';
+import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryListItemSkeleton from '../components/HistoryListItemSkeleton';
 import HistoryListItem from '../components/HistoryListItem';
-import { colors } from '../constants/colors';
+import type { PremiumEntitlement } from '../models/premium';
 import type { RootStackParamList } from '../navigation/types';
+import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import {
   deleteScanHistoryEntries,
   loadScanHistory,
   type ScanHistoryEntry,
 } from '../services/scanHistoryStorage';
+import { loadUserProfile } from '../services/userProfileService';
 import { getDietProfileDefinition } from '../utils/dietProfiles';
+import { buildHistoryInsights, type HistoryInsight } from '../utils/historyPersonalization';
+import { getPremiumSession } from '../store';
 
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'History'>;
 type SortOrder = 'newest' | 'oldest';
@@ -46,8 +52,15 @@ function matchesQuery(entry: ScanHistoryEntry, query: string) {
 }
 
 export default function HistoryScreen({ navigation }: HistoryScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [historyEntries, setHistoryEntries] = useState<ScanHistoryEntry[]>([]);
+  const [historyInsights, setHistoryInsights] = useState<HistoryInsight[]>([]);
+  const [historyInsightsEnabled, setHistoryInsightsEnabled] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
+    getPremiumSession()
+  );
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
@@ -65,10 +78,21 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
       setIsLoading(true);
 
       try {
-        const nextEntries = await loadScanHistory();
+        const [nextEntries, entitlement, profile] = await Promise.all([
+          loadScanHistory(),
+          loadCurrentPremiumEntitlement(),
+          loadUserProfile(),
+        ]);
 
         if (isMounted) {
           setHistoryEntries(nextEntries);
+          setPremiumEntitlement(entitlement);
+          setHistoryInsightsEnabled(profile?.historyInsightsEnabled ?? true);
+          setHistoryInsights(
+            entitlement.isPremium && (profile?.historyInsightsEnabled ?? true)
+              ? buildHistoryInsights(nextEntries)
+              : []
+          );
         }
       } finally {
         if (isMounted) {
@@ -248,6 +272,14 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           ) : null}
         </View>
 
+        {premiumEntitlement.isPremium &&
+        historyInsightsEnabled &&
+        historyInsights.length > 0 ? (
+          <View style={styles.insightsWrap}>
+            <HistoryInsightsCard colors={colors} insights={historyInsights} />
+          </View>
+        ) : null}
+
         {isLoading ? (
           <FlatList
             contentContainerStyle={styles.listContent}
@@ -289,7 +321,10 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     gap: 18,
@@ -316,6 +351,9 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 10,
+  },
+  insightsWrap: {
+    marginTop: -2,
   },
   listContent: {
     gap: 12,
@@ -422,4 +460,4 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 34,
   },
-});
+  });

@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,19 +11,30 @@ import {
   Text,
   View,
 } from 'react-native';
+import {
+  useCameraPermissions,
+  type CameraCapturedPicture,
+} from 'expo-camera';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAppTheme } from '../components/AppThemeProvider';
+import OcrCapturePanel from '../components/OcrCapturePanel';
 import PrimaryButton from '../components/PrimaryButton';
-import { colors } from '../constants/colors';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
-import { PREMIUM_FEATURE_COPY } from '../constants/premium';
 import type { PremiumEntitlement } from '../models/premium';
 import type { RootStackParamList } from '../navigation/types';
+import {
+  consumeFeatureQuota,
+  grantRewardedOcrBonus,
+  loadFeatureQuotaSnapshot,
+  type FeatureQuotaSnapshot,
+} from '../services/featureUsageStorage';
 import {
   IngredientLabelOcrError,
   recognizeIngredientLabelImage,
 } from '../services/ingredientLabelOcr';
 import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
+import { showRewardedOcrUnlockAd } from '../services/rewardedAdService';
 import { getPremiumSession } from '../store';
 import { buildResolvedProductFromOcr } from '../utils/ocrResolvedProduct';
 
@@ -36,11 +47,19 @@ export default function IngredientOcrScreen({
   navigation,
   route,
 }: IngredientOcrScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [featureQuotaSnapshot, setFeatureQuotaSnapshot] =
+    useState<FeatureQuotaSnapshot | null>(null);
+  const [isGuidedCameraVisible, setIsGuidedCameraVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCropEnabled, setIsCropEnabled] = useState(true);
+  const [isRewardedAdLoading, setIsRewardedAdLoading] = useState(false);
   const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
     getPremiumSession()
   );
@@ -51,6 +70,7 @@ export default function IngredientOcrScreen({
     if (!isFocused) {
       // Clear the preview when this screen goes to the background so we do not
       // keep a large decoded bitmap alive behind the result screen.
+      setIsGuidedCameraVisible(false);
       setPreviewUri(null);
     }
   }, [isFocused]);
@@ -62,9 +82,12 @@ export default function IngredientOcrScreen({
       return;
     }
 
-    void loadCurrentPremiumEntitlement().then((entitlement) => {
+    void loadCurrentPremiumEntitlement().then(async (entitlement) => {
+      const quotaSnapshot = await loadFeatureQuotaSnapshot('ingredient-ocr', entitlement);
+
       if (isMounted) {
         setPremiumEntitlement(entitlement);
+        setFeatureQuotaSnapshot(quotaSnapshot);
       }
     });
 
@@ -73,15 +96,42 @@ export default function IngredientOcrScreen({
     };
   }, [isFocused]);
 
-  const handleAssetUri = async (imageUri: string) => {
-    setPreviewUri(imageUri);
+  const handleAsset = async ({
+    uri,
+    width,
+    height,
+  }: {
+    height?: number | null;
+    uri: string;
+    width?: number | null;
+  }) => {
+    const entitlement = await loadCurrentPremiumEntitlement();
+    const quotaResult = await consumeFeatureQuota('ingredient-ocr', entitlement);
+
+    setPremiumEntitlement(entitlement);
+    setFeatureQuotaSnapshot(quotaResult.snapshot);
+
+    if (!quotaResult.allowed) {
+      setErrorMessage(
+        'Your 5 basic OCR scans are used for today. Watch one rewarded ad to unlock one more scan, or upgrade for unlimited OCR.'
+      );
+      return;
+    }
+
+    setPreviewUri(uri);
     setErrorMessage(null);
+    setCameraError(null);
     setIsProcessing(true);
 
     try {
-      const ocrResult = await recognizeIngredientLabelImage(imageUri);
+      const ocrResult = await recognizeIngredientLabelImage({
+        height: height ?? null,
+        uri,
+        width: width ?? null,
+      });
       const product = buildResolvedProductFromOcr(ocrResult);
       setPreviewUri(null);
+      setIsGuidedCameraVisible(false);
 
       navigation.push('Result', {
         barcode: 'OCR INGREDIENT SCAN',
@@ -101,25 +151,30 @@ export default function IngredientOcrScreen({
     }
   };
 
-  const handleTakePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+  const handleOpenGuidedCamera = async () => {
+    if (
+      featureQuotaSnapshot &&
+      !featureQuotaSnapshot.canUse &&
+      !featureQuotaSnapshot.isUnlimited
+    ) {
+      setErrorMessage(
+        'Your daily basic OCR scans are used. Watch a rewarded ad below to unlock one more scan.'
+      );
+      return;
+    }
+
+    const permission = cameraPermission?.granted
+      ? cameraPermission
+      : await requestCameraPermission();
 
     if (!permission.granted) {
       setErrorMessage('Camera permission is required to photograph an ingredient label.');
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: isCropEnabled,
-      aspect: [4, 3],
-      cameraType: ImagePicker.CameraType.back,
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]?.uri) {
-      await handleAssetUri(result.assets[0].uri);
-    }
+    setErrorMessage(null);
+    setCameraError(null);
+    setIsGuidedCameraVisible(true);
   };
 
   const handleChoosePhoto = async () => {
@@ -134,13 +189,216 @@ export default function IngredientOcrScreen({
       allowsEditing: isCropEnabled,
       aspect: [4, 3],
       mediaTypes: ['images'],
-      quality: 0.8,
+      quality: 1,
       selectionLimit: 1,
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      await handleAssetUri(result.assets[0].uri);
+      await handleAsset({
+        height: result.assets[0].height ?? null,
+        uri: result.assets[0].uri,
+        width: result.assets[0].width ?? null,
+      });
     }
+  };
+
+  const handleGuidedCapture = async (photo: CameraCapturedPicture) => {
+    setIsGuidedCameraVisible(false);
+    await handleAsset({
+      height: photo.height,
+      uri: photo.uri,
+      width: photo.width,
+    });
+  };
+
+  const handleCameraMountError = (message: string) => {
+    setCameraError(message);
+    setIsGuidedCameraVisible(false);
+    setErrorMessage(
+      'The guided camera could not start right now. You can still use the gallery import instead.'
+    );
+  };
+
+  const helperCopy = isCropEnabled
+    ? 'Crop Before OCR is on, and the guided camera keeps the ingredient area centered.'
+    : 'Crop Before OCR is off. Keep the ingredient lines filling most of the frame.';
+  const quotaSummaryText = featureQuotaSnapshot?.isUnlimited
+    ? 'Premium keeps ingredient OCR unlimited and ad-free.'
+    : featureQuotaSnapshot
+      ? `${featureQuotaSnapshot.remaining} of 5 basic OCR scans left today.`
+      : 'Checking your OCR allowance...';
+
+  const liveCaptureTips = [
+    'Center the ingredient lines inside the capture box.',
+    'Fill most of the frame with text before capturing.',
+    'Avoid reflections and strong glare on glossy packaging.',
+  ];
+
+  const captureStatusMessage =
+    cameraPermission && !cameraPermission.granted
+      ? 'Allow camera access to use the guided ingredient capture flow.'
+      : cameraError;
+
+  const handleCloseGuidedCamera = () => {
+    setIsGuidedCameraVisible(false);
+    setCameraError(null);
+  };
+
+  const handleWatchRewardedAd = async () => {
+    setIsRewardedAdLoading(true);
+
+    try {
+      const result = await showRewardedOcrUnlockAd();
+
+      if (result === 'rewarded') {
+        const nextSnapshot = await grantRewardedOcrBonus();
+        setFeatureQuotaSnapshot(nextSnapshot);
+        setErrorMessage(null);
+        return;
+      }
+
+      setErrorMessage(
+        result === 'dismissed'
+          ? 'The ad closed before the reward completed, so no extra OCR scan was unlocked.'
+          : 'A rewarded ad is not available right now. Try again in a moment.'
+      );
+    } finally {
+      setIsRewardedAdLoading(false);
+    }
+  };
+
+  const renderActionCard = () => {
+    if (isGuidedCameraVisible) {
+      return (
+        <View style={styles.captureFlowCard}>
+          <Text style={styles.captureFlowLabel}>Live guided capture</Text>
+          <Text style={styles.captureFlowTitle}>Frame the ingredient block tightly</Text>
+          <Text style={styles.captureFlowText}>
+            We now capture a higher-quality photo first, then retry OCR on tighter cropped
+            variants for a cleaner ingredient read.
+          </Text>
+          <OcrCapturePanel
+            isBusy={isProcessing}
+            onCancel={handleCloseGuidedCamera}
+            onCapture={handleGuidedCapture}
+            onMountError={handleCameraMountError}
+          />
+          {captureStatusMessage ? (
+            <View style={styles.inlineNoticeCard}>
+              <Text style={styles.inlineNoticeText}>{captureStatusMessage}</Text>
+            </View>
+          ) : null}
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.actionCard}>
+        <View style={styles.usageCard}>
+          <Text style={styles.usageLabel}>OCR plan access</Text>
+          <Text style={styles.usageTitle}>
+            {featureQuotaSnapshot?.isUnlimited
+              ? 'Unlimited scans available'
+              : featureQuotaSnapshot
+                ? `${featureQuotaSnapshot.remaining} scan${featureQuotaSnapshot.remaining === 1 ? '' : 's'} left today`
+                : 'Loading daily OCR access'}
+          </Text>
+          <Text style={styles.usageText}>{quotaSummaryText}</Text>
+          {!premiumEntitlement.isPremium &&
+          featureQuotaSnapshot &&
+          !featureQuotaSnapshot.canUse ? (
+            <View style={styles.rewardActions}>
+              <PrimaryButton
+                disabled={isRewardedAdLoading}
+                label={
+                  isRewardedAdLoading
+                    ? 'Loading Rewarded Ad...'
+                    : 'Watch Ad For 1 More OCR Scan'
+                }
+                onPress={() => void handleWatchRewardedAd()}
+              />
+              <PrimaryButton
+                label="View Premium"
+                onPress={() => navigation.navigate('Premium', { featureId: 'ingredient-ocr' })}
+              />
+            </View>
+          ) : null}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setIsCropEnabled((value) => !value)}
+          style={[
+            styles.cropToggle,
+            isCropEnabled && styles.cropToggleActive,
+          ]}
+        >
+          <View style={styles.cropToggleContent}>
+            <Text
+              style={[
+                styles.cropToggleLabel,
+                isCropEnabled && styles.cropToggleLabelActive,
+              ]}
+            >
+              Crop Before OCR
+            </Text>
+            <Text
+              style={[
+                styles.cropToggleHint,
+                isCropEnabled && styles.cropToggleHintActive,
+              ]}
+            >
+              {isCropEnabled
+                ? 'On: keep using manual crop before OCR and add an extra center crop retry.'
+                : 'Off: use the original full image and OCR crop retries only.'}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.cropToggleBadge,
+              isCropEnabled && styles.cropToggleBadgeActive,
+            ]}
+          >
+            <Text
+              style={[
+                styles.cropToggleBadgeText,
+                isCropEnabled && styles.cropToggleBadgeTextActive,
+              ]}
+            >
+              {isCropEnabled ? 'On' : 'Off'}
+            </Text>
+          </View>
+        </Pressable>
+        <PrimaryButton
+          disabled={
+            isProcessing ||
+            (!premiumEntitlement.isPremium &&
+              featureQuotaSnapshot !== null &&
+              !featureQuotaSnapshot.canUse)
+          }
+          label={isProcessing ? 'Reading Label...' : 'Open Guided Camera'}
+          onPress={() => void handleOpenGuidedCamera()}
+        />
+        <PrimaryButton
+          disabled={
+            isProcessing ||
+            (!premiumEntitlement.isPremium &&
+              featureQuotaSnapshot !== null &&
+              !featureQuotaSnapshot.canUse)
+          }
+          label={isProcessing ? 'Reading Label...' : 'Choose From Gallery'}
+          onPress={() => void handleChoosePhoto()}
+        />
+        <Text style={styles.helperText}>{helperCopy}</Text>
+        <View style={styles.tipList}>
+          {liveCaptureTips.map((tip) => (
+            <View key={tip} style={styles.tipRow}>
+              <View style={styles.tipDot} />
+              <Text style={styles.tipText}>{tip}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -161,81 +419,7 @@ export default function IngredientOcrScreen({
           </Text>
         </View>
 
-        {premiumEntitlement.isPremium ? (
-          <View style={styles.actionCard}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsCropEnabled((value) => !value)}
-              style={[
-                styles.cropToggle,
-                isCropEnabled && styles.cropToggleActive,
-              ]}
-            >
-              <View style={styles.cropToggleContent}>
-                <Text
-                  style={[
-                    styles.cropToggleLabel,
-                    isCropEnabled && styles.cropToggleLabelActive,
-                  ]}
-                >
-                  Crop Before OCR
-                </Text>
-                <Text
-                  style={[
-                    styles.cropToggleHint,
-                    isCropEnabled && styles.cropToggleHintActive,
-                  ]}
-                >
-                  {isCropEnabled
-                    ? 'On: select just the ingredient block before scanning.'
-                    : 'Off: scan the full image without cropping first.'}
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.cropToggleBadge,
-                  isCropEnabled && styles.cropToggleBadgeActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.cropToggleBadgeText,
-                    isCropEnabled && styles.cropToggleBadgeTextActive,
-                  ]}
-                >
-                  {isCropEnabled ? 'On' : 'Off'}
-                </Text>
-              </View>
-            </Pressable>
-            <PrimaryButton
-              disabled={isProcessing}
-              label={isProcessing ? 'Reading Label...' : 'Take Ingredient Photo'}
-              onPress={() => void handleTakePhoto()}
-            />
-            <PrimaryButton
-              disabled={isProcessing}
-              label={isProcessing ? 'Reading Label...' : 'Choose From Gallery'}
-              onPress={() => void handleChoosePhoto()}
-            />
-            <Text style={styles.helperText}>
-              Tips: crop to the ingredient lines only, avoid blur, and keep the label flat.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.lockedCard}>
-            <Text style={styles.lockedEyebrow}>Premium Feature</Text>
-            <Text style={styles.lockedTitle}>
-              {PREMIUM_FEATURE_COPY['ingredient-ocr'].title}
-            </Text>
-            <Text style={styles.lockedText}>
-              {PREMIUM_FEATURE_COPY['ingredient-ocr'].description}
-            </Text>
-            <PrimaryButton
-              label="View Premium"
-              onPress={() => navigation.navigate('Premium', { featureId: 'ingredient-ocr' })}
-            />
-          </View>
-        )}
+        {renderActionCard()}
 
         {previewUri ? (
           <View style={styles.previewCard}>
@@ -264,7 +448,10 @@ export default function IngredientOcrScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (
+  colors: ReturnType<typeof useAppTheme>['colors']
+) =>
+  StyleSheet.create({
   actionCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -277,6 +464,26 @@ const styles = StyleSheet.create({
     gap: 18,
     paddingHorizontal: 24,
     paddingTop: 18,
+  },
+  captureFlowCard: {
+    gap: 14,
+  },
+  captureFlowLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  captureFlowText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  captureFlowTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
   },
   cropToggle: {
     alignItems: 'center',
@@ -366,30 +573,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-  lockedCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 12,
-    padding: 20,
+  inlineNoticeCard: {
+    backgroundColor: colors.warningMuted,
+    borderRadius: 18,
+    padding: 14,
   },
-  lockedEyebrow: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  lockedText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  lockedTitle: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '800',
+  inlineNoticeText: {
+    color: colors.warning,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
   },
   heroCard: {
     backgroundColor: colors.primaryMuted,
@@ -440,10 +633,59 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
+  rewardActions: {
+    gap: 10,
+    marginTop: 6,
+  },
+  tipDot: {
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    height: 8,
+    marginTop: 6,
+    width: 8,
+  },
+  tipList: {
+    gap: 10,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  tipText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  usageCard: {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 8,
+    padding: 16,
+  },
+  usageLabel: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  usageText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  usageTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
   title: {
     color: colors.text,
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 34,
   },
-});
+  });

@@ -1,6 +1,11 @@
 import type { UserProfile } from './userProfile';
 
-export type PremiumFeatureId = 'ingredient-ocr' | 'share-result-card';
+export type PremiumFeatureId =
+  | 'ingredient-ocr'
+  | 'share-result-card'
+  | 'app-look-presets'
+  | 'history-personalization'
+  | 'ad-free-experience';
 
 export type PremiumEntitlementSource =
   | 'admin-role'
@@ -18,7 +23,13 @@ export type PremiumEntitlement = {
   updatedAt: string | null;
 };
 
-const PREMIUM_FEATURES: PremiumFeatureId[] = ['ingredient-ocr', 'share-result-card'];
+const PREMIUM_FEATURES: PremiumFeatureId[] = [
+  'ingredient-ocr',
+  'share-result-card',
+  'app-look-presets',
+  'history-personalization',
+  'ad-free-experience',
+];
 
 export function createDefaultPremiumEntitlement(): PremiumEntitlement {
   return {
