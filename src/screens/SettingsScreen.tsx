@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import DietProfileModal from '../components/DietProfileModal';
 import OptionPickerModal from '../components/OptionPickerModal';
+import ScreenLoadingView from '../components/ScreenLoadingView';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
 import { useAppTheme } from '../components/AppThemeProvider';
@@ -38,9 +39,9 @@ import { getPremiumSession, subscribePremiumSession } from '../store';
 type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 export default function SettingsScreen({ navigation }: SettingsScreenProps) {
-  const { appLookId, appearanceMode, colors, setAppLookId, setAppearanceMode } =
+  const { appLookId, appearanceMode, colors, setAppLookId, setAppearanceMode, typography } =
     useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [dietProfileId, setDietProfileId] = useState<DietProfileId>(
     DEFAULT_DIET_PROFILE_ID
   );
@@ -51,9 +52,11 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const [draftShareCardStyleId, setDraftShareCardStyleId] =
     useState<ShareCardStyleId>('classic');
   const [historyInsightsEnabled, setHistoryInsightsEnabled] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isAppLookModalVisible, setIsAppLookModalVisible] = useState(false);
   const [isDietProfileVisible, setIsDietProfileVisible] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [isShareCardStyleModalVisible, setIsShareCardStyleModalVisible] =
     useState(false);
   const [profileName, setProfileName] = useState('');
@@ -93,33 +96,45 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       });
 
       const loadSettings = async () => {
-        const [profile, savedDietProfileId, savedShareCardStyleId, entitlement] = await Promise.all([
-          loadUserProfile(),
-          syncDietProfileForCurrentUser(),
-          syncShareCardStyleForCurrentUser(),
-          loadCurrentPremiumEntitlement(),
-        ]);
-
-        if (!isMounted) {
-          return;
+        if (!hasLoadedOnce) {
+          setIsLoadingSettings(true);
         }
 
-        setDietProfileId(savedDietProfileId);
-        setDraftDietProfileId(savedDietProfileId);
-        setDraftAppLookId(profile?.appLookId ?? appLookId);
-        setDraftShareCardStyleId(savedShareCardStyleId);
-        setHistoryInsightsEnabled(profile?.historyInsightsEnabled ?? true);
-        setProfileEmail(profile?.email ?? '');
-        setProfileName(profile?.name ?? '');
-        setPremiumLabel(entitlement.isPremium ? 'Premium' : 'Basic');
-        setRoleLabel(
-          profile?.role === 'admin'
-            ? 'Admin'
-            : profile?.role === 'premium'
-              ? 'Premium'
-              : 'User'
-        );
-        setShareCardStyleId(savedShareCardStyleId);
+        try {
+          const [profile, savedDietProfileId, savedShareCardStyleId, entitlement] =
+            await Promise.all([
+              loadUserProfile(),
+              syncDietProfileForCurrentUser(),
+              syncShareCardStyleForCurrentUser(),
+              loadCurrentPremiumEntitlement(),
+            ]);
+
+          if (!isMounted) {
+            return;
+          }
+
+          setDietProfileId(savedDietProfileId);
+          setDraftDietProfileId(savedDietProfileId);
+          setDraftAppLookId(profile?.appLookId ?? appLookId);
+          setDraftShareCardStyleId(savedShareCardStyleId);
+          setHistoryInsightsEnabled(profile?.historyInsightsEnabled ?? true);
+          setProfileEmail(profile?.email ?? '');
+          setProfileName(profile?.name ?? '');
+          setPremiumLabel(entitlement.isPremium ? 'Premium' : 'Basic');
+          setRoleLabel(
+            profile?.role === 'admin'
+              ? 'Admin'
+              : profile?.role === 'premium'
+                ? 'Premium'
+                : 'User'
+          );
+          setShareCardStyleId(savedShareCardStyleId);
+          setHasLoadedOnce(true);
+        } finally {
+          if (isMounted) {
+            setIsLoadingSettings(false);
+          }
+        }
       };
 
       void loadSettings();
@@ -128,8 +143,17 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         isMounted = false;
         unsubscribePremium();
       };
-    }, [appLookId])
+    }, [appLookId, hasLoadedOnce])
   );
+
+  if (isLoadingSettings && !hasLoadedOnce) {
+    return (
+      <ScreenLoadingView
+        subtitle="Refreshing your account, preferences, and premium tools..."
+        title="Loading settings"
+      />
+    );
+  }
 
   const selectedProfile =
     DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === dietProfileId) ||
@@ -222,7 +246,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         >
           <SettingsRow
             onPress={() => navigation.navigate('ProfileDetails')}
-            subtitle="Edit your name and optional age."
+            subtitle="Edit your name."
             title="Profile"
             value="Open"
           />
@@ -371,7 +395,8 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     content: {
@@ -380,6 +405,7 @@ const createStyles = (
     },
     eyebrow: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 13,
       fontWeight: '800',
       letterSpacing: 0.4,
@@ -397,6 +423,7 @@ const createStyles = (
     },
     roleBadgeText: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '800',
     },
@@ -406,6 +433,7 @@ const createStyles = (
     },
     subtitle: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 22,
     },
@@ -419,10 +447,12 @@ const createStyles = (
     },
     summaryText: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 14,
     },
     summaryTitle: {
       color: colors.text,
+      fontFamily: typography.displayFontFamily,
       fontSize: 24,
       fontWeight: '800',
       lineHeight: 30,
@@ -442,6 +472,7 @@ const createStyles = (
     },
     themeChipText: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 14,
       fontWeight: '700',
       textAlign: 'center',
@@ -456,6 +487,7 @@ const createStyles = (
     },
     title: {
       color: colors.text,
+      fontFamily: typography.displayFontFamily,
       fontSize: 30,
       fontWeight: '800',
       lineHeight: 36,

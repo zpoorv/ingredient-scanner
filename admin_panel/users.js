@@ -10,7 +10,6 @@ let selectedUser = null;
 let allUsers = [];
 
 const userFieldIds = {
-  age: 'userAge',
   countryCode: 'userCountryCode',
   email: 'userEmail',
   name: 'userName',
@@ -99,7 +98,6 @@ byId('userForm').addEventListener('submit', async (event) => {
 
   const nextUser = {
     ...selectedUser,
-    age: byId('userAge').value.trim() ? Number(byId('userAge').value.trim()) : null,
     countryCode: byId('userCountryCode').value.trim() || null,
     name: byId('userName').value.trim(),
     plan: byId('userPlan').value,

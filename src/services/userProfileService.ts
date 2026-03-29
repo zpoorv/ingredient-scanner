@@ -10,6 +10,7 @@ import { isShareCardStyleId } from '../models/shareCardStyle';
 import { getAuthSession } from '../store';
 import type { UserProfile } from '../models/userProfile';
 import { getFirebaseAuth } from './firebaseAuth';
+import { AuthServiceError } from './authHelpers';
 import {
   clearStoredUserProfile,
   loadStoredUserProfile,
@@ -21,7 +22,6 @@ function buildDefaultProfileFromAuthUser(authUser: AuthUser): UserProfile {
   const now = new Date().toISOString();
 
   return {
-    age: null,
     appLookId: 'classic',
     appearanceMode: 'light',
     countryCode: null,
@@ -210,7 +210,6 @@ async function saveUserProfilePatch(
   patch: Partial<
     Pick<
       UserProfile,
-      | 'age'
       | 'appLookId'
       | 'appearanceMode'
       | 'countryCode'
@@ -236,6 +235,10 @@ async function saveUserProfilePatch(
     updatedAt: new Date().toISOString(),
   };
 
+  if (!nextProfile.name.trim()) {
+    throw new AuthServiceError('Enter your name.');
+  }
+
   await saveStoredUserProfile(nextProfile);
   await saveRemoteUserProfile(nextProfile);
 
@@ -252,10 +255,9 @@ async function saveUserProfilePatch(
 }
 
 export async function saveUserProfile(
-  input: Pick<UserProfile, 'age' | 'countryCode' | 'name'>
+  input: Pick<UserProfile, 'countryCode' | 'name'>
 ) {
   return saveUserProfilePatch({
-    age: input.age,
     countryCode: input.countryCode,
     name: input.name,
   });

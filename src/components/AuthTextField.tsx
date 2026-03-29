@@ -33,8 +33,8 @@ export default function AuthTextField({
   secureTextEntry = false,
   value,
 }: AuthTextFieldProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
   return (
     <View style={styles.field}>
@@ -58,11 +58,13 @@ export default function AuthTextField({
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     errorText: {
       color: colors.danger,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 13,
       fontWeight: '600',
       lineHeight: 18,
@@ -76,6 +78,7 @@ const createStyles = (
       borderRadius: 16,
       borderWidth: 1,
       color: colors.text,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 16,
       minHeight: 54,
       paddingHorizontal: 16,
@@ -85,6 +88,7 @@ const createStyles = (
     },
     label: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 14,
       fontWeight: '700',
     },

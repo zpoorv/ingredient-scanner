@@ -15,8 +15,9 @@ import type { RootStackParamList } from '../navigation/types';
 type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
 
 export default function SignUpScreen({ navigation }: SignUpScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -28,7 +29,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
     setIsSubmitting(true);
 
     try {
-      const notice = await signUpWithEmail({ email, password, passwordConfirmation });
+      const notice = await signUpWithEmail({ email, name, password, passwordConfirmation });
       navigation.replace('Login', {
         notice,
         prefillEmail: email.trim().toLowerCase(),
@@ -57,6 +58,13 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
         </View>
 
         <View style={styles.card}>
+          <AuthTextField
+            autoCapitalize="words"
+            label="Name"
+            onChangeText={setName}
+            placeholder="Your full name"
+            value={name}
+          />
           <AuthTextField
             autoComplete="email"
             keyboardType="email-address"
@@ -109,7 +117,8 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
   card: {
@@ -136,12 +145,14 @@ const createStyles = (
   },
   dividerText: {
     color: colors.textMuted,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   eyebrow: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -153,11 +164,13 @@ const createStyles = (
   },
   footerLink: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 15,
     fontWeight: '700',
   },
   footerText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
   },
   header: {
@@ -170,11 +183,13 @@ const createStyles = (
   },
   subtitle: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 22,
   },
   title: {
     color: colors.text,
+    fontFamily: typography.displayFontFamily,
     fontSize: 30,
     fontWeight: '800',
     lineHeight: 36,

@@ -53,7 +53,6 @@
 - `users/{uid}`
   - `email`
   - `name`
-  - `age`
   - `countryCode`
   - `role`
   - `plan`

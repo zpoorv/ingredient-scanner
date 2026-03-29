@@ -1,9 +1,10 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { Alert, InteractionManager, Linking } from 'react-native';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import ScreenLoadingView from '../components/ScreenLoadingView';
 import { APP_NAME } from '../constants/branding';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -24,21 +25,44 @@ import SignUpScreen from '../screens/SignUpScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const SettingsScreen = lazy(() => import('../screens/SettingsScreen'));
-const PremiumScreen = lazy(() => import('../screens/PremiumScreen'));
-const ProfileDetailsScreen = lazy(() => import('../screens/ProfileDetailsScreen'));
-const HistoryScreen = lazy(() => import('../screens/HistoryScreen'));
-const IngredientOcrScreen = lazy(() => import('../screens/IngredientOcrScreen'));
-const HelpScreen = lazy(() => import('../screens/HelpScreen'));
-const PrivacyPolicyScreen = lazy(() => import('../screens/PrivacyPolicyScreen'));
-const AboutScreen = lazy(() => import('../screens/AboutScreen'));
-const FeedbackScreen = lazy(() => import('../screens/FeedbackScreen'));
+const loadSettingsScreen = () => import('../screens/SettingsScreen');
+const loadPremiumScreen = () => import('../screens/PremiumScreen');
+const loadProfileDetailsScreen = () => import('../screens/ProfileDetailsScreen');
+const loadHistoryScreen = () => import('../screens/HistoryScreen');
+const loadIngredientOcrScreen = () => import('../screens/IngredientOcrScreen');
+const loadHelpScreen = () => import('../screens/HelpScreen');
+const loadPrivacyPolicyScreen = () => import('../screens/PrivacyPolicyScreen');
+const loadAboutScreen = () => import('../screens/AboutScreen');
+const loadFeedbackScreen = () => import('../screens/FeedbackScreen');
+
+const SettingsScreen = lazy(loadSettingsScreen);
+const PremiumScreen = lazy(loadPremiumScreen);
+const ProfileDetailsScreen = lazy(loadProfileDetailsScreen);
+const HistoryScreen = lazy(loadHistoryScreen);
+const IngredientOcrScreen = lazy(loadIngredientOcrScreen);
+const HelpScreen = lazy(loadHelpScreen);
+const PrivacyPolicyScreen = lazy(loadPrivacyPolicyScreen);
+const AboutScreen = lazy(loadAboutScreen);
+const FeedbackScreen = lazy(loadFeedbackScreen);
+
+const AUTHENTICATED_SCREEN_LOADERS = [
+  loadSettingsScreen,
+  loadPremiumScreen,
+  loadProfileDetailsScreen,
+  loadHistoryScreen,
+  loadIngredientOcrScreen,
+  loadHelpScreen,
+  loadPrivacyPolicyScreen,
+  loadAboutScreen,
+  loadFeedbackScreen,
+];
 
 export default function RootNavigator() {
   const [authSession, setAuthSession] = useState(getAuthSession());
   const [isHandlingEmailLink, setIsHandlingEmailLink] = useState(false);
   const { colors, typography } = useAppTheme();
   const currentUserId = authSession.user?.id ?? null;
+  const isAuthenticated = authSession.status === 'authenticated';
 
   const navigationTheme = {
     ...DefaultTheme,
@@ -68,6 +92,24 @@ export default function RootNavigator() {
 
     clearPremiumSession();
   }, [authSession.status, currentUserId]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    // Warm the lazy screens after the first paint so navigation does not pause
+    // the first time a user opens Settings, History, OCR, or support pages.
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      void Promise.allSettled(
+        AUTHENTICATED_SCREEN_LOADERS.map((loadScreen) => loadScreen())
+      );
+    });
+
+    return () => {
+      interactionHandle.cancel();
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     let isMounted = true;
@@ -110,8 +152,6 @@ export default function RootNavigator() {
       subscription.remove();
     };
   }, []);
-
-  const isAuthenticated = authSession.status === 'authenticated';
 
   return (
     <Suspense fallback={<AuthBootstrapScreen />}>
@@ -225,31 +265,10 @@ export default function RootNavigator() {
 }
 
 function AuthBootstrapScreen() {
-  const { colors } = useAppTheme();
-  const styles = createStyles(colors);
-
   return (
-    <View style={styles.bootstrapScreen}>
-      <ActivityIndicator color={colors.primary} size="large" />
-      <Text style={styles.bootstrapText}>Loading your account...</Text>
-    </View>
+    <ScreenLoadingView
+      subtitle="Restoring your account and premium access..."
+      title="Loading your account"
+    />
   );
 }
-
-const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
-) =>
-  StyleSheet.create({
-    bootstrapScreen: {
-      alignItems: 'center',
-      backgroundColor: colors.background,
-      flex: 1,
-      gap: 14,
-      justifyContent: 'center',
-    },
-    bootstrapText: {
-      color: colors.textMuted,
-      fontSize: 15,
-      fontWeight: '600',
-    },
-  });

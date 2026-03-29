@@ -52,6 +52,9 @@ export function validateLoginInput(input: EmailPasswordLoginInput) {
 
 export function validateSignUpInput(input: EmailPasswordSignUpInput) {
   return (
+    (!input.name.trim()
+      ? 'Enter your name.'
+      : null) ||
     validateEmailAddress(input.email) ||
     validatePasswordStrength(input.password) ||
     (!input.passwordConfirmation

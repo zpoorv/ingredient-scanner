@@ -16,8 +16,8 @@ import type { RootStackParamList } from '../navigation/types';
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation, route }: LoginScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [email, setEmail] = useState(route.params?.prefillEmail ?? '');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -142,7 +142,8 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
   card: {
@@ -169,12 +170,14 @@ const createStyles = (
   },
   dividerText: {
     color: colors.textMuted,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
   },
   eyebrow: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -186,11 +189,13 @@ const createStyles = (
   },
   footerLink: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 15,
     fontWeight: '700',
   },
   footerText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
   },
   header: {
@@ -202,11 +207,13 @@ const createStyles = (
   },
   linkText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 14,
     fontWeight: '700',
   },
   noticeText: {
     color: colors.primary,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -216,11 +223,13 @@ const createStyles = (
   },
   subtitle: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 22,
   },
   title: {
     color: colors.text,
+    fontFamily: typography.displayFontFamily,
     fontSize: 30,
     fontWeight: '800',
     lineHeight: 36,

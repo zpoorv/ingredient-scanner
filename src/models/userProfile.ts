@@ -5,7 +5,6 @@ import type { ShareCardStyleId } from './shareCardStyle';
 export type UserRole = 'admin' | 'premium' | 'user';
 
 export type UserProfile = {
-  age: number | null;
   appLookId: AppLookId;
   appearanceMode: AppearanceMode;
   countryCode: string | null;

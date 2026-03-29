@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthTextField from '../components/AuthTextField';
 import { useAppTheme } from '../components/AppThemeProvider';
 import PrimaryButton from '../components/PrimaryButton';
+import ScreenLoadingView from '../components/ScreenLoadingView';
 import { APP_NAME } from '../constants/branding';
 import { AuthServiceError } from '../services/authHelpers';
 import { loadUserProfile, saveUserProfile } from '../services/userProfileService';
@@ -19,11 +20,11 @@ type ProfileDetailsScreenProps = NativeStackScreenProps<
 export default function ProfileDetailsScreen({
   navigation,
 }: ProfileDetailsScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [email, setEmail] = useState('');
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [name, setName] = useState('');
-  const [age, setAge] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -31,13 +32,14 @@ export default function ProfileDetailsScreen({
     let isMounted = true;
 
     void loadUserProfile().then((profile) => {
-      if (!profile || !isMounted) {
-        return;
+      if (isMounted && profile) {
+        setEmail(profile.email);
+        setName(profile.name);
       }
 
-      setEmail(profile.email);
-      setName(profile.name);
-      setAge(profile.age ? String(profile.age) : '');
+      if (isMounted) {
+        setIsLoadingProfile(false);
+      }
     });
 
     return () => {
@@ -45,19 +47,25 @@ export default function ProfileDetailsScreen({
     };
   }, []);
 
+  if (isLoadingProfile) {
+    return (
+      <ScreenLoadingView
+        subtitle="Loading your saved account details..."
+        title="Loading profile"
+      />
+    );
+  }
+
   const handleSave = async () => {
     setIsSaving(true);
     setMessage(null);
 
     try {
-      const parsedAge = age.trim() ? Number(age.trim()) : null;
-
-      if (parsedAge !== null && (!Number.isFinite(parsedAge) || parsedAge <= 0)) {
-        throw new AuthServiceError('Enter a valid age or leave it blank.');
+      if (!name.trim()) {
+        throw new AuthServiceError('Enter your name.');
       }
 
       await saveUserProfile({
-        age: parsedAge,
         countryCode: null,
         name,
       });
@@ -81,7 +89,7 @@ export default function ProfileDetailsScreen({
           <Text style={styles.eyebrow}>Profile</Text>
           <Text style={styles.title}>Update your {APP_NAME} details</Text>
           <Text style={styles.subtitle}>
-            Email comes from your sign-in account. Name and age can be updated anytime.
+            Email comes from your sign-in account. Your name can be updated anytime.
           </Text>
         </View>
 
@@ -99,13 +107,6 @@ export default function ProfileDetailsScreen({
             placeholder="How should we address you?"
             value={name}
           />
-          <AuthTextField
-            keyboardType="number-pad"
-            label="Age (Optional)"
-            onChangeText={setAge}
-            placeholder="Leave blank if you prefer"
-            value={age}
-          />
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <PrimaryButton
             disabled={isSaving}
@@ -120,7 +121,8 @@ export default function ProfileDetailsScreen({
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     card: {
@@ -137,6 +139,7 @@ const createStyles = (
     },
     eyebrow: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 13,
       fontWeight: '800',
       letterSpacing: 0.4,
@@ -147,6 +150,7 @@ const createStyles = (
     },
     message: {
       color: colors.primary,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 14,
       lineHeight: 21,
     },
@@ -156,11 +160,13 @@ const createStyles = (
     },
     subtitle: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 22,
     },
     title: {
       color: colors.text,
+      fontFamily: typography.displayFontFamily,
       fontSize: 30,
       fontWeight: '800',
       lineHeight: 36,

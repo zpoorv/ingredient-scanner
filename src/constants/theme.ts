@@ -245,7 +245,7 @@ const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
       default: 'system-ui',
     }),
     bodyFontFamily: Platform.select({
-      android: 'sans-serif',
+      android: 'serif',
       ios: 'Helvetica Neue',
       default: 'system-ui',
     }),
@@ -294,7 +294,7 @@ const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
   },
   forest: {
     accentFontFamily: Platform.select({
-      android: 'sans-serif-medium',
+      android: 'serif',
       ios: 'Gill Sans',
       default: 'system-ui',
     }),
@@ -304,12 +304,12 @@ const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
       default: 'system-ui',
     }),
     displayFontFamily: Platform.select({
-      android: 'sans-serif-medium',
+      android: 'serif',
       ios: 'Gill Sans',
       default: 'system-ui',
     }),
     headingFontFamily: Platform.select({
-      android: 'sans-serif-medium',
+      android: 'serif',
       ios: 'Gill Sans',
       default: 'system-ui',
     }),
@@ -348,7 +348,7 @@ const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
   },
   ocean: {
     accentFontFamily: Platform.select({
-      android: 'sans-serif-medium',
+      android: 'sans-serif-condensed',
       ios: 'Helvetica Neue',
       default: 'system-ui',
     }),
@@ -358,12 +358,12 @@ const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
       default: 'system-ui',
     }),
     displayFontFamily: Platform.select({
-      android: 'sans-serif',
+      android: 'sans-serif-condensed',
       ios: 'Helvetica Neue',
       default: 'system-ui',
     }),
     headingFontFamily: Platform.select({
-      android: 'sans-serif',
+      android: 'sans-serif-condensed',
       ios: 'Helvetica Neue',
       default: 'system-ui',
     }),
@@ -380,7 +380,7 @@ const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
       default: 'serif',
     }),
     bodyFontFamily: Platform.select({
-      android: 'sans-serif',
+      android: 'serif',
       ios: 'Avenir Next',
       default: 'system-ui',
     }),

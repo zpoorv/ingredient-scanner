@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { useAppTheme } from '../components/AppThemeProvider';
+import ScreenLoadingView from '../components/ScreenLoadingView';
 import {
   PREMIUM_FEATURE_COPY,
   PREMIUM_MONTHLY_PRODUCT_ID,
@@ -25,6 +26,8 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [entitlement, setEntitlement] = useState<PremiumEntitlement>(getPremiumSession());
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [isLoadingEntitlement, setIsLoadingEntitlement] = useState(true);
   const highlightedFeature = route.params?.featureId
     ? PREMIUM_FEATURE_COPY[route.params.featureId]
     : null;
@@ -32,10 +35,33 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   useFocusEffect(
     useCallback(() => {
       const unsubscribe = subscribePremiumSession(setEntitlement);
-      void loadCurrentPremiumEntitlement();
+
+      const loadEntitlement = async () => {
+        if (!hasLoadedOnce) {
+          setIsLoadingEntitlement(true);
+        }
+
+        try {
+          await loadCurrentPremiumEntitlement();
+          setHasLoadedOnce(true);
+        } finally {
+          setIsLoadingEntitlement(false);
+        }
+      };
+
+      void loadEntitlement();
       return unsubscribe;
-    }, [])
+    }, [hasLoadedOnce])
   );
+
+  if (isLoadingEntitlement && !hasLoadedOnce) {
+    return (
+      <ScreenLoadingView
+        subtitle="Checking your premium plan and daily limits..."
+        title="Loading premium"
+      />
+    );
+  }
 
   const handlePurchasePress = () => {
     Alert.alert(

@@ -8,6 +8,7 @@ import {
   signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
+  updateProfile,
 } from 'firebase/auth';
 
 import type {
@@ -78,6 +79,9 @@ export async function signUpWithEmail(input: EmailPasswordSignUpInput) {
       input.password
     );
 
+    await updateProfile(credentials.user, {
+      displayName: input.name.trim(),
+    });
     await sendEmailVerification(
       credentials.user,
       getEmailLinkActionSettings()

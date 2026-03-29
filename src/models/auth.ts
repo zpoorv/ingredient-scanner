@@ -22,6 +22,7 @@ export type EmailPasswordLoginInput = {
 };
 
 export type EmailPasswordSignUpInput = EmailPasswordLoginInput & {
+  name: string;
   passwordConfirmation: string;
 };
 
