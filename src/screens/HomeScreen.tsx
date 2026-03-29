@@ -51,8 +51,8 @@ const HOME_FEATURES = [
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [selectedProfileId, setSelectedProfileId] = useState<DietProfileId>(
     DEFAULT_DIET_PROFILE_ID
   );
@@ -413,7 +413,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
   announcementCard: {
@@ -426,6 +427,7 @@ const createStyles = (
   },
   announcementLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -433,11 +435,13 @@ const createStyles = (
   },
   announcementText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   announcementTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -451,6 +455,7 @@ const createStyles = (
   },
   accountLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -458,11 +463,13 @@ const createStyles = (
   },
   accountText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   accountTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -496,6 +503,7 @@ const createStyles = (
   },
   eyebrowText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -524,6 +532,7 @@ const createStyles = (
   featureText: {
     color: colors.text,
     flex: 1,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 16,
     lineHeight: 24,
   },
@@ -546,6 +555,7 @@ const createStyles = (
   },
   headerProfileButtonText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -559,6 +569,7 @@ const createStyles = (
   },
   profileSummaryLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -566,11 +577,13 @@ const createStyles = (
   },
   profileSummaryText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   profileSummaryTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 20,
     fontWeight: '700',
   },
@@ -584,6 +597,7 @@ const createStyles = (
   },
   premiumActionText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -599,6 +613,7 @@ const createStyles = (
     backgroundColor: colors.warningMuted,
   },
   premiumBadgeText: {
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -624,6 +639,7 @@ const createStyles = (
   },
   premiumCardLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -631,11 +647,13 @@ const createStyles = (
   },
   premiumCardText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   premiumCardTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -657,16 +675,19 @@ const createStyles = (
   },
   secondaryActionText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 15,
     fontWeight: '700',
   },
   subtitle: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 17,
     lineHeight: 25,
   },
   title: {
     color: colors.text,
+    fontFamily: typography.displayFontFamily,
     fontSize: 36,
     fontWeight: '800',
     lineHeight: 42,

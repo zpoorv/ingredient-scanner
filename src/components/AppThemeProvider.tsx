@@ -7,7 +7,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-import { getThemeColors } from '../constants/theme';
+import { getThemeColors, getThemeTypography, type AppTypography } from '../constants/theme';
 import type { AppearanceMode, AppLookId } from '../models/preferences';
 import { subscribeAuthSession } from '../store';
 import { loadStoredAuthSessionUser } from '../services/authStorage';
@@ -26,6 +26,7 @@ type AppThemeContextValue = {
   appLookId: AppLookId;
   appearanceMode: AppearanceMode;
   colors: ReturnType<typeof getThemeColors>;
+  typography: AppTypography;
   setAppLookId: (appLookId: AppLookId) => Promise<void>;
   setAppearanceMode: (mode: AppearanceMode) => Promise<void>;
 };
@@ -106,6 +107,7 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
       appLookId,
       appearanceMode,
       colors: getThemeColors(appearanceMode, appLookId),
+      typography: getThemeTypography(appLookId),
       setAppLookId: async (nextAppLookId) => {
         setAppLookIdState(nextAppLookId);
         await saveAppLookId(nextAppLookId);

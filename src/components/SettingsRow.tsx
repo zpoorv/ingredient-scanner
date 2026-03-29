@@ -19,8 +19,8 @@ export default function SettingsRow({
   title,
   value,
 }: SettingsRowProps) {
-  const { colors } = useAppTheme();
-  const styles = createStyles(colors, danger);
+  const { colors, typography } = useAppTheme();
+  const styles = createStyles(colors, typography, danger);
 
   return (
     <Pressable
@@ -43,6 +43,7 @@ export default function SettingsRow({
 
 const createStyles = (
   colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography'],
   danger: boolean
 ) =>
   StyleSheet.create({
@@ -68,16 +69,19 @@ const createStyles = (
     },
     subtitle: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 13,
       lineHeight: 18,
     },
     title: {
       color: danger ? colors.danger : colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 15,
       fontWeight: '700',
     },
     value: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 13,
       fontWeight: '700',
       textAlign: 'right',

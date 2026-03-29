@@ -47,8 +47,8 @@ export default function IngredientOcrScreen({
   navigation,
   route,
 }: IngredientOcrScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -449,7 +449,8 @@ export default function IngredientOcrScreen({
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
   actionCard: {
@@ -470,6 +471,7 @@ const createStyles = (
   },
   captureFlowLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -477,11 +479,13 @@ const createStyles = (
   },
   captureFlowText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   captureFlowTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 22,
     fontWeight: '800',
   },
@@ -521,6 +525,7 @@ const createStyles = (
   },
   cropToggleBadgeText: {
     color: colors.textMuted,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
@@ -530,6 +535,7 @@ const createStyles = (
   },
   cropToggleHint: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,
@@ -539,6 +545,7 @@ const createStyles = (
   },
   cropToggleLabel: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -553,16 +560,19 @@ const createStyles = (
   },
   errorText: {
     color: colors.danger,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   errorTitle: {
     color: colors.danger,
+    fontFamily: typography.headingFontFamily,
     fontSize: 17,
     fontWeight: '800',
   },
   eyebrow: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -570,6 +580,7 @@ const createStyles = (
   },
   helperText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -580,6 +591,7 @@ const createStyles = (
   },
   inlineNoticeText: {
     color: colors.warning,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 19,
@@ -606,6 +618,7 @@ const createStyles = (
   },
   previewLabel: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -624,12 +637,14 @@ const createStyles = (
   },
   stateText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',
   },
   subtitle: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 23,
   },
@@ -654,6 +669,7 @@ const createStyles = (
   tipText: {
     color: colors.text,
     flex: 1,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -667,6 +683,7 @@ const createStyles = (
   },
   usageLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.3,
@@ -674,16 +691,19 @@ const createStyles = (
   },
   usageText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   usageTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 20,
     fontWeight: '800',
   },
   title: {
     color: colors.text,
+    fontFamily: typography.displayFontFamily,
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 34,

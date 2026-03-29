@@ -171,10 +171,16 @@ export async function loadUserProfile() {
     return null;
   }
 
-  const { profile: mergedProfile } = await resolveUserProfile(defaultProfile);
+  const localProfile = await loadStoredUserProfile(defaultProfile.uid);
+  const resolvedProfile: UserProfile = {
+    ...defaultProfile,
+    ...(localProfile ?? {}),
+    email: defaultProfile.email,
+    uid: defaultProfile.uid,
+  };
 
-  await saveStoredUserProfile(mergedProfile);
-  return mergedProfile;
+  await saveStoredUserProfile(resolvedProfile);
+  return resolvedProfile;
 }
 
 export async function syncCurrentUserProfileToFirestore() {

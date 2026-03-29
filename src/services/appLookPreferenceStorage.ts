@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs
 import { getAuthSession } from '../store';
 import type { AppLookId } from '../models/preferences';
 import { isAppLookId } from '../models/preferences';
-import { loadRemoteUserProfile } from './cloudUserDataService';
 import { saveCurrentUserPreferences } from './userProfileService';
 
 const APP_LOOK_STORAGE_KEY_PREFIX = 'inqoura/app-look/v1';
@@ -41,22 +40,15 @@ export async function syncAppLookForCurrentUser(): Promise<AppLookId> {
   const scopeId = getAppLookScopeId(sessionUser?.id);
   const localAppLookId = await loadScopedAppLook(scopeId);
 
-  if (!sessionUser) {
-    return localAppLookId ?? 'classic';
-  }
-
-  const remoteProfile = await loadRemoteUserProfile(sessionUser.id);
-
-  if (isAppLookId(remoteProfile?.appLookId)) {
-    await writeScopedAppLook(scopeId, remoteProfile.appLookId);
-    return remoteProfile.appLookId;
-  }
-
   const resolvedAppLookId = localAppLookId ?? 'classic';
   await writeScopedAppLook(scopeId, resolvedAppLookId);
-  await saveCurrentUserPreferences({
-    appLookId: resolvedAppLookId,
-  });
+
+  if (sessionUser) {
+    await saveCurrentUserPreferences({
+      appLookId: resolvedAppLookId,
+    });
+  }
+
   return resolvedAppLookId;
 }
 

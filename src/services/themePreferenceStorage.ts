@@ -1,10 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs/index';
 
-import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
 import { getAuthSession } from '../store';
 import type { AppearanceMode } from '../models/preferences';
 import { isAppearanceMode } from '../models/preferences';
-import { loadRemoteUserProfile } from './cloudUserDataService';
 import { saveCurrentUserPreferences } from './userProfileService';
 
 const LEGACY_APPEARANCE_MODE_STORAGE_KEY = 'inqoura/appearance-mode/v1';
@@ -53,23 +51,14 @@ export async function syncAppearanceModeForCurrentUser(): Promise<AppearanceMode
   const scopeId = getAppearanceModeScopeId(sessionUser?.id);
   const localMode = await loadScopedAppearanceMode(scopeId);
 
-  if (!sessionUser) {
-    return localMode ?? 'light';
-  }
-
-  const remoteProfile = await loadRemoteUserProfile(sessionUser.id);
-
-  if (isAppearanceMode(remoteProfile?.appearanceMode)) {
-    await writeScopedAppearanceMode(scopeId, remoteProfile.appearanceMode);
-    return remoteProfile.appearanceMode;
-  }
-
   const resolvedMode = localMode ?? 'light';
   await writeScopedAppearanceMode(scopeId, resolvedMode);
-  await saveCurrentUserPreferences({
-    appearanceMode: resolvedMode,
-    dietProfileId: remoteProfile?.dietProfileId ?? DEFAULT_DIET_PROFILE_ID,
-  });
+
+  if (sessionUser) {
+    await saveCurrentUserPreferences({
+      appearanceMode: resolvedMode,
+    });
+  }
 
   return resolvedMode;
 }
@@ -81,10 +70,8 @@ export async function saveAppearanceMode(mode: AppearanceMode) {
   await writeScopedAppearanceMode(scopeId, mode);
 
   if (sessionUser) {
-    const remoteProfile = await loadRemoteUserProfile(sessionUser.id);
     await saveCurrentUserPreferences({
       appearanceMode: mode,
-      dietProfileId: remoteProfile?.dietProfileId ?? DEFAULT_DIET_PROFILE_ID,
     });
   }
 

@@ -75,6 +75,18 @@ function offNutrition(product) {
   };
 }
 
+function normalizeListSource(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    return value.split(',');
+  }
+
+  return [];
+}
+
 function buildDraft(barcode, offProduct, override) {
   const nutrition = { ...offNutrition(offProduct), ...(override?.nutrition || {}) };
 
@@ -84,16 +96,22 @@ function buildDraft(barcode, offProduct, override) {
     adminScore: inputValue(override?.adminScore),
     adminSummary: override?.adminSummary ?? '',
     adminVerdict: override?.adminVerdict ?? '',
-    allergens: formatCommaList((override?.allergens || offProduct?.allergens || '').split(',')),
+    allergens: formatCommaList(
+      normalizeListSource(override?.allergens || offProduct?.allergens)
+    ),
     barcode,
     brand: override?.brand ?? offProduct?.brands ?? '',
     calories100g: inputValue(nutrition.calories100g),
-    categories: formatCommaList((override?.categories || offProduct?.categories || '').split(',')),
+    categories: formatCommaList(
+      normalizeListSource(override?.categories || offProduct?.categories)
+    ),
     fiber100g: inputValue(nutrition.fiber100g),
     healthierAlternatives: formatAlternativeLines(override?.healthierAlternatives || []),
     imageUrl: override?.imageUrl ?? offProduct?.image_front_url ?? '',
     ingredientsText: override?.ingredientsText ?? offProduct?.ingredients_text ?? '',
-    labels: formatCommaList((override?.labels || offProduct?.labels || '').split(',')),
+    labels: formatCommaList(
+      normalizeListSource(override?.labels || offProduct?.labels)
+    ),
     name: override?.name ?? offProduct?.product_name ?? '',
     nameReason: override?.nameReason ?? '',
     notes: override?.notes ?? '',

@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import type { AppearanceMode, AppLookId } from '../models/preferences';
 
 export type AppColors = {
@@ -17,7 +19,16 @@ export type AppColors = {
   warningMuted: string;
 };
 
+export type AppTypography = {
+  accentFontFamily?: string;
+  bodyFontFamily?: string;
+  displayFontFamily?: string;
+  headingFontFamily?: string;
+  numericFontFamily?: string;
+};
+
 type ThemeLooks = Record<AppLookId, { dark: AppColors; light: AppColors }>;
+type ThemeTypographyLooks = Record<AppLookId, AppTypography>;
 
 const THEME_LOOKS: ThemeLooks = {
   berry: {
@@ -226,6 +237,171 @@ const THEME_LOOKS: ThemeLooks = {
   },
 };
 
+const THEME_TYPOGRAPHY: ThemeTypographyLooks = {
+  berry: {
+    accentFontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      ios: 'Palatino',
+      default: 'system-ui',
+    }),
+    bodyFontFamily: Platform.select({
+      android: 'sans-serif',
+      ios: 'Helvetica Neue',
+      default: 'system-ui',
+    }),
+    displayFontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      ios: 'Palatino',
+      default: 'system-ui',
+    }),
+    headingFontFamily: Platform.select({
+      android: 'sans-serif-condensed',
+      ios: 'Palatino',
+      default: 'system-ui',
+    }),
+    numericFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Helvetica Neue',
+      default: 'system-ui',
+    }),
+  },
+  classic: {
+    accentFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Avenir Next Demi Bold',
+      default: 'system-ui',
+    }),
+    bodyFontFamily: Platform.select({
+      android: 'sans-serif',
+      ios: 'Avenir Next',
+      default: 'system-ui',
+    }),
+    displayFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Avenir Next Demi Bold',
+      default: 'system-ui',
+    }),
+    headingFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Avenir Next Demi Bold',
+      default: 'system-ui',
+    }),
+    numericFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Avenir Next Demi Bold',
+      default: 'system-ui',
+    }),
+  },
+  forest: {
+    accentFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Gill Sans',
+      default: 'system-ui',
+    }),
+    bodyFontFamily: Platform.select({
+      android: 'sans-serif',
+      ios: 'Avenir Next',
+      default: 'system-ui',
+    }),
+    displayFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Gill Sans',
+      default: 'system-ui',
+    }),
+    headingFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Gill Sans',
+      default: 'system-ui',
+    }),
+    numericFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Avenir Next Demi Bold',
+      default: 'system-ui',
+    }),
+  },
+  midnight: {
+    accentFontFamily: Platform.select({
+      android: 'monospace',
+      ios: 'Avenir Next Demi Bold',
+      default: 'system-ui',
+    }),
+    bodyFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Avenir Next',
+      default: 'system-ui',
+    }),
+    displayFontFamily: Platform.select({
+      android: 'monospace',
+      ios: 'Avenir Next Condensed',
+      default: 'system-ui',
+    }),
+    headingFontFamily: Platform.select({
+      android: 'monospace',
+      ios: 'Avenir Next Condensed',
+      default: 'system-ui',
+    }),
+    numericFontFamily: Platform.select({
+      android: 'monospace',
+      ios: 'Menlo',
+      default: 'monospace',
+    }),
+  },
+  ocean: {
+    accentFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Helvetica Neue',
+      default: 'system-ui',
+    }),
+    bodyFontFamily: Platform.select({
+      android: 'sans-serif-light',
+      ios: 'Avenir Next',
+      default: 'system-ui',
+    }),
+    displayFontFamily: Platform.select({
+      android: 'sans-serif',
+      ios: 'Helvetica Neue',
+      default: 'system-ui',
+    }),
+    headingFontFamily: Platform.select({
+      android: 'sans-serif',
+      ios: 'Helvetica Neue',
+      default: 'system-ui',
+    }),
+    numericFontFamily: Platform.select({
+      android: 'sans-serif-medium',
+      ios: 'Helvetica Neue',
+      default: 'system-ui',
+    }),
+  },
+  sunset: {
+    accentFontFamily: Platform.select({
+      android: 'serif',
+      ios: 'Georgia',
+      default: 'serif',
+    }),
+    bodyFontFamily: Platform.select({
+      android: 'sans-serif',
+      ios: 'Avenir Next',
+      default: 'system-ui',
+    }),
+    displayFontFamily: Platform.select({
+      android: 'serif',
+      ios: 'Georgia',
+      default: 'serif',
+    }),
+    headingFontFamily: Platform.select({
+      android: 'serif',
+      ios: 'Georgia',
+      default: 'serif',
+    }),
+    numericFontFamily: Platform.select({
+      android: 'serif',
+      ios: 'Georgia',
+      default: 'serif',
+    }),
+  },
+};
+
 export const lightColors: AppColors = THEME_LOOKS.classic.light;
 export const darkColors: AppColors = THEME_LOOKS.classic.dark;
 
@@ -235,4 +411,8 @@ export function getThemeColors(
 ) {
   const look = THEME_LOOKS[appLookId] ?? THEME_LOOKS.classic;
   return mode === 'dark' ? look.dark : look.light;
+}
+
+export function getThemeTypography(appLookId: AppLookId = 'classic') {
+  return THEME_TYPOGRAPHY[appLookId] ?? THEME_TYPOGRAPHY.classic;
 }

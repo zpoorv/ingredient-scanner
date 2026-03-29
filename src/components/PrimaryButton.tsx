@@ -14,8 +14,8 @@ export default function PrimaryButton({
   label,
   onPress,
 }: PrimaryButtonProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
   return (
     <Pressable
@@ -35,7 +35,8 @@ export default function PrimaryButton({
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     button: {
@@ -55,6 +56,7 @@ const createStyles = (
     },
     label: {
       color: colors.surface,
+      fontFamily: typography.accentFontFamily,
       fontSize: 16,
       fontWeight: '700',
     },

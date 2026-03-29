@@ -103,8 +103,8 @@ function getStatusContent(
 }
 
 export default function ScannerScreen({ navigation, route }: ScannerScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [cameraPermission, requestPermission] = useCameraPermissions();
   const [cameraResetKey, setCameraResetKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -425,7 +425,8 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     backgroundGlow: {
@@ -461,6 +462,7 @@ const createStyles = (
     },
     eyebrowText: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '700',
       letterSpacing: 0.2,
@@ -482,6 +484,7 @@ const createStyles = (
     },
     loadingText: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 14,
       fontWeight: '600',
     },
@@ -496,11 +499,13 @@ const createStyles = (
     },
     permissionText: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 16,
       lineHeight: 24,
     },
     permissionTitle: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 22,
       fontWeight: '800',
     },
@@ -510,6 +515,7 @@ const createStyles = (
     },
     statusBody: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 22,
     },
@@ -523,6 +529,7 @@ const createStyles = (
     },
     statusEyebrow: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '700',
       letterSpacing: 0.3,
@@ -535,6 +542,7 @@ const createStyles = (
     },
     statusHint: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 13,
       lineHeight: 19,
     },
@@ -548,22 +556,26 @@ const createStyles = (
     },
     statusSourceChipText: {
       color: colors.textMuted,
+      fontFamily: typography.accentFontFamily,
       fontSize: 11,
       fontWeight: '700',
       textTransform: 'uppercase',
     },
     statusTitle: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 20,
       fontWeight: '800',
     },
     subtitle: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 23,
     },
     title: {
       color: colors.text,
+      fontFamily: typography.displayFontFamily,
       fontSize: 26,
       fontWeight: '800',
       lineHeight: 32,

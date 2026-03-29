@@ -37,7 +37,7 @@ const FeedbackScreen = lazy(() => import('../screens/FeedbackScreen'));
 export default function RootNavigator() {
   const [authSession, setAuthSession] = useState(getAuthSession());
   const [isHandlingEmailLink, setIsHandlingEmailLink] = useState(false);
-  const { colors } = useAppTheme();
+  const { colors, typography } = useAppTheme();
   const currentUserId = authSession.user?.id ?? null;
 
   const navigationTheme = {
@@ -123,6 +123,11 @@ export default function RootNavigator() {
             headerShadowVisible: false,
             headerStyle: { backgroundColor: colors.surface },
             headerTintColor: colors.text,
+            headerTitleStyle: {
+              color: colors.text,
+              fontFamily: typography.headingFontFamily,
+              fontWeight: '700',
+            },
           }}
         >
           {authSession.status === 'loading' || isHandlingEmailLink ? (

@@ -10,7 +10,6 @@ import {
   getSessionDietProfile,
   setSessionDietProfile,
 } from '../store/profileSessionStore';
-import { loadRemoteUserProfile } from './cloudUserDataService';
 import { saveCurrentUserPreferences } from './userProfileService';
 
 const LEGACY_DIET_PROFILE_STORAGE_KEY = 'ingredient-scanner/diet-profile/v1';
@@ -61,27 +60,15 @@ export async function syncDietProfileForCurrentUser(): Promise<DietProfileId> {
   const scopeId = getDietProfileScopeId(sessionUser?.id);
   const localProfileId = await loadScopedDietProfile(scopeId);
 
-  if (!sessionUser) {
-    const guestProfileId = localProfileId ?? DEFAULT_DIET_PROFILE_ID;
-    setSessionDietProfile(guestProfileId);
-    return guestProfileId;
-  }
-
-  const remoteProfile = await loadRemoteUserProfile(sessionUser.id);
-
-  if (remoteProfile && isDietProfileId(remoteProfile.dietProfileId)) {
-    await writeScopedDietProfile(scopeId, remoteProfile.dietProfileId);
-    setSessionDietProfile(remoteProfile.dietProfileId);
-    return remoteProfile.dietProfileId;
-  }
-
   const resolvedProfileId = localProfileId ?? DEFAULT_DIET_PROFILE_ID;
   await writeScopedDietProfile(scopeId, resolvedProfileId);
   setSessionDietProfile(resolvedProfileId);
-  await saveCurrentUserPreferences({
-    appearanceMode: remoteProfile?.appearanceMode ?? 'light',
-    dietProfileId: resolvedProfileId,
-  });
+
+  if (sessionUser) {
+    await saveCurrentUserPreferences({
+      dietProfileId: resolvedProfileId,
+    });
+  }
 
   return resolvedProfileId;
 }
@@ -94,9 +81,7 @@ export async function saveDietProfile(profileId: DietProfileId) {
   setSessionDietProfile(profileId);
 
   if (sessionUser) {
-    const remoteProfile = await loadRemoteUserProfile(sessionUser.id);
     await saveCurrentUserPreferences({
-      appearanceMode: remoteProfile?.appearanceMode ?? 'light',
       dietProfileId: profileId,
     });
   }

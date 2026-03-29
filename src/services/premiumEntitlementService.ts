@@ -11,7 +11,9 @@ import {
   getPremiumSession,
   setPremiumSession,
 } from '../store';
+import { loadRemoteUserProfile } from './cloudUserDataService';
 import { loadUserProfile, syncCurrentUserProfileToFirestore } from './userProfileService';
+import { saveStoredUserProfile } from './userProfileStorage';
 
 export function getPremiumUpsellCopy(featureId: PremiumFeatureId) {
   const feature = PREMIUM_FEATURE_COPY[featureId];
@@ -51,7 +53,22 @@ export async function refreshCurrentPremiumEntitlement() {
     return createDefaultPremiumEntitlement();
   }
 
-  const profile = await syncCurrentUserProfileToFirestore();
+  const localProfile = await loadUserProfile();
+  const remoteProfile = await loadRemoteUserProfile(authSession.user.id);
+
+  if (!remoteProfile) {
+    const profile = await syncCurrentUserProfileToFirestore();
+    const entitlement = buildPremiumEntitlement(profile);
+    setPremiumSession(entitlement);
+    return entitlement;
+  }
+
+  const profile = {
+    ...(localProfile ?? remoteProfile),
+    ...remoteProfile,
+  };
+
+  await saveStoredUserProfile(profile);
   const entitlement = buildPremiumEntitlement(profile);
   setPremiumSession(entitlement);
   return entitlement;

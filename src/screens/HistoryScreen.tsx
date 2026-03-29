@@ -52,8 +52,8 @@ function matchesQuery(entry: ScanHistoryEntry, query: string) {
 }
 
 export default function HistoryScreen({ navigation }: HistoryScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [historyEntries, setHistoryEntries] = useState<ScanHistoryEntry[]>([]);
   const [historyInsights, setHistoryInsights] = useState<HistoryInsight[]>([]);
   const [historyInsightsEnabled, setHistoryInsightsEnabled] = useState(true);
@@ -322,7 +322,8 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
   container: {
@@ -345,6 +346,7 @@ const createStyles = (
   },
   eyebrowText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -371,6 +373,7 @@ const createStyles = (
   },
   deleteActionText: {
     color: colors.danger,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -380,6 +383,7 @@ const createStyles = (
     borderRadius: 16,
     borderWidth: 1,
     color: colors.text,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -398,6 +402,7 @@ const createStyles = (
   },
   sortChipText: {
     color: colors.text,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -423,6 +428,7 @@ const createStyles = (
   },
   selectionActionText: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -439,23 +445,27 @@ const createStyles = (
   },
   stateText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
   },
   stateTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
   subtitle: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 22,
   },
   title: {
     color: colors.text,
+    fontFamily: typography.displayFontFamily,
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 34,

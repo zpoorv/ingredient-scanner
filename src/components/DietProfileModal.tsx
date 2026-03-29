@@ -24,8 +24,8 @@ export default function DietProfileModal({
   selectedProfileId,
   visible,
 }: DietProfileModalProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const selectedProfile =
     DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === selectedProfileId) ||
     DIET_PROFILE_DEFINITIONS[0];
@@ -105,7 +105,8 @@ export default function DietProfileModal({
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     backdrop: {
@@ -114,6 +115,7 @@ const createStyles = (
     },
     eyebrow: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '800',
       letterSpacing: 0.4,
@@ -142,6 +144,7 @@ const createStyles = (
     },
     profileDescription: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 14,
       lineHeight: 21,
     },
@@ -155,6 +158,7 @@ const createStyles = (
     },
     profileName: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 17,
       fontWeight: '700',
     },
@@ -169,6 +173,7 @@ const createStyles = (
     },
     selectedBadgeText: {
       color: colors.surface,
+      fontFamily: typography.accentFontFamily,
       fontSize: 11,
       fontWeight: '800',
       letterSpacing: 0.3,
@@ -185,11 +190,13 @@ const createStyles = (
     },
     subtitle: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 22,
     },
     title: {
       color: colors.text,
+      fontFamily: typography.displayFontFamily,
       fontSize: 28,
       fontWeight: '800',
       lineHeight: 33,

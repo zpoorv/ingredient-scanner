@@ -225,8 +225,8 @@ function getSourceAttributionText(
 }
 
 export default function ResultScreen({ navigation, route }: ResultScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const {
     barcode,
     barcodeType,
@@ -261,6 +261,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     getPremiumSession()
   );
   const [shareCardStyleId, setShareCardStyleId] =
+    useState<ShareCardStyleId>('classic');
+  const [draftShareCardStyleId, setDraftShareCardStyleId] =
     useState<ShareCardStyleId>('classic');
   const [captureShareCardStyleId, setCaptureShareCardStyleId] =
     useState<ShareCardStyleId>('classic');
@@ -339,6 +341,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       ),
     [premiumEntitlement.isPremium, shareCardStyleId]
   );
+  const activeSharePreviewStyleId = premiumEntitlement.isPremium
+    ? draftShareCardStyleId
+    : 'classic';
   const shareLimitText = useMemo(() => {
     if (shareQuotaSnapshot?.isUnlimited) {
       return 'Premium sharing is unlimited and ad-free.';
@@ -397,11 +402,27 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       setPremiumEntitlement(entitlement);
       setShareQuotaSnapshot(quotaSnapshot);
       setShareCardStyleId(entitlement.isPremium ? syncedShareCardStyleId : 'classic');
+      setDraftShareCardStyleId(
+        entitlement.isPremium ? syncedShareCardStyleId : 'classic'
+      );
     };
 
     const unsubscribe = subscribePremiumSession((entitlement) => {
       setPremiumEntitlement(entitlement);
-      void restoreShareAccess();
+      if (!isMounted) {
+        return;
+      }
+
+      if (!entitlement.isPremium) {
+        setShareCardStyleId('classic');
+        setDraftShareCardStyleId('classic');
+      }
+
+      void loadFeatureQuotaSnapshot('share-result-card', entitlement).then((quotaSnapshot) => {
+        if (isMounted) {
+          setShareQuotaSnapshot(quotaSnapshot);
+        }
+      });
     });
     void restoreShareAccess();
 
@@ -501,6 +522,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       return;
     }
 
+    setDraftShareCardStyleId(premiumEntitlement.isPremium ? shareCardStyleId : 'classic');
+    updateShareCardImageReady(!Boolean(shareableResult.imageUrl));
     setIsSharePickerVisible(true);
   };
 
@@ -509,27 +532,23 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       return;
     }
 
-    setShareCardStyleId(styleId);
-
-    if (premiumEntitlement.isPremium) {
-      void saveShareCardStyleId(styleId);
-    }
+    setDraftShareCardStyleId(styleId);
   };
 
   const waitForShareCardToRender = async (needsRemoteImage: boolean) => {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 40));
 
     if (!needsRemoteImage) {
       return;
     }
 
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+    for (let attempt = 0; attempt < 15; attempt += 1) {
       if (shareCardImageReadyRef.current) {
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await new Promise((resolve) => setTimeout(resolve, 80));
     }
   };
 
@@ -538,11 +557,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       return;
     }
 
-    const entitlement = await loadCurrentPremiumEntitlement();
-    const selectedStyleId = entitlement.isPremium ? shareCardStyleId : 'classic';
+    const entitlement = premiumEntitlement;
+    const selectedStyleId = entitlement.isPremium ? draftShareCardStyleId : 'classic';
     const quotaResult = await consumeFeatureQuota('share-result-card', entitlement);
-
-    setPremiumEntitlement(entitlement);
     setShareQuotaSnapshot(quotaResult.snapshot);
 
     if (!quotaResult.allowed) {
@@ -573,6 +590,11 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     updateShareCardImageReady(!Boolean(shareableResult.imageUrl));
 
     try {
+      if (entitlement.isPremium && selectedStyleId !== shareCardStyleId) {
+        setShareCardStyleId(selectedStyleId);
+        await saveShareCardStyleId(selectedStyleId);
+      }
+
       // Keep the off-screen capture surface unmounted until the user shares so
       // we do not hold a second large product image in memory during normal browsing.
       if (shareableResult.imageUrl) {
@@ -585,12 +607,18 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       const shareMessage = buildShareableResultCaption(shareableResult);
 
       if (imageUri && (await Sharing.isAvailableAsync())) {
-        await Sharing.shareAsync(imageUri, {
-          dialogTitle: `Share ${shareableResult.productName}`,
-          mimeType: 'image/png',
-        });
+        try {
+          await Sharing.shareAsync(imageUri, {
+            dialogTitle: `Share ${shareableResult.productName}`,
+            mimeType: 'image/png',
+          });
 
-        return;
+          return;
+        } catch (shareImageError) {
+          if (__DEV__) {
+            console.warn('Image share failed, falling back to text share', shareImageError);
+          }
+        }
       }
 
       await Share.share({
@@ -601,6 +629,11 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       if (__DEV__) {
         console.warn('Failed to share result card', error);
       }
+
+      Alert.alert(
+        'Share unavailable',
+        'Could not open the share sheet right now. Please try again.'
+      );
     } finally {
       updateShareCardImageReady(false);
       setIsShareCaptureMounted(false);
@@ -614,20 +647,29 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {shareableResult && isShareCaptureMounted ? (
+        {shareableResult && (isSharePickerVisible || isShareCaptureMounted) ? (
           <View style={styles.hiddenShareCapture}>
-            <ViewShot
-              options={{ fileName: `scan-result-${barcode}`, format: 'png', quality: 1 }}
-              ref={shareCardRef}
-              style={{ width: shareCardWidth }}
-            >
-              <ShareResultCard
-                data={shareableResult}
-                footerText={adminConfig?.shareFooterText ?? null}
-                onImageLoadEnd={() => updateShareCardImageReady(true)}
-                variantId={captureShareCardStyleId}
-              />
-            </ViewShot>
+            <View collapsable={false}>
+              <ViewShot
+                options={{
+                  fileName: `scan-result-${barcode}`,
+                  format: 'png',
+                  quality: 1,
+                  result: 'tmpfile',
+                }}
+                ref={shareCardRef}
+                style={{ width: shareCardWidth }}
+              >
+                <ShareResultCard
+                  data={shareableResult}
+                  footerText={adminConfig?.shareFooterText ?? null}
+                  onImageLoadEnd={() => updateShareCardImageReady(true)}
+                  variantId={
+                    isShareCaptureMounted ? captureShareCardStyleId : activeSharePreviewStyleId
+                  }
+                />
+              </ViewShot>
+            </View>
           </View>
         ) : null}
 
@@ -1061,7 +1103,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             setIsSharePickerVisible(false);
             navigation.navigate('Premium', { featureId: 'share-result-card' });
           }}
-          selectedStyleId={premiumEntitlement.isPremium ? shareCardStyleId : 'classic'}
+          selectedStyleId={premiumEntitlement.isPremium ? draftShareCardStyleId : 'classic'}
           shareData={shareableResult}
           styleDefinitions={SHARE_CARD_STYLE_DEFINITIONS}
           visible={isSharePickerVisible}
@@ -1072,8 +1114,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
 }
 
 const MetricChip = memo(function MetricChip({ metric }: { metric: ProductMetric }) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
   return (
     <View
@@ -1091,7 +1133,8 @@ const MetricChip = memo(function MetricChip({ metric }: { metric: ProductMetric 
 });
 
 const createStyles = (
-  colors: AppColors
+  colors: AppColors,
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
   barcodeText: {
@@ -1181,23 +1224,28 @@ const createStyles = (
   },
   heroMetaPrimary: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 24,
   },
   heroMetaSecondary: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
   hiddenShareCapture: {
-    left: -9999,
-    opacity: 0,
+    opacity: 0.01,
+    pointerEvents: 'none',
     position: 'absolute',
-    top: -9999,
+    right: 0,
+    top: 0,
+    zIndex: -1,
   },
   heroEyebrow: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.8,
@@ -1248,6 +1296,7 @@ const createStyles = (
   },
   label: {
     color: colors.textMuted,
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -1361,6 +1410,7 @@ const createStyles = (
     padding: 22,
   },
   scoreHeroGrade: {
+    fontFamily: typography.accentFontFamily,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.6,
@@ -1373,22 +1423,26 @@ const createStyles = (
   },
   scoreHeroProductName: {
     color: colors.text,
+    fontFamily: typography.displayFontFamily,
     fontSize: 30,
     fontWeight: '800',
     lineHeight: 36,
   },
   scoreHeroSubtext: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 22,
   },
   scoreHeroSuffix: {
+    fontFamily: typography.numericFontFamily,
     fontSize: 18,
     fontWeight: '700',
     marginTop: 4,
   },
   scoreHeroSummary: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -1402,12 +1456,14 @@ const createStyles = (
     justifyContent: 'space-between',
   },
   scoreHeroValue: {
+    fontFamily: typography.numericFontFamily,
     fontSize: 44,
     fontWeight: '800',
     lineHeight: 48,
   },
   scoreHeroVerdict: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 34,
@@ -1455,6 +1511,7 @@ const createStyles = (
     justifyContent: 'space-between',
   },
   scoreLegendText: {
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1483,11 +1540,13 @@ const createStyles = (
   },
   sourceTitle: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 15,
     fontWeight: '700',
   },
   statusText: {
     color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -1511,6 +1570,7 @@ const createStyles = (
   },
   value: {
     color: colors.text,
+    fontFamily: typography.headingFontFamily,
     fontSize: 24,
     fontWeight: '700',
     lineHeight: 32,
@@ -1529,6 +1589,7 @@ const createStyles = (
   },
   trustLabel: {
     color: colors.primary,
+    fontFamily: typography.accentFontFamily,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -1536,6 +1597,7 @@ const createStyles = (
   },
   trustText: {
     color: colors.text,
+    fontFamily: typography.bodyFontFamily,
     fontSize: 14,
     lineHeight: 21,
   },

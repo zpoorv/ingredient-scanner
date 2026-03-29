@@ -22,8 +22,8 @@ import { getPremiumSession, subscribePremiumSession } from '../store';
 type PremiumScreenProps = NativeStackScreenProps<RootStackParamList, 'Premium'>;
 
 export default function PremiumScreen({ route }: PremiumScreenProps) {
-  const { colors } = useAppTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, typography } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [entitlement, setEntitlement] = useState<PremiumEntitlement>(getPremiumSession());
   const highlightedFeature = route.params?.featureId
     ? PREMIUM_FEATURE_COPY[route.params.featureId]
@@ -125,7 +125,8 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
 }
 
 const createStyles = (
-  colors: ReturnType<typeof useAppTheme>['colors']
+  colors: ReturnType<typeof useAppTheme>['colors'],
+  typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
     content: {
@@ -134,6 +135,7 @@ const createStyles = (
     },
     eyebrow: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '800',
       letterSpacing: 0.4,
@@ -161,6 +163,7 @@ const createStyles = (
     featureText: {
       color: colors.text,
       flex: 1,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 22,
     },
@@ -182,17 +185,20 @@ const createStyles = (
     },
     highlightLabel: {
       color: colors.primary,
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '800',
       textTransform: 'uppercase',
     },
     highlightText: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 14,
       lineHeight: 21,
     },
     highlightTitle: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 19,
       fontWeight: '800',
     },
@@ -206,11 +212,13 @@ const createStyles = (
     },
     noteText: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 14,
       lineHeight: 21,
     },
     noteTitle: {
       color: colors.text,
+      fontFamily: typography.headingFontFamily,
       fontSize: 17,
       fontWeight: '700',
     },
@@ -231,6 +239,7 @@ const createStyles = (
       backgroundColor: colors.warningMuted,
     },
     statusBadgeText: {
+      fontFamily: typography.accentFontFamily,
       fontSize: 12,
       fontWeight: '800',
     },
@@ -242,11 +251,13 @@ const createStyles = (
     },
     subtitle: {
       color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 23,
     },
     title: {
       color: colors.text,
+      fontFamily: typography.displayFontFamily,
       fontSize: 30,
       fontWeight: '800',
       lineHeight: 36,

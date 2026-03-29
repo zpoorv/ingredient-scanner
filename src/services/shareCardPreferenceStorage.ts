@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs
 import { getAuthSession } from '../store';
 import type { ShareCardStyleId } from '../models/shareCardStyle';
 import { isShareCardStyleId } from '../models/shareCardStyle';
-import { loadRemoteUserProfile } from './cloudUserDataService';
 import { saveCurrentUserPreferences } from './userProfileService';
 
 const SHARE_CARD_STYLE_STORAGE_KEY_PREFIX = 'inqoura/share-card-style/v1';
@@ -44,22 +43,15 @@ export async function syncShareCardStyleForCurrentUser(): Promise<ShareCardStyle
   const scopeId = getShareCardScopeId(sessionUser?.id);
   const localShareCardStyleId = await loadScopedShareCardStyle(scopeId);
 
-  if (!sessionUser) {
-    return localShareCardStyleId ?? 'classic';
-  }
-
-  const remoteProfile = await loadRemoteUserProfile(sessionUser.id);
-
-  if (isShareCardStyleId(remoteProfile?.shareCardStyleId)) {
-    await writeScopedShareCardStyle(scopeId, remoteProfile.shareCardStyleId);
-    return remoteProfile.shareCardStyleId;
-  }
-
   const resolvedShareCardStyleId = localShareCardStyleId ?? 'classic';
   await writeScopedShareCardStyle(scopeId, resolvedShareCardStyleId);
-  await saveCurrentUserPreferences({
-    shareCardStyleId: resolvedShareCardStyleId,
-  });
+
+  if (sessionUser) {
+    await saveCurrentUserPreferences({
+      shareCardStyleId: resolvedShareCardStyleId,
+    });
+  }
+
   return resolvedShareCardStyleId;
 }
 
