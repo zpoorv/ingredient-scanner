@@ -52,7 +52,6 @@ export default function ShareCardPickerModal({
       <View style={styles.overlay}>
         <Pressable onPress={onClose} style={styles.backdrop} />
         <View style={styles.sheet}>
-          <Text style={styles.eyebrow}>Share Result</Text>
           <Text style={styles.title}>Choose a share card</Text>
           <Text style={styles.subtitle}>{dailyLimitText}</Text>
 
@@ -191,13 +190,6 @@ const createStyles = (
     },
     carouselTopRow: {
       gap: 10,
-    },
-    eyebrow: {
-      color: colors.primary,
-      fontSize: 12,
-      fontWeight: '800',
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
     },
     footerActions: {
       gap: 10,

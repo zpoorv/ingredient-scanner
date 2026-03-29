@@ -60,7 +60,7 @@ export default function OcrCapturePanel({
         <View pointerEvents="none" style={styles.overlay}>
           <View style={styles.overlayTop}>
             <View style={styles.overlayBadge}>
-              <Text style={styles.overlayBadgeText}>Ingredient Capture</Text>
+              <Text style={styles.overlayBadgeText}>Ingredients</Text>
             </View>
           </View>
 
@@ -74,9 +74,6 @@ export default function OcrCapturePanel({
             ))}
           </View>
 
-          <Text style={styles.overlayHelper}>
-            Keep only the ingredient lines inside the box for the cleanest OCR result.
-          </Text>
         </View>
       </View>
 
@@ -97,7 +94,7 @@ export default function OcrCapturePanel({
           {isBusy ? (
             <ActivityIndicator color={colors.surface} size="small" />
           ) : (
-            <Text style={styles.captureButtonText}>Capture Ingredient Label</Text>
+            <Text style={styles.captureButtonText}>Capture</Text>
           )}
         </Pressable>
       </View>
@@ -202,13 +199,6 @@ const createStyles = (
       fontWeight: '800',
       letterSpacing: 0.3,
       textTransform: 'uppercase',
-    },
-    overlayHelper: {
-      color: colors.surface,
-      fontSize: 13,
-      fontWeight: '600',
-      lineHeight: 19,
-      textAlign: 'center',
     },
     overlayTop: {
       alignItems: 'flex-start',

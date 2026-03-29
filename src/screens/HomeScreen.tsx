@@ -7,7 +7,6 @@ import { useAppTheme } from '../components/AppThemeProvider';
 import DietProfileModal from '../components/DietProfileModal';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import PrimaryButton from '../components/PrimaryButton';
-import { APP_NAME } from '../constants/branding';
 import {
   DEFAULT_DIET_PROFILE_ID,
   DIET_PROFILE_DEFINITIONS,
@@ -31,23 +30,10 @@ import {
 } from '../services/premiumEntitlementService';
 import { loadScanHistory } from '../services/scanHistoryStorage';
 import { loadUserProfile } from '../services/userProfileService';
-import {
-  getAuthSession,
-  getPremiumSession,
-  subscribeAuthSession,
-  subscribePremiumSession,
-} from '../store';
+import { getPremiumSession, subscribeAuthSession, subscribePremiumSession } from '../store';
 import { buildHistoryInsights, type HistoryInsight } from '../utils/historyPersonalization';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
-
-const HOME_FEATURES = [
-  'Live barcode scanning with Expo camera',
-  'Ingredient label OCR from a photographed image',
-  'Open Food Facts product lookup before navigation',
-  'Ingredient, nutrition, and profile-aware analysis on the result screen',
-  'Saved scan history with search and quick reopen',
-];
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
@@ -58,16 +44,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   );
   const [draftProfileId, setDraftProfileId] = useState<DietProfileId>(
     DEFAULT_DIET_PROFILE_ID
-  );
-  const [accountEmail, setAccountEmail] = useState(getAuthSession().user?.email ?? '');
-  const [accountProvider, setAccountProvider] = useState(
-    getAuthSession().user?.provider ?? 'email'
-  );
-  const [accountEmailVerified, setAccountEmailVerified] = useState(
-    getAuthSession().user?.emailVerified ?? false
-  );
-  const [accountDisplayName, setAccountDisplayName] = useState(
-    getAuthSession().user?.displayName ?? ''
   );
   const [adminAnnouncement, setAdminAnnouncement] = useState<{
     body: string | null;
@@ -133,10 +109,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     };
 
     const unsubscribe = subscribeAuthSession((session) => {
-      setAccountEmail(session.user?.email ?? '');
-      setAccountDisplayName(session.user?.displayName ?? '');
-      setAccountEmailVerified(session.user?.emailVerified ?? false);
-      setAccountProvider(session.user?.provider ?? 'email');
       void refreshPremiumState();
     });
     const unsubscribePremium = subscribePremiumSession((entitlement) => {
@@ -223,22 +195,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            <View style={styles.eyebrowChip}>
-              <Text style={styles.eyebrowText}>Open Food Facts Powered</Text>
-            </View>
-
             <View style={styles.heroBlock}>
-              <Text style={styles.title}>Scan a food barcode and review it fast</Text>
-              <Text style={styles.subtitle}>
-                Use the camera to scan a packaged product, fetch its catalog data,
-                and open a clear result page with ingredient, additive, and
-                nutrition signals.
-              </Text>
+              <Text style={styles.title}>Scan food fast</Text>
+              <Text style={styles.subtitle}>Barcode, ingredients, and a clear score.</Text>
             </View>
 
             {adminAnnouncement?.title || adminAnnouncement?.body ? (
               <View style={styles.announcementCard}>
-                <Text style={styles.announcementLabel}>Live Announcement</Text>
+                <Text style={styles.announcementLabel}>Announcement</Text>
                 {adminAnnouncement.title ? (
                   <Text style={styles.announcementTitle}>
                     {adminAnnouncement.title}
@@ -252,27 +216,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </View>
             ) : null}
 
-            <View style={styles.featureCard}>
-              {HOME_FEATURES.filter((feature) =>
-                feature.includes('Ingredient label OCR')
-                  ? isIngredientOcrEnabled
-                  : feature.includes('Saved scan history')
-                    ? isHistoryEnabled
-                    : true
-              ).map((feature) => (
-                <View key={feature} style={styles.featureRow}>
-                  <View style={styles.featureDot} />
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
-
             <View style={styles.profileSummaryCard}>
-              <Text style={styles.profileSummaryLabel}>Current Diet Profile</Text>
+              <Text style={styles.profileSummaryLabel}>Diet Profile</Text>
               <Text style={styles.profileSummaryTitle}>{selectedProfile.label}</Text>
-              <Text style={styles.profileSummaryText}>
-                {selectedProfile.description}
-              </Text>
             </View>
 
             <View style={styles.premiumCard}>
@@ -307,8 +253,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </View>
               <Text style={styles.premiumCardText}>
                 {premiumEntitlement.isPremium
-                  ? 'Unlimited OCR, ad-free scanning, premium share styles, and history insights are active on this account.'
-                  : 'Basic includes 5 OCR scans and 5 share-card exports per day. Watch an ad to unlock one extra OCR scan after the daily cap.'}
+                  ? 'Unlimited OCR, extra share styles, and insights are on.'
+                  : 'Basic includes daily limits for OCR and sharing.'}
               </Text>
               <Pressable
                 onPress={() => navigation.navigate('Premium')}
@@ -322,35 +268,14 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
             {isIngredientOcrEnabled && ocrQuotaSnapshot ? (
               <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>Ingredient OCR Access</Text>
+                <Text style={styles.profileSummaryLabel}>OCR</Text>
                 <Text style={styles.profileSummaryTitle}>
                   {ocrQuotaSnapshot.isUnlimited
                     ? 'Unlimited scans today'
                     : `${ocrQuotaSnapshot.remaining} scan${ocrQuotaSnapshot.remaining === 1 ? '' : 's'} left today`}
                 </Text>
-                <Text style={styles.profileSummaryText}>
-                  {ocrQuotaSnapshot.isUnlimited
-                    ? 'Premium keeps ingredient OCR available all day without rewarded ads.'
-                    : ocrQuotaSnapshot.remaining && ocrQuotaSnapshot.remaining > 0
-                      ? 'Basic keeps OCR open with a daily cap. Rewarded ads can extend it one scan at a time.'
-                      : 'Your 5 basic OCR scans are used for today. Watch an ad inside OCR to unlock one more scan.'}
-                </Text>
               </View>
             ) : null}
-
-            <View style={styles.accountCard}>
-              <Text style={styles.accountLabel}>Account</Text>
-              <Text style={styles.accountTitle}>
-                {accountDisplayName || accountEmail || `Signed in to ${APP_NAME}`}
-              </Text>
-              <Text style={styles.accountText}>
-                {accountProvider === 'google'
-                  ? 'Signed in with Google through Firebase Authentication.'
-                  : accountEmailVerified
-                    ? 'Signed in with a verified email account through Firebase Authentication.'
-                    : 'Signed in with email authentication through Firebase Authentication.'}
-              </Text>
-            </View>
 
             {premiumEntitlement.isPremium &&
             historyInsightsEnabled &&
@@ -445,34 +370,6 @@ const createStyles = (
     fontSize: 18,
     fontWeight: '700',
   },
-  accountCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 8,
-    padding: 18,
-  },
-  accountLabel: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  accountText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyFontFamily,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  accountTitle: {
-    color: colors.text,
-    fontFamily: typography.headingFontFamily,
-    fontSize: 18,
-    fontWeight: '700',
-  },
   backgroundGlow: {
     backgroundColor: colors.primaryMuted,
     borderBottomLeftRadius: 40,
@@ -491,50 +388,6 @@ const createStyles = (
   },
   content: {
     gap: 24,
-  },
-  eyebrowChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  eyebrowText: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
-  },
-  featureCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 28,
-    borderWidth: 1,
-    gap: 16,
-    padding: 22,
-  },
-  featureDot: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    height: 10,
-    marginTop: 6,
-    width: 10,
-  },
-  featureRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: 12,
-  },
-  featureText: {
-    color: colors.text,
-    flex: 1,
-    fontFamily: typography.bodyFontFamily,
-    fontSize: 16,
-    lineHeight: 24,
   },
   footerActions: {
     gap: 12,

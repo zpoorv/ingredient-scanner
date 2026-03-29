@@ -80,10 +80,6 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Welcome Back</Text>
           <Text style={styles.title}>Log in to {APP_NAME}</Text>
-          <Text style={styles.subtitle}>
-            Use your password, a passwordless email link, or continue with Google through
-            Firebase Authentication.
-          </Text>
         </View>
 
         <View style={styles.card}>

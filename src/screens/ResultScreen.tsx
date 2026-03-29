@@ -51,7 +51,6 @@ import {
 } from '../services/shareCardPreferenceStorage';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import {
-  getShareCardStyleDefinition,
   SHARE_CARD_STYLE_DEFINITIONS,
 } from '../constants/shareCardStyles';
 import { getGradeTone } from '../utils/gradeTone';
@@ -118,17 +117,6 @@ function getIngredientRiskLabel(risk: HighlightedIngredient['risk']) {
   }
 }
 
-function getSourceTone(colors: AppColors, status: ProductSourceInfo['status']) {
-  switch (status) {
-    case 'used':
-      return colors.success;
-    case 'missed':
-      return colors.warning;
-    default:
-      return colors.textMuted;
-  }
-}
-
 function getOffScoreTone(grade?: string | null) {
   return getGradeTone(grade);
 }
@@ -176,14 +164,14 @@ function getHealthScoreTheme(colors: AppColors, score: number | null) {
 function getScanCompletionCopy(resultSource: ScanResultSource) {
   if (resultSource === 'ingredient-ocr') {
     return {
-      body: 'Ingredient text captured and analyzed.',
-      label: 'Label Read Successfully',
+      body: 'Ingredients read.',
+      label: 'Done',
     };
   }
 
   return {
-    body: 'Barcode matched and product details loaded.',
-    label: 'Scan Complete',
+    body: 'Product loaded.',
+    label: 'Done',
   };
 }
 
@@ -212,16 +200,16 @@ function getSourceAttributionText(
   resultSource: ScanResultSource
 ) {
   if (resultSource === 'ingredient-ocr') {
-    return 'Based on text read from your ingredient photo and the app scoring rules.';
+    return 'Based on the ingredient photo.';
   }
 
   const primarySource = sources?.find((source) => source.status === 'used');
 
   if (!primarySource) {
-    return 'Based on the product details available at scan time.';
+    return 'Based on available product details.';
   }
 
-  return `Based on product details from ${primarySource.label}.`;
+  return `Based on ${primarySource.label}.`;
 }
 
 export default function ResultScreen({ navigation, route }: ResultScreenProps) {
@@ -283,8 +271,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     resultSource === 'ingredient-ocr' ? 'Ingredient text extracted' : barcode;
   const heroBodyText =
     resultSource === 'ingredient-ocr'
-      ? 'This result comes from OCR text extracted from a photographed ingredient label, then analyzed with the same ingredient scoring pipeline.'
-      : 'Product data was fetched before this screen opened, so you can review the result immediately.';
+      ? 'Ingredient label read.'
+      : 'Barcode matched.';
   const scanCompletionCopy = getScanCompletionCopy(resultSource);
   const insights = analysisResult?.insights ?? null;
   const ingredientAnalysis = analysisResult?.ingredientAnalysis ?? null;
@@ -332,15 +320,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   );
   const disclaimerText =
     adminConfig?.resultDisclaimer ||
-    'Quick food-information guide only, not medical advice.';
+    'Quick guide only.';
   const showSourceAttribution = adminConfig?.showSourceAttribution ?? true;
-  const selectedShareCardStyle = useMemo(
-    () =>
-      getShareCardStyleDefinition(
-        premiumEntitlement.isPremium ? shareCardStyleId : 'classic'
-      ),
-    [premiumEntitlement.isPremium, shareCardStyleId]
-  );
   const activeSharePreviewStyleId = premiumEntitlement.isPremium
     ? draftShareCardStyleId
     : 'classic';
@@ -592,7 +573,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     try {
       if (entitlement.isPremium && selectedStyleId !== shareCardStyleId) {
         setShareCardStyleId(selectedStyleId);
-        await saveShareCardStyleId(selectedStyleId);
+        void saveShareCardStyleId(selectedStyleId).catch(() => {
+          // Sharing should stay responsive even if preference sync lags.
+        });
       }
 
       // Keep the off-screen capture surface unmounted until the user shares so
@@ -846,7 +829,6 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                   {[product.brand, product.quantity].filter(Boolean).join(' • ')}
                 </Text>
               ) : null}
-              <Text style={styles.statusText}>Catalog code: {product.code}</Text>
               {product.categories.length > 0 ? (
                 <View style={styles.tagWrap}>
                   {product.categories.slice(0, 4).map((category) => (
@@ -856,16 +838,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                   ))}
                 </View>
               ) : null}
-              {product.labels.length > 0 ? (
-                <Text style={styles.statusText}>
-                  Labels: {product.labels.slice(0, 4).join(', ')}
-                </Text>
-              ) : null}
             </>
           ) : (
-            <Text style={styles.statusText}>
-              Product overview will update after a successful lookup.
-            </Text>
+            <Text style={styles.statusText}>No product details yet.</Text>
           )}
         </View>
 
@@ -925,13 +900,11 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 ))}
               </View>
               <Text style={styles.statusText}>
-                Tap an ingredient to see a short explanation.
+                Tap an ingredient for details.
               </Text>
             </>
           ) : (
-            <Text style={styles.statusText}>
-              Ingredient details will appear when source data is available.
-            </Text>
+            <Text style={styles.statusText}>No ingredient list available.</Text>
           )}
 
           {ingredientAnalysis?.highRiskIngredients.length ? (
@@ -949,9 +922,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               Current rule set marks the listed ingredients as safe.
             </Text>
           ) : (
-            <Text style={styles.statusText}>
-              Ingredient risk highlighting will appear when source data provides an ingredient list.
-            </Text>
+            <Text style={styles.statusText}>No ingredient flags found.</Text>
           )}
 
           {product?.allergens.length ? (
@@ -978,9 +949,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               ))}
             </View>
           ) : (
-            <Text style={styles.statusText}>
-              Nutrition metrics will appear when the data source provides them.
-            </Text>
+            <Text style={styles.statusText}>Nutrition details not available.</Text>
           )}
 
           {insights?.processingLabel ? (
@@ -991,7 +960,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
 
           {product?.nutriScore ? (
             <View style={styles.scoreRow}>
-              <Text style={styles.statusText}>Open Food Facts score</Text>
+              <Text style={styles.statusText}>Nutrition grade</Text>
               <View
                 style={[
                   styles.gradeBadge,
@@ -1022,42 +991,6 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         ) : null}
       </View>
 
-        {shareableResult ? (
-          <View style={styles.infoCard}>
-            <Text style={styles.label}>Sharing</Text>
-            <Text style={styles.statusText}>{shareLimitText}</Text>
-            <Text style={styles.statusText}>
-              Current share-card style: {selectedShareCardStyle.label}
-              {premiumEntitlement.isPremium ? '' : ' • Premium unlocks 5 more styles.'}
-            </Text>
-          </View>
-        ) : null}
-
-        {showSourceAttribution ? (
-          <View style={styles.infoCard}>
-            <Text style={styles.label}>Data Sources</Text>
-            {product?.sources?.length ? (
-              product.sources.map((source) => (
-                <View key={source.id} style={styles.sourceRow}>
-                  <View
-                    style={[
-                      styles.sourceDot,
-                      { backgroundColor: getSourceTone(colors, source.status) },
-                    ]}
-                  />
-                  <View style={styles.sourceTextBlock}>
-                    <Text style={styles.sourceTitle}>{source.label}</Text>
-                    <Text style={styles.statusText}>{source.note}</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <Text style={styles.statusText}>
-                Source details will appear after a successful lookup.
-              </Text>
-            )}
-          </View>
-        ) : null}
       </ScrollView>
       {shareableResult ? (
         <Pressable

@@ -10,6 +10,7 @@ import ScreenLoadingView from '../components/ScreenLoadingView';
 import { APP_NAME } from '../constants/branding';
 import { AuthServiceError } from '../services/authHelpers';
 import { loadUserProfile, saveUserProfile } from '../services/userProfileService';
+import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 import type { RootStackParamList } from '../navigation/types';
 
 type ProfileDetailsScreenProps = NativeStackScreenProps<
@@ -27,6 +28,7 @@ export default function ProfileDetailsScreen({
   const [name, setName] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const shouldShowLoadingScreen = useDelayedVisibility(isLoadingProfile);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,7 +49,7 @@ export default function ProfileDetailsScreen({
     };
   }, []);
 
-  if (isLoadingProfile) {
+  if (shouldShowLoadingScreen) {
     return (
       <ScreenLoadingView
         subtitle="Loading your saved account details..."

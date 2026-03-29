@@ -52,7 +52,7 @@ export default function IngredientExplanationModal({
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Text style={styles.eyebrow}>Ingredient explainer</Text>
+            <Text style={styles.eyebrow}>Ingredient</Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeLabel}>Close</Text>
             </Pressable>
@@ -82,13 +82,9 @@ export default function IngredientExplanationModal({
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No quick explanation yet</Text>
+              <Text style={styles.emptyTitle}>No quick note yet</Text>
               <Text style={styles.emptyBody}>
-                We do not have a short note for this ingredient right now.
-              </Text>
-              <Text style={styles.emptyBody}>
-                Plain-English take: this ingredient is not in the current mock
-                explanation list yet.
+                We do not have a short note for this ingredient yet.
               </Text>
             </View>
           )}

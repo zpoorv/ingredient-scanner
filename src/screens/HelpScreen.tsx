@@ -7,10 +7,10 @@ import { SUPPORT_EMAIL } from '../constants/branding';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
 
 const HELP_ITEMS = [
-  'Barcode scans fetch product data from Open Food Facts when available.',
-  'OCR works best with a clear, cropped ingredient label image.',
-  'Diet profiles adjust scoring rules, but they do not replace medical advice.',
-  'History is saved on-device and can also be synced to your account once Firestore is enabled.',
+  'Scan a barcode or ingredient label.',
+  'For best OCR results, keep the ingredient lines clear and close.',
+  'Diet profile changes how products are scored.',
+  'Your history is saved to your account.',
 ];
 
 export default function HelpScreen() {
@@ -44,7 +44,7 @@ export default function HelpScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>Help</Text>
-        <Text style={styles.title}>How Inqoura works today</Text>
+        <Text style={styles.title}>Help</Text>
         <View style={styles.card}>
           {HELP_ITEMS.map((item) => (
             <View key={item} style={styles.item}>
@@ -55,7 +55,7 @@ export default function HelpScreen() {
           <View style={styles.item}>
             <View style={styles.dot} />
             <Text style={styles.itemText}>
-              Support email: {supportEmail}
+              {supportEmail}
               {supportMessage ? ` — ${supportMessage}` : ''}
             </Text>
           </View>

@@ -49,13 +49,13 @@ function getOverlayLabel(scannerState: ScannerState) {
 function getHelperText(scannerState: ScannerState) {
   switch (scannerState) {
     case 'loading':
-      return 'Hold steady while we fetch product details.';
+      return 'Hold steady.';
     case 'empty':
-      return 'That barcode is paused so you do not get repeated empty results.';
+      return 'No match yet.';
     case 'error':
-      return 'The scanner is paused until you reset and try again.';
+      return 'Reset and try again.';
     default:
-      return 'Center the barcode inside the frame for the fastest read.';
+      return 'Center the barcode.';
   }
 }
 
@@ -67,20 +67,20 @@ function getStatusContent(
   if (scannerState === 'loading') {
     return {
       body: lastScan
-        ? `Barcode ${lastScan.barcode} detected. We are loading the product details now.`
-        : 'We are loading the product details now.',
-      eyebrow: 'Lookup In Progress',
-      title: 'Checking the product details',
+        ? `Loading ${lastScan.barcode}.`
+        : 'Loading product.',
+      eyebrow: 'Loading',
+      title: 'Checking product',
     };
   }
 
   if (scannerState === 'empty') {
     return {
       body: lastScan
-        ? `No product entry was found for ${lastScan.barcode}. You can scan a different package right away.`
-        : 'No product entry was found for this barcode.',
-      eyebrow: 'No Product Found',
-      title: 'This barcode is not in the catalog yet',
+        ? `No match for ${lastScan.barcode}.`
+        : 'No match found.',
+      eyebrow: 'No Match',
+      title: 'Product not found',
     };
   }
 
@@ -88,17 +88,16 @@ function getStatusContent(
     return {
       body:
         errorMessage ||
-        'The product lookup stopped before we could open the result screen.',
-      eyebrow: 'Lookup Failed',
-      title: 'We could not load this product',
+        'Could not load this product.',
+      eyebrow: 'Error',
+      title: 'Try again',
     };
   }
 
   return {
-    body:
-      'Point your camera at a retail barcode. We pause scanning during each lookup so the same code is not sent twice.',
-    eyebrow: 'Scanner Ready',
-    title: 'Scan a packaged food barcode',
+    body: 'Point the camera at a barcode.',
+    eyebrow: 'Ready',
+    title: 'Scan barcode',
   };
 }
 
@@ -334,12 +333,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
               <View style={styles.eyebrowChip}>
                 <Text style={styles.eyebrowText}>Camera Scanner</Text>
               </View>
-              <Text style={styles.title}>Find product details from a barcode</Text>
-              <Text style={styles.subtitle}>
-                We fetch the product before opening the result screen, so loading,
-                missing products, and network issues stay in the scan flow instead
-                of interrupting the details page.
-              </Text>
+              <Text style={styles.title}>Scan barcode</Text>
             </View>
 
             {hasPermission ? (
@@ -358,10 +352,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
             ) : (
               <View style={styles.permissionCard}>
                 <Text style={styles.permissionTitle}>Camera access needed</Text>
-                <Text style={styles.permissionText}>
-                  Allow camera access so the app can scan product barcodes and look
-                  them up automatically.
-                </Text>
                 <PrimaryButton
                   label="Allow Camera Access"
                   onPress={handlePermissionRequest}
@@ -386,22 +376,14 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
           </View>
 
           <View style={styles.statusCard}>
-            <View style={styles.statusHeaderRow}>
-              <Text style={styles.statusEyebrow}>{statusContent.eyebrow}</Text>
-              <View style={styles.statusSourceChip}>
-                <Text style={styles.statusSourceChipText}>Open Food Facts</Text>
-              </View>
-            </View>
+            <Text style={styles.statusEyebrow}>{statusContent.eyebrow}</Text>
             <Text style={styles.statusTitle}>{statusContent.title}</Text>
             <Text style={styles.statusBody}>{statusContent.body}</Text>
-            <Text style={styles.statusHint}>
-              Quick product-information guide only. Check the package if any detail looks incomplete.
-            </Text>
 
             {scannerState === 'loading' ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.primary} size="small" />
-                <Text style={styles.loadingText}>Loading details from the catalog...</Text>
+                <Text style={styles.loadingText}>Loading...</Text>
               </View>
             ) : null}
 

@@ -35,6 +35,7 @@ import {
   saveCurrentUserPreferences,
 } from '../services/userProfileService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
+import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 
 type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -68,6 +69,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   );
   const [shareCardStyleId, setShareCardStyleId] =
     useState<ShareCardStyleId>('classic');
+  const shouldShowLoadingScreen = useDelayedVisibility(
+    isLoadingSettings && !hasLoadedOnce
+  );
 
   const selectedAppLook = getAppLookDefinition(appLookId);
   const selectedShareCardStyle = getShareCardStyleDefinition(shareCardStyleId);
@@ -146,7 +150,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     }, [appLookId, hasLoadedOnce])
   );
 
-  if (isLoadingSettings && !hasLoadedOnce) {
+  if (shouldShowLoadingScreen) {
     return (
       <ScreenLoadingView
         subtitle="Refreshing your account, preferences, and premium tools..."
@@ -194,20 +198,56 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   };
 
   const handleApplyDietProfile = async () => {
-    await saveDietProfile(draftDietProfileId);
     setDietProfileId(draftDietProfileId);
     setIsDietProfileVisible(false);
+    void saveDietProfile(draftDietProfileId).catch((error) => {
+      Alert.alert(
+        'Diet profile update failed',
+        error instanceof AuthServiceError
+          ? error.message
+          : 'We could not save that diet profile right now.'
+      );
+    });
   };
 
   const handleApplyAppLook = async () => {
-    await setAppLookId(draftAppLookId);
     setIsAppLookModalVisible(false);
+    void setAppLookId(draftAppLookId).catch((error) => {
+      Alert.alert(
+        'App look update failed',
+        error instanceof AuthServiceError
+          ? error.message
+          : 'We could not save that app look right now.'
+      );
+    });
   };
 
-  const handleApplyShareCardStyle = async () => {
-    await saveShareCardStyleId(draftShareCardStyleId);
+  const handleOpenAppLookModal = () => {
+    setDraftAppLookId(appLookId);
+    setIsAppLookModalVisible(true);
+  };
+
+  const handleOpenDietProfileModal = () => {
+    setDraftDietProfileId(dietProfileId);
+    setIsDietProfileVisible(true);
+  };
+
+  const handleOpenShareCardStyleModal = () => {
+    setDraftShareCardStyleId(shareCardStyleId);
+    setIsShareCardStyleModalVisible(true);
+  };
+
+  const handleApplyShareCardStyle = () => {
     setShareCardStyleId(draftShareCardStyleId);
     setIsShareCardStyleModalVisible(false);
+    void saveShareCardStyleId(draftShareCardStyleId).catch((error) => {
+      Alert.alert(
+        'Share-card style update failed',
+        error instanceof AuthServiceError
+          ? error.message
+          : 'We could not save that share-card style right now.'
+      );
+    });
   };
 
   const handleToggleHistoryInsights = async () => {
@@ -226,24 +266,17 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>Settings</Text>
-          <Text style={styles.title}>Control your {APP_NAME} account and preferences</Text>
-          <Text style={styles.subtitle}>
-            Update your profile, choose a theme, manage diet scoring, and open support pages.
-          </Text>
+          <Text style={styles.title}>Settings</Text>
         </View>
 
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{profileName || profileEmail || APP_NAME}</Text>
-          <Text style={styles.summaryText}>{profileEmail || 'Signed in account'}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleBadgeText}>{roleLabel}</Text>
           </View>
         </View>
 
-        <SettingsSection
-          description="Basic account details, history access, and safe account actions."
-          title="Account"
-        >
+        <SettingsSection title="Account">
           <SettingsRow
             onPress={() => navigation.navigate('ProfileDetails')}
             subtitle="Edit your name."
@@ -252,32 +285,25 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           />
           <SettingsRow
             onPress={() => navigation.navigate('History')}
-            subtitle="Review and manage your saved scans."
             title="History"
             value="Open"
           />
           <SettingsRow
             onPress={() => void logoutAuth()}
-            subtitle="Sign out of this device."
             title="Log Out"
           />
           <SettingsRow
             danger
             disabled={isDeletingAccount}
             onPress={handleDeleteAccount}
-            subtitle="Delete this account and remove local app data."
             title="Delete Account"
             value={isDeletingAccount ? 'Working...' : undefined}
           />
         </SettingsSection>
 
-        <SettingsSection
-          description="Personalize how product analysis is shown for you."
-          title="Preferences"
-        >
+        <SettingsSection title="Preferences">
           <SettingsRow
             onPress={() => navigation.navigate('Premium')}
-            subtitle="Basic includes limited OCR and sharing. Premium removes ads and unlocks extra styles."
             title="Premium"
             value={premiumLabel}
           />
@@ -307,57 +333,42 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             })}
           </View>
           <SettingsRow
-            onPress={() => setIsAppLookModalVisible(true)}
-            subtitle={selectedAppLook.description}
+            onPress={handleOpenAppLookModal}
             title="App Look"
             value={selectedAppLook.shortLabel}
           />
           <SettingsRow
-            onPress={() => setIsDietProfileVisible(true)}
-            subtitle={selectedProfile.description}
+            onPress={handleOpenDietProfileModal}
             title="Diet Profile"
             value={selectedProfile.shortLabel}
           />
           <SettingsRow
-            onPress={() => setIsShareCardStyleModalVisible(true)}
-            subtitle={selectedShareCardStyle.description}
+            onPress={handleOpenShareCardStyleModal}
             title="Share Card Style"
             value={selectedShareCardStyle.label}
           />
           <SettingsRow
             onPress={() => void handleToggleHistoryInsights()}
-            subtitle={
-              premiumEntitlement.isPremium
-                ? 'Show premium weekly scan patterns and healthier streak insights.'
-                : 'Premium unlocks history insights like weekly harmful-product counts.'
-            }
             title="History Insights"
             value={premiumEntitlement.isPremium ? (historyInsightsEnabled ? 'On' : 'Off') : 'Premium'}
           />
         </SettingsSection>
 
-        <SettingsSection
-          description="Helpful pages you will need while polishing the product for release."
-          title="Support"
-        >
+        <SettingsSection title="Support">
           <SettingsRow
             onPress={() => navigation.navigate('Help')}
-            subtitle="FAQs and what the app currently supports."
             title="Help"
           />
           <SettingsRow
             onPress={() => navigation.navigate('PrivacyPolicy')}
-            subtitle="Plain-language privacy summary."
             title="Privacy Policy"
           />
           <SettingsRow
             onPress={() => navigation.navigate('About')}
-            subtitle="Version, data sources, and release notes."
             title="About"
           />
           <SettingsRow
             onPress={() => navigation.navigate('Feedback')}
-            subtitle="Send product feedback by email."
             title="Send Feedback"
           />
         </SettingsSection>

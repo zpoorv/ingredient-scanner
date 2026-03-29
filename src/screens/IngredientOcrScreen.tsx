@@ -220,8 +220,8 @@ export default function IngredientOcrScreen({
   };
 
   const helperCopy = isCropEnabled
-    ? 'Crop Before OCR is on, and the guided camera keeps the ingredient area centered.'
-    : 'Crop Before OCR is off. Keep the ingredient lines filling most of the frame.';
+    ? 'Crop is on.'
+    : 'Crop is off.';
   const quotaSummaryText = featureQuotaSnapshot?.isUnlimited
     ? 'Premium keeps ingredient OCR unlimited and ad-free.'
     : featureQuotaSnapshot
@@ -273,10 +273,7 @@ export default function IngredientOcrScreen({
         <View style={styles.captureFlowCard}>
           <Text style={styles.captureFlowLabel}>Live guided capture</Text>
           <Text style={styles.captureFlowTitle}>Frame the ingredient block tightly</Text>
-          <Text style={styles.captureFlowText}>
-            We now capture a higher-quality photo first, then retry OCR on tighter cropped
-            variants for a cleaner ingredient read.
-          </Text>
+          <Text style={styles.captureFlowText}>Capture the ingredient lines clearly.</Text>
           <OcrCapturePanel
             isBusy={isProcessing}
             onCancel={handleCloseGuidedCamera}
@@ -293,15 +290,15 @@ export default function IngredientOcrScreen({
     }
 
     return (
-      <View style={styles.actionCard}>
-        <View style={styles.usageCard}>
-          <Text style={styles.usageLabel}>OCR plan access</Text>
+        <View style={styles.actionCard}>
+          <View style={styles.usageCard}>
+          <Text style={styles.usageLabel}>OCR</Text>
           <Text style={styles.usageTitle}>
             {featureQuotaSnapshot?.isUnlimited
-              ? 'Unlimited scans available'
+              ? 'Unlimited scans'
               : featureQuotaSnapshot
                 ? `${featureQuotaSnapshot.remaining} scan${featureQuotaSnapshot.remaining === 1 ? '' : 's'} left today`
-                : 'Loading daily OCR access'}
+                : 'Loading...'}
           </Text>
           <Text style={styles.usageText}>{quotaSummaryText}</Text>
           {!premiumEntitlement.isPremium &&
@@ -348,8 +345,8 @@ export default function IngredientOcrScreen({
               ]}
             >
               {isCropEnabled
-                ? 'On: keep using manual crop before OCR and add an extra center crop retry.'
-                : 'Off: use the original full image and OCR crop retries only.'}
+                ? 'Crop before reading.'
+                : 'Use the full image.'}
             </Text>
           </View>
           <View
@@ -413,17 +410,13 @@ export default function IngredientOcrScreen({
         <View style={styles.heroCard}>
           <Text style={styles.eyebrow}>Ingredient Label OCR</Text>
           <Text style={styles.title}>Photograph an ingredient list</Text>
-          <Text style={styles.subtitle}>
-            Take a clear photo of the ingredients section, and we will extract the
-            text and run the same highlighting and scoring pipeline used for barcode scans.
-          </Text>
         </View>
 
         {renderActionCard()}
 
         {previewUri ? (
           <View style={styles.previewCard}>
-            <Text style={styles.previewLabel}>Selected Image</Text>
+            <Text style={styles.previewLabel}>Selected image</Text>
             <Image source={{ uri: previewUri }} style={styles.previewImage} />
           </View>
         ) : null}
@@ -431,15 +424,13 @@ export default function IngredientOcrScreen({
         {isProcessing ? (
           <View style={styles.stateCard}>
             <ActivityIndicator color={colors.primary} size="small" />
-            <Text style={styles.stateText}>
-              Extracting text and isolating the ingredient section...
-            </Text>
+            <Text style={styles.stateText}>Reading label...</Text>
           </View>
         ) : null}
 
         {errorMessage ? (
           <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>OCR needs another try</Text>
+            <Text style={styles.errorTitle}>Try again</Text>
             <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
         ) : null}

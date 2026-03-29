@@ -32,8 +32,8 @@ export default function HistoryInsightsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Premium History Insights</Text>
-      <Text style={styles.title}>Patterns from your recent scans</Text>
+      <Text style={styles.label}>Insights</Text>
+      <Text style={styles.title}>Recent patterns</Text>
       {insights.map((insight) => (
         <View key={insight.id} style={styles.insightRow}>
           <View

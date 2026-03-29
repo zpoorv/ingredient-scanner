@@ -48,10 +48,7 @@ export default function FeedbackScreen() {
         <Text style={styles.eyebrow}>Feedback</Text>
         <Text style={styles.title}>Tell us what to improve</Text>
         <View style={styles.card}>
-          <Text style={styles.subtitle}>
-            {supportMessage ||
-              'This sends feedback through your mail app so nothing gets stuck in the device.'}
-          </Text>
+          {supportMessage ? <Text style={styles.subtitle}>{supportMessage}</Text> : null}
           <TextInput
             multiline
             onChangeText={setMessage}

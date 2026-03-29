@@ -65,8 +65,10 @@ export async function syncDietProfileForCurrentUser(): Promise<DietProfileId> {
   setSessionDietProfile(resolvedProfileId);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       dietProfileId: resolvedProfileId,
+    }).catch(() => {
+      // Keep settings fast; remote sync can retry on the next profile refresh.
     });
   }
 
@@ -81,8 +83,10 @@ export async function saveDietProfile(profileId: DietProfileId) {
   setSessionDietProfile(profileId);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       dietProfileId: profileId,
+    }).catch(() => {
+      // Local preference changes should feel instant even if cloud sync is slow.
     });
   }
 

@@ -13,19 +13,13 @@ export default function PrivacyPolicyScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>Privacy</Text>
-        <Text style={styles.title}>What data the app uses</Text>
+        <Text style={styles.title}>Privacy</Text>
         <View style={styles.card}>
           <Text style={styles.body}>
-            Inqoura uses Firebase Authentication for sign-in, Open Food Facts for product data,
-            and local device storage for scan history. Optional cloud sync can be enabled with
-            Firebase Firestore for profile and history data linked to your account.
-          </Text>
-          <Text style={styles.body}>
-            Use the hosted privacy policy below for the Play Store listing and in-app disclosure.
-            Keep it updated whenever authentication, cloud sync, analytics, or payments change.
+            Read the full privacy policy here.
           </Text>
           <Pressable onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)} style={styles.link}>
-            <Text style={styles.linkText}>Open hosted privacy policy URL</Text>
+            <Text style={styles.linkText}>Open privacy policy</Text>
           </Pressable>
         </View>
       </ScrollView>

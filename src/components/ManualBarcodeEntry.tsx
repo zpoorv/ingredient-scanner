@@ -25,9 +25,6 @@ export default function ManualBarcodeEntry({
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Type Barcode Number</Text>
-      <Text style={styles.description}>
-        Enter the digits manually to run the same lookup flow as camera scanning.
-      </Text>
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
@@ -62,11 +59,6 @@ const createStyles = (
       borderWidth: 1,
       gap: 12,
       padding: 20,
-    },
-    description: {
-      color: colors.textMuted,
-      fontSize: 14,
-      lineHeight: 21,
     },
     errorText: {
       color: colors.danger,

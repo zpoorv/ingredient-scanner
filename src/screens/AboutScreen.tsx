@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
 import { useAppTheme } from '../components/AppThemeProvider';
-import { APP_ANDROID_PACKAGE, APP_NAME } from '../constants/branding';
+import { APP_NAME } from '../constants/branding';
 
 export default function AboutScreen() {
   const { colors } = useAppTheme();
@@ -14,17 +14,12 @@ export default function AboutScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>About</Text>
-        <Text style={styles.title}>About {APP_NAME}</Text>
+        <Text style={styles.title}>{APP_NAME}</Text>
         <View style={styles.card}>
           <Text style={styles.body}>
-            Inqoura helps people understand packaged food faster using barcode lookup,
-            ingredient OCR, deterministic scoring, and explainers.
+            Scan products, check ingredients, and save results.
           </Text>
-          <Text style={styles.meta}>Package: {APP_ANDROID_PACKAGE}</Text>
           <Text style={styles.meta}>Version: {Constants.expoConfig?.version ?? '1.0.0'}</Text>
-          <Text style={styles.meta}>
-            Build: {String(Constants.expoConfig?.android?.versionCode ?? 1)}
-          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

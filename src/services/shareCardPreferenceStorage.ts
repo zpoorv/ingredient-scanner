@@ -47,8 +47,10 @@ export async function syncShareCardStyleForCurrentUser(): Promise<ShareCardStyle
   await writeScopedShareCardStyle(scopeId, resolvedShareCardStyleId);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       shareCardStyleId: resolvedShareCardStyleId,
+    }).catch(() => {
+      // Keep share-style restores instant even if profile sync is slow.
     });
   }
 
@@ -62,8 +64,10 @@ export async function saveShareCardStyleId(shareCardStyleId: ShareCardStyleId) {
   await writeScopedShareCardStyle(scopeId, shareCardStyleId);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       shareCardStyleId,
+    }).catch(() => {
+      // Local share-style changes should not block on remote profile writes.
     });
   }
 

@@ -51,10 +51,6 @@ export default function ResetPasswordScreen({
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Password Reset</Text>
           <Text style={styles.title}>Reset your {APP_NAME} password</Text>
-          <Text style={styles.subtitle}>
-            Enter your email and Firebase will send a password reset email if the account
-            exists.
-          </Text>
         </View>
 
         <View style={styles.card}>

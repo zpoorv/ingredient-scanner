@@ -51,10 +51,6 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Create Account</Text>
           <Text style={styles.title}>Create your {APP_NAME} account</Text>
-          <Text style={styles.subtitle}>
-            Sign up with email and password, then verify your email before logging in, or use
-            Google through Firebase Authentication.
-          </Text>
         </View>
 
         <View style={styles.card}>

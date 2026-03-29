@@ -55,8 +55,10 @@ export async function syncAppearanceModeForCurrentUser(): Promise<AppearanceMode
   await writeScopedAppearanceMode(scopeId, resolvedMode);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       appearanceMode: resolvedMode,
+    }).catch(() => {
+      // Keep theme restores instant even if remote profile sync is slow.
     });
   }
 
@@ -70,8 +72,10 @@ export async function saveAppearanceMode(mode: AppearanceMode) {
   await writeScopedAppearanceMode(scopeId, mode);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       appearanceMode: mode,
+    }).catch(() => {
+      // Local theme changes should not block on Firestore writes.
     });
   }
 

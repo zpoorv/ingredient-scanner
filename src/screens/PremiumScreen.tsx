@@ -19,6 +19,7 @@ import {
   loadCurrentPremiumEntitlement,
 } from '../services/premiumEntitlementService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
+import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 
 type PremiumScreenProps = NativeStackScreenProps<RootStackParamList, 'Premium'>;
 
@@ -28,6 +29,9 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   const [entitlement, setEntitlement] = useState<PremiumEntitlement>(getPremiumSession());
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isLoadingEntitlement, setIsLoadingEntitlement] = useState(true);
+  const shouldShowLoadingScreen = useDelayedVisibility(
+    isLoadingEntitlement && !hasLoadedOnce
+  );
   const highlightedFeature = route.params?.featureId
     ? PREMIUM_FEATURE_COPY[route.params.featureId]
     : null;
@@ -54,7 +58,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
     }, [hasLoadedOnce])
   );
 
-  if (isLoadingEntitlement && !hasLoadedOnce) {
+  if (shouldShowLoadingScreen) {
     return (
       <ScreenLoadingView
         subtitle="Checking your premium plan and daily limits..."

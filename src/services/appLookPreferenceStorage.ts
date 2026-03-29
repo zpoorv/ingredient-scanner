@@ -44,8 +44,10 @@ export async function syncAppLookForCurrentUser(): Promise<AppLookId> {
   await writeScopedAppLook(scopeId, resolvedAppLookId);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       appLookId: resolvedAppLookId,
+    }).catch(() => {
+      // Keep app-look restores instant even if remote profile sync is slow.
     });
   }
 
@@ -59,8 +61,10 @@ export async function saveAppLookId(appLookId: AppLookId) {
   await writeScopedAppLook(scopeId, appLookId);
 
   if (sessionUser) {
-    await saveCurrentUserPreferences({
+    void saveCurrentUserPreferences({
       appLookId,
+    }).catch(() => {
+      // Local theme changes should not block on Firestore writes.
     });
   }
 
