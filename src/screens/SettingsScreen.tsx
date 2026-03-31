@@ -19,12 +19,21 @@ import {
 } from '../constants/dietProfiles';
 import { getShareCardStyleDefinition, SHARE_CARD_STYLE_DEFINITIONS } from '../constants/shareCardStyles';
 import type { AppLookId, AppearanceMode } from '../models/preferences';
+import type { HistoryNotificationPermissionState } from '../models/historyNotification';
 import type { HistoryNotificationCadence } from '../models/userProfile';
 import type { RootStackParamList } from '../navigation/types';
 import type { ShareCardStyleId } from '../models/shareCardStyle';
 import { deleteCurrentAccount } from '../services/accountDeletionService';
 import { AuthServiceError } from '../services/authHelpers';
 import { logoutAuth } from '../services/authService';
+import {
+  cancelCurrentUserHistoryNotifications,
+  getHistoryNotificationPermissionState,
+  getHistoryNotificationStatusLabel,
+  openHistoryNotificationSettings,
+  requestHistoryNotificationPermission,
+  syncHistoryNotificationsForCurrentUser,
+} from '../services/historyNotificationService';
 import {
   saveDietProfile,
   syncDietProfileForCurrentUser,
@@ -73,6 +82,8 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   );
   const [historyNotificationCadence, setHistoryNotificationCadence] =
     useState<HistoryNotificationCadence>('weekly');
+  const [historyNotificationPermissionState, setHistoryNotificationPermissionState] =
+    useState<HistoryNotificationPermissionState>('undetermined');
   const [draftHistoryNotificationCadence, setDraftHistoryNotificationCadence] =
     useState<HistoryNotificationCadence>('weekly');
   const [historyNotificationsEnabled, setHistoryNotificationsEnabled] = useState(false);
@@ -104,7 +115,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       label: 'Smart',
     },
     {
-      description: 'Bundle your premium scan nudges into a simple weekly recap.',
+      description: 'Bundle your recent scan patterns into a simple weekly recap.',
       id: 'weekly' as const,
       label: 'Weekly',
     },
@@ -126,12 +137,19 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         }
 
         try {
-          const [profile, savedDietProfileId, savedShareCardStyleId, entitlement] =
+          const [
+            profile,
+            savedDietProfileId,
+            savedShareCardStyleId,
+            entitlement,
+            notificationPermissionState,
+          ] =
             await Promise.all([
               loadUserProfile(),
               syncDietProfileForCurrentUser(),
               syncShareCardStyleForCurrentUser(),
               loadCurrentPremiumEntitlement(),
+              getHistoryNotificationPermissionState(),
             ]);
 
           if (!isMounted) {
@@ -147,6 +165,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           setHistoryNotificationCadence(
             profile?.historyNotificationCadence ?? 'weekly'
           );
+          setHistoryNotificationPermissionState(notificationPermissionState);
           setDraftHistoryNotificationCadence(
             profile?.historyNotificationCadence ?? 'weekly'
           );
@@ -289,20 +308,77 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
 
     const nextValue = !historyInsightsEnabled;
     setHistoryInsightsEnabled(nextValue);
-    await saveCurrentUserPreferences({ historyInsightsEnabled: nextValue });
+    void saveCurrentUserPreferences({ historyInsightsEnabled: nextValue }).catch(
+      (error) => {
+        Alert.alert(
+          'History insights update failed',
+          error instanceof AuthServiceError
+            ? error.message
+            : 'We could not save that history insight setting right now.'
+        );
+      }
+    );
   };
 
   const handleToggleHistoryNotifications = async () => {
-    if (!premiumEntitlement.isPremium) {
-      navigation.navigate('Premium', { featureId: 'history-notifications' });
+    const nextValue = !historyNotificationsEnabled;
+
+    if (!nextValue) {
+      setHistoryNotificationsEnabled(false);
+      void saveCurrentUserPreferences({
+        historyNotificationsEnabled: false,
+      }).catch((error) => {
+        Alert.alert(
+          'Notification update failed',
+          error instanceof AuthServiceError
+            ? error.message
+            : 'We could not turn off history notifications right now.'
+        );
+      });
+      void cancelCurrentUserHistoryNotifications();
       return;
     }
 
-    const nextValue = !historyNotificationsEnabled;
-    setHistoryNotificationsEnabled(nextValue);
-    await saveCurrentUserPreferences({
-      historyNotificationsEnabled: nextValue,
-    });
+    const permissionState = await requestHistoryNotificationPermission();
+    setHistoryNotificationPermissionState(permissionState);
+
+    if (permissionState !== 'granted') {
+      setHistoryNotificationsEnabled(false);
+      void saveCurrentUserPreferences({
+        historyNotificationsEnabled: false,
+      }).catch(() => {
+        // Keep the local toggle off even if profile sync fails.
+      });
+      void cancelCurrentUserHistoryNotifications();
+      Alert.alert(
+        'Allow notifications',
+        'Turn on notifications in system settings to receive weekly recaps and shopping nudges.',
+        [
+          { style: 'cancel', text: 'Not now' },
+          {
+            text: 'Open settings',
+            onPress: () => {
+              void openHistoryNotificationSettings();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setHistoryNotificationsEnabled(true);
+    void saveCurrentUserPreferences({
+      historyNotificationsEnabled: true,
+    })
+      .then(() => syncHistoryNotificationsForCurrentUser())
+      .catch((error) => {
+        Alert.alert(
+          'Notification update failed',
+          error instanceof AuthServiceError
+            ? error.message
+            : 'We could not turn on history notifications right now.'
+        );
+      });
   };
 
   const handleApplyNotificationCadence = () => {
@@ -310,15 +386,25 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     setIsNotificationCadenceModalVisible(false);
     void saveCurrentUserPreferences({
       historyNotificationCadence: draftHistoryNotificationCadence,
-    }).catch((error) => {
-      Alert.alert(
-        'Notification pace update failed',
-        error instanceof AuthServiceError
-          ? error.message
-          : 'We could not save that notification pace right now.'
-      );
-    });
+    })
+      .then(() => syncHistoryNotificationsForCurrentUser())
+      .catch((error) => {
+        Alert.alert(
+          'Notification pace update failed',
+          error instanceof AuthServiceError
+            ? error.message
+            : 'We could not save that notification pace right now.'
+        );
+      });
   };
+
+  const historyNotificationStatus = getHistoryNotificationStatusLabel(
+    historyNotificationsEnabled,
+    historyNotificationPermissionState,
+    historyNotificationCadence
+  );
+  const isNotificationCadenceDisabled =
+    !historyNotificationsEnabled || historyNotificationPermissionState !== 'granted';
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
@@ -410,29 +496,41 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           />
           <SettingsRow
             onPress={() => void handleToggleHistoryNotifications()}
-            subtitle="Optional premium nudges based on your recent scans."
+            subtitle="Local reminders based on your recent scans."
             title="History Notifications"
             value={
-              premiumEntitlement.isPremium
-                ? historyNotificationsEnabled
+              historyNotificationPermissionState === 'denied'
+                ? 'Blocked'
+                : historyNotificationsEnabled
                   ? 'On'
                   : 'Off'
-                : 'Premium'
             }
           />
           <SettingsRow
+            disabled={isNotificationCadenceDisabled}
             onPress={() => {
-              if (!premiumEntitlement.isPremium) {
-                navigation.navigate('Premium', { featureId: 'history-notifications' });
-                return;
-              }
-
               setDraftHistoryNotificationCadence(historyNotificationCadence);
               setIsNotificationCadenceModalVisible(true);
             }}
-            subtitle="Choose whether premium nudges appear smart-first or weekly."
+            subtitle="Choose whether history nudges arrive smart-first or as a weekly recap."
             title="Notification Pace"
-            value={premiumEntitlement.isPremium ? historyNotificationCadence : 'Premium'}
+            value={historyNotificationCadence}
+          />
+          <SettingsRow
+            onPress={
+              historyNotificationPermissionState === 'denied'
+                ? () => {
+                    void openHistoryNotificationSettings();
+                  }
+                : undefined
+            }
+            subtitle={
+              historyNotificationPermissionState === 'denied'
+                ? 'Open system settings to allow weekly recaps and smart nudges.'
+                : 'Preview of what this device will send.'
+            }
+            title="Notification Status"
+            value={historyNotificationStatus}
           />
           <SettingsRow
             onPress={() => navigation.navigate('History')}

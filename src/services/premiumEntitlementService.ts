@@ -12,6 +12,10 @@ import {
   setPremiumSession,
 } from '../store';
 import { loadRemoteUserProfile } from './cloudUserDataService';
+import {
+  getRevenueCatPremiumState,
+  loadRevenueCatCustomerInfo,
+} from './revenueCatService';
 import { loadUserProfile, syncCurrentUserProfileToFirestore } from './userProfileService';
 import { saveStoredUserProfile } from './userProfileStorage';
 
@@ -39,8 +43,12 @@ export async function loadCurrentPremiumEntitlement() {
     return createDefaultPremiumEntitlement();
   }
 
+  const revenueCatCustomerInfo = await loadRevenueCatCustomerInfo();
   const profile = await loadUserProfile();
-  const entitlement = buildPremiumEntitlement(profile);
+  const entitlement = buildPremiumEntitlement(
+    profile,
+    getRevenueCatPremiumState(revenueCatCustomerInfo)
+  );
   setPremiumSession(entitlement);
   return entitlement;
 }
@@ -53,12 +61,16 @@ export async function refreshCurrentPremiumEntitlement() {
     return createDefaultPremiumEntitlement();
   }
 
+  const revenueCatCustomerInfo = await loadRevenueCatCustomerInfo();
   const localProfile = await loadUserProfile();
   const remoteProfile = await loadRemoteUserProfile(authSession.user.id);
 
   if (!remoteProfile) {
     const profile = await syncCurrentUserProfileToFirestore();
-    const entitlement = buildPremiumEntitlement(profile);
+    const entitlement = buildPremiumEntitlement(
+      profile,
+      getRevenueCatPremiumState(revenueCatCustomerInfo)
+    );
     setPremiumSession(entitlement);
     return entitlement;
   }
@@ -69,7 +81,10 @@ export async function refreshCurrentPremiumEntitlement() {
   };
 
   await saveStoredUserProfile(profile);
-  const entitlement = buildPremiumEntitlement(profile);
+  const entitlement = buildPremiumEntitlement(
+    profile,
+    getRevenueCatPremiumState(revenueCatCustomerInfo)
+  );
   setPremiumSession(entitlement);
   return entitlement;
 }

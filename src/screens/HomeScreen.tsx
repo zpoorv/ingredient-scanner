@@ -27,14 +27,15 @@ import {
   loadFeatureQuotaSnapshot,
   type FeatureQuotaSnapshot,
 } from '../services/featureUsageStorage';
+import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import {
-  hasPremiumFeatureAccess,
-  loadCurrentPremiumEntitlement,
-} from '../services/premiumEntitlementService';
-import { loadScanHistory } from '../services/scanHistoryStorage';
+  loadScanHistory,
+  subscribeScanHistoryChanges,
+} from '../services/scanHistoryStorage';
 import { loadUserProfile } from '../services/userProfileService';
 import { getPremiumSession, subscribeAuthSession, subscribePremiumSession } from '../store';
 import {
+  buildHistoryNotifications,
   buildHistoryOverview,
   type HistoryInsight,
   type HistoryNotification,
@@ -125,12 +126,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       });
       setHistoryInsights(historyOverview.insights);
       setHistoryNotifications(
-        entitlement.isPremium &&
-          hasPremiumFeatureAccess('history-notifications', entitlement) &&
-          (profile?.historyNotificationsEnabled ?? false)
-          ? historyOverview.notifications.slice(
-              0,
-              profile?.historyNotificationCadence === 'smart' ? 1 : 2
+        profile?.historyNotificationsEnabled
+          ? buildHistoryNotifications(
+              historyEntries,
+              profile.historyNotificationCadence ?? 'weekly'
             )
           : []
       );
@@ -143,6 +142,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setPremiumEntitlement(entitlement);
       void refreshPremiumState();
     });
+    const unsubscribeHistory = subscribeScanHistoryChanges(() => {
+      void refreshPremiumState();
+    });
 
     void refreshPremiumState();
 
@@ -150,6 +152,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       isMounted = false;
       unsubscribe();
       unsubscribePremium();
+      unsubscribeHistory();
     };
   }, []);
 

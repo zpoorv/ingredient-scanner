@@ -6,6 +6,10 @@ import { Alert, InteractionManager, Linking } from 'react-native';
 import { useAppTheme } from '../components/AppThemeProvider';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import { APP_NAME } from '../constants/branding';
+import {
+  flushPendingHistoryNavigation,
+  rootNavigationRef,
+} from './navigationRef';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import { hydrateAuthSession } from '../services/authService';
@@ -97,6 +101,10 @@ export default function RootNavigator() {
   }, [authSession.status, currentUserId]);
 
   useEffect(() => {
+    flushPendingHistoryNavigation(isAuthenticated);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       return;
     }
@@ -158,7 +166,13 @@ export default function RootNavigator() {
 
   return (
     <Suspense fallback={<AuthBootstrapScreen />}>
-      <NavigationContainer theme={navigationTheme}>
+      <NavigationContainer
+        onReady={() => {
+          flushPendingHistoryNavigation(isAuthenticated);
+        }}
+        ref={rootNavigationRef}
+        theme={navigationTheme}
+      >
         <Stack.Navigator
           screenOptions={{
             animation: 'slide_from_right',
@@ -275,8 +289,8 @@ export default function RootNavigator() {
 function AuthBootstrapScreen() {
   return (
     <ScreenLoadingView
-      subtitle="Restoring your account and premium access..."
-      title="Loading your account"
+      subtitle="Restoring your account and shopping tools..."
+      title={`Loading ${APP_NAME}`}
     />
   );
 }

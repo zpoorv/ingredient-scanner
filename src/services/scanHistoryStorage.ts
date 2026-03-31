@@ -20,6 +20,7 @@ import {
 
 const LEGACY_SCAN_HISTORY_STORAGE_KEY = 'ingredient-scanner/history/v1';
 const SCAN_HISTORY_STORAGE_KEY_PREFIX = 'inqoura/history/v2';
+const historyChangeListeners = new Set<() => void>();
 
 export type ScanHistoryEntry = {
   barcode: string;
@@ -178,6 +179,10 @@ async function clearHistoryForScope(scopeId: string) {
   await AsyncStorage.removeItem(getHistoryStorageKey(scopeId));
 }
 
+function notifyHistoryChangeListeners() {
+  historyChangeListeners.forEach((listener) => listener());
+}
+
 function haveHistoryEntriesChanged(
   currentEntries: ScanHistoryEntry[],
   nextEntries: ScanHistoryEntry[]
@@ -260,6 +265,8 @@ export async function saveScanToHistory(
     await saveRemoteScanHistoryEntry(sessionUser.id, nextEntry);
   }
 
+  notifyHistoryChangeListeners();
+
   return nextEntry;
 }
 
@@ -278,6 +285,8 @@ export async function deleteScanHistoryEntries(ids: string[]) {
     await deleteRemoteScanHistoryEntries(sessionUser.id, ids);
   }
 
+  notifyHistoryChangeListeners();
+
   return nextEntries;
 }
 
@@ -295,4 +304,14 @@ export async function clearScanHistoryForUser(uid?: string | null) {
   if (targetUid) {
     await replaceRemoteScanHistory(targetUid, []);
   }
+
+  notifyHistoryChangeListeners();
+}
+
+export function subscribeScanHistoryChanges(listener: () => void) {
+  historyChangeListeners.add(listener);
+
+  return () => {
+    historyChangeListeners.delete(listener);
+  };
 }

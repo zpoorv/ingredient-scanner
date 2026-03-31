@@ -19,7 +19,7 @@ export default function HistoryNotificationsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Premium Notifications</Text>
+      <Text style={styles.label}>Shopping Nudges</Text>
       {notifications.map((notification) => (
         <View key={notification.id} style={styles.item}>
           <Text style={styles.title}>{notification.title}</Text>

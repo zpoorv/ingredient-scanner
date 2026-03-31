@@ -3,7 +3,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
-import { PRIVACY_POLICY_URL } from '../constants/branding';
+import { ACCOUNT_DELETION_URL, PRIVACY_POLICY_URL } from '../constants/branding';
 
 export default function PrivacyPolicyScreen() {
   const { colors } = useAppTheme();
@@ -20,6 +20,9 @@ export default function PrivacyPolicyScreen() {
           </Text>
           <Pressable onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)} style={styles.link}>
             <Text style={styles.linkText}>Open privacy policy</Text>
+          </Pressable>
+          <Pressable onPress={() => void Linking.openURL(ACCOUNT_DELETION_URL)} style={styles.link}>
+            <Text style={styles.linkText}>Open account deletion page</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -1,4 +1,5 @@
 import type { ScanHistoryEntry } from '../services/scanHistoryStorage';
+import type { HistoryNotificationKind } from '../models/historyNotification';
 
 export type HistoryTrend = 'improving' | 'steady' | 'watch';
 
@@ -25,6 +26,7 @@ export type HistoryReplacementCandidate = {
 export type HistoryNotification = {
   body: string;
   id: string;
+  kind: HistoryNotificationKind;
   title: string;
   tone: HistoryInsight['tone'];
 };
@@ -205,43 +207,57 @@ export function buildHistoryNotifications(
     (entry) => entry.scanCount >= 2 && typeof entry.score === 'number' && entry.score < 55
   );
 
-  const notifications: HistoryNotification[] = [];
+  const cautionNotification: HistoryNotification | null =
+    highRiskCount > 0
+      ? {
+          body:
+            highRiskCount === 1
+              ? 'One recent scan landed in the stronger warning zone.'
+              : `${highRiskCount} recent scans landed in the stronger warning zone.`,
+          id: 'weekly-warning',
+          kind: 'caution-streak',
+          title: 'Caution streak this week',
+          tone: 'warning',
+        }
+      : null;
+  const healthyNotification: HistoryNotification | null =
+    strongPickCount >= 3
+      ? {
+          body: 'You have a healthy streak going in your recent scans.',
+          id: 'weekly-strong',
+          kind: 'healthy-streak',
+          title: 'Stronger picks are building up',
+          tone: 'good',
+        }
+      : null;
+  const repeatLowScoreNotification: HistoryNotification | null =
+    repeatLowScoreEntry
+      ? {
+          body: `${repeatLowScoreEntry.name} keeps showing up as a lower-scoring repeat buy.`,
+          id: 'repeat-low-score',
+          kind: 'repeat-low-score',
+          title: 'One repeat buy may be worth replacing',
+          tone: 'warning',
+        }
+      : null;
 
-  if (highRiskCount > 0) {
-    notifications.push({
-      body:
-        highRiskCount === 1
-          ? 'One recent scan landed in the stronger warning zone.'
-          : `${highRiskCount} recent scans landed in the stronger warning zone.`,
-      id: 'weekly-warning',
-      title: 'Caution streak this week',
-      tone: 'warning',
-    });
-  }
-
-  if (strongPickCount >= 3) {
-    notifications.push({
-      body: 'You have a healthy streak going in your recent scans.',
-      id: 'weekly-strong',
-      title: 'Stronger picks are building up',
-      tone: 'good',
-    });
-  }
-
-  if (repeatLowScoreEntry) {
-    notifications.push({
-      body: `${repeatLowScoreEntry.name} keeps showing up as a lower-scoring repeat buy.`,
-      id: 'repeat-low-score',
-      title: 'One repeat buy may be worth replacing',
-      tone: 'warning',
-    });
-  }
+  const smartNotifications = [
+    repeatLowScoreNotification,
+    cautionNotification,
+    healthyNotification,
+  ].filter((notification): notification is HistoryNotification => notification !== null);
 
   if (cadence === 'smart') {
-    return notifications.slice(0, 1);
+    return smartNotifications.slice(0, 1);
   }
 
-  return notifications.slice(0, 2);
+  return [
+    cautionNotification,
+    repeatLowScoreNotification,
+    healthyNotification,
+  ]
+    .filter((notification): notification is HistoryNotification => notification !== null)
+    .slice(0, 2);
 }
 
 export function buildHistoryInsights(
@@ -320,10 +336,7 @@ export function buildHistoryOverview(
 ): HistoryOverview {
   return {
     insights: buildHistoryInsights(historyEntries, options),
-    notifications: buildHistoryNotifications(
-      historyEntries,
-      options.includePremiumPatterns ? 'weekly' : 'smart'
-    ),
+    notifications: buildHistoryNotifications(historyEntries, 'weekly'),
     repeatBuyCandidates: buildRepeatBuyCandidates(historyEntries),
     replacementCandidates: buildReplacementCandidates(historyEntries),
     weeklyTrend: buildWeeklyTrend(historyEntries),

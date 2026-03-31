@@ -47,6 +47,10 @@ docs/
 .tmp*
 captures/
 screenshots/
+releases/
+*.aab
+*.apk
+*.apks
 
 # typescript
 *.tsbuildinfo

@@ -9,18 +9,20 @@ export type PremiumFeatureId =
   | 'deeper-result-guidance'
   | 'advanced-ocr-recovery'
   | 'weekly-history-insights'
-  | 'history-notifications'
   | 'favorites-and-comparisons';
 
 export type PremiumEntitlementSource =
   | 'admin-role'
   | 'premium-role'
+  | 'revenuecat-entitlement'
   | 'profile-plan'
   | 'none';
 
 export type PremiumEntitlement = {
+  billingProductIdentifier: string | null;
   features: PremiumFeatureId[];
   isPremium: boolean;
+  managementUrl: string | null;
   plan: UserProfile['plan'];
   role: UserProfile['role'];
   source: PremiumEntitlementSource;
@@ -37,14 +39,15 @@ const PREMIUM_FEATURES: PremiumFeatureId[] = [
   'deeper-result-guidance',
   'advanced-ocr-recovery',
   'weekly-history-insights',
-  'history-notifications',
   'favorites-and-comparisons',
 ];
 
 export function createDefaultPremiumEntitlement(): PremiumEntitlement {
   return {
+    billingProductIdentifier: null,
     features: [],
     isPremium: false,
+    managementUrl: null,
     plan: 'free',
     role: 'user',
     source: 'none',
@@ -54,7 +57,13 @@ export function createDefaultPremiumEntitlement(): PremiumEntitlement {
 }
 
 export function buildPremiumEntitlement(
-  profile: Pick<UserProfile, 'plan' | 'role' | 'updatedAt'> | null
+  profile: Pick<UserProfile, 'plan' | 'role' | 'updatedAt'> | null,
+  billingState?: {
+    isActive: boolean;
+    managementUrl: string | null;
+    productIdentifier: string | null;
+    updatedAt: string | null;
+  } | null
 ): PremiumEntitlement {
   if (!profile) {
     return createDefaultPremiumEntitlement();
@@ -63,21 +72,27 @@ export function buildPremiumEntitlement(
   const isAdmin = profile.role === 'admin';
   const hasPremiumRole = profile.role === 'premium';
   const hasPremiumPlan = profile.plan === 'premium';
-  const isPremium = isAdmin || hasPremiumRole || hasPremiumPlan;
+  const hasRevenueCatEntitlement = billingState?.isActive ?? false;
+  const isPremium =
+    isAdmin || hasPremiumRole || hasPremiumPlan || hasRevenueCatEntitlement;
 
   return {
+    billingProductIdentifier: billingState?.productIdentifier ?? null,
     features: isPremium ? PREMIUM_FEATURES : [],
     isPremium,
+    managementUrl: billingState?.managementUrl ?? null,
     plan: profile.plan,
     role: profile.role,
     source: isAdmin
       ? 'admin-role'
       : hasPremiumRole
         ? 'premium-role'
+        : hasRevenueCatEntitlement
+          ? 'revenuecat-entitlement'
         : hasPremiumPlan
           ? 'profile-plan'
           : 'none',
     status: isPremium ? 'active' : 'inactive',
-    updatedAt: profile.updatedAt,
+    updatedAt: billingState?.updatedAt ?? profile.updatedAt,
   };
 }

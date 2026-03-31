@@ -30,12 +30,6 @@ export const PREMIUM_FEATURE_COPY: Record<
     shortLabel: 'Weekly Insights',
     title: 'Weekly shopping insights',
   },
-  'history-notifications': {
-    description:
-      'Turn on optional in-app scan notifications like caution streaks, healthier streaks, and repeat low-score nudges.',
-    shortLabel: 'Notifications',
-    title: 'History notifications',
-  },
   'favorites-and-comparisons': {
     description:
       'Save products you buy often, keep comparison slots ready, and make repeat shopping decisions faster.',
