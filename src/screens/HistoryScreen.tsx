@@ -12,10 +12,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import BottomMenuBar from '../components/BottomMenuBar';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryListItemSkeleton from '../components/HistoryListItemSkeleton';
 import HistoryListItem from '../components/HistoryListItem';
 import ProductChangeAlertsCard from '../components/ProductChangeAlertsCard';
+import ScreenReveal from '../components/ScreenReveal';
 import UsualBuysCard from '../components/UsualBuysCard';
 import type { ProductChangeAlert } from '../models/productChangeAlert';
 import type { RootStackParamList } from '../navigation/types';
@@ -38,6 +40,7 @@ import {
 
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'History'>;
 type SortOrder = 'newest' | 'oldest';
+type HistoryListRow = ScanHistoryEntry | number;
 
 function matchesQuery(entry: ScanHistoryEntry, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -57,6 +60,10 @@ function matchesQuery(entry: ScanHistoryEntry, query: string) {
     .toLowerCase();
 
   return searchableText.includes(normalizedQuery);
+}
+
+function isHistoryEntry(item: HistoryListRow): item is ScanHistoryEntry {
+  return typeof item !== 'number';
 }
 
 export default function HistoryScreen({ navigation }: HistoryScreenProps) {
@@ -229,187 +236,191 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     ]
   );
 
-  return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.eyebrowChip}>
-            <Text style={styles.eyebrowText}>Saved Scans</Text>
-          </View>
-          <Text style={styles.title}>Review products you scanned earlier</Text>
-          <Text style={styles.subtitle}>
-            Search, sort, and quickly spot your best picks, repeat buys, and items to rethink.
-          </Text>
-          <Text style={styles.headerMeta}>
-            {historyTrend === 'improving'
-              ? 'This week is trending stronger than usual.'
-              : historyTrend === 'watch'
-                ? 'This week leans more caution-heavy.'
-                : 'This week looks fairly steady so far.'}
-          </Text>
+  const headerContent = (
+    <ScreenReveal style={styles.headerContent}>
+      <View style={styles.header}>
+        <View style={styles.eyebrowChip}>
+          <Text style={styles.eyebrowText}>Saved Scans</Text>
         </View>
+        <Text style={styles.title}>History</Text>
+        <Text style={styles.subtitle}>Your recent scans, repeat buys, and watch-outs.</Text>
+        <Text style={styles.headerMeta}>
+          {historyTrend === 'improving'
+            ? 'This week is trending stronger than usual.'
+            : historyTrend === 'watch'
+              ? 'This week leans more caution-heavy.'
+              : 'This week looks fairly steady so far.'}
+        </Text>
+      </View>
 
-        <View style={styles.controls}>
-          <TextInput
-            onChangeText={setSearchQuery}
-            placeholder="Search scan history"
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-            value={searchQuery}
-          />
+      <View style={styles.controls}>
+        <TextInput
+          onChangeText={setSearchQuery}
+          placeholder="Search scan history"
+          placeholderTextColor={colors.textMuted}
+          style={styles.searchInput}
+          value={searchQuery}
+        />
 
-          <View style={styles.sortRow}>
-            {(['newest', 'oldest'] as const).map((option) => {
-              const isSelected = sortOrder === option;
+        <View style={styles.sortRow}>
+          {(['newest', 'oldest'] as const).map((option) => {
+            const isSelected = sortOrder === option;
 
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setSortOrder(option)}
+            return (
+              <Pressable
+                key={option}
+                onPress={() => setSortOrder(option)}
+                style={[styles.sortChip, isSelected && styles.sortChipSelected]}
+              >
+                <Text
                   style={[
-                    styles.sortChip,
-                    isSelected && styles.sortChipSelected,
+                    styles.sortChipText,
+                    isSelected && styles.sortChipTextSelected,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.sortChipText,
-                      isSelected && styles.sortChipTextSelected,
-                    ]}
-                  >
-                    {option === 'newest' ? 'Newest' : 'Oldest'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Pressable
-            onPress={() => navigation.navigate('Search')}
-            style={styles.selectionActionChip}
-          >
-            <Text style={styles.selectionActionText}>Search Products</Text>
-          </Pressable>
-          {visibleEntries.length > 0 ? (
-            <View style={styles.selectionActions}>
-              <Pressable
-                onPress={handleToggleSelectAll}
-                style={styles.selectionActionChip}
-              >
-                <Text style={styles.selectionActionText}>
-                  {selectedEntryIds.length === visibleEntries.length
-                    ? 'Clear All'
-                    : 'Select All'}
+                  {option === 'newest' ? 'Newest' : 'Oldest'}
                 </Text>
               </Pressable>
-              {selectionMode ? (
-                <>
-                  <Pressable
-                    onPress={() => setSelectedEntryIds([])}
-                    style={styles.selectionActionChip}
-                  >
-                    <Text style={styles.selectionActionText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleDeleteEntries(selectedEntryIds)}
-                    style={styles.deleteActionChip}
-                  >
-                    <Text style={styles.deleteActionText}>
-                      Delete Selected
-                    </Text>
-                  </Pressable>
-                </>
-              ) : null}
-            </View>
-          ) : null}
+            );
+          })}
         </View>
-
-        {historyInsights.length > 0 ? (
-          <View style={styles.insightsWrap}>
-            <HistoryInsightsCard colors={colors} insights={historyInsights} />
-          </View>
-        ) : null}
-
-        {productChangeAlerts.length > 0 ? (
-          <View style={styles.insightsWrap}>
-            <ProductChangeAlertsCard
-              alerts={productChangeAlerts}
-              onOpenAlert={handleOpenChangedProduct}
-            />
-          </View>
-        ) : null}
-
-        {repeatBuyCandidates.length > 0 ? (
-          <View style={styles.insightsWrap}>
-            <UsualBuysCard
-              hideHistoryAction
-              items={repeatBuyCandidates.map((candidate) => {
-                const matchingEntry =
-                  historyEntries.find((entry) => entry.id === candidate.id) ?? null;
-                const favoriteCode =
-                  matchingEntry?.product.code || matchingEntry?.barcode || candidate.id;
-
-                return {
-                  id: candidate.id,
-                  isFavorite: favoriteProductCodes.includes(favoriteCode),
-                  name: candidate.name,
-                  score: matchingEntry?.score ?? null,
-                  summary: candidate.riskSummary,
-                  usageCount: candidate.scanCount,
-                };
-              })}
-              onOpenHistory={() => undefined}
-              onOpenSearch={() => navigation.navigate('Search')}
-            />
-          </View>
-        ) : null}
-
-        {replacementCandidates.length > 0 ? (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>Replace first</Text>
-            {replacementCandidates.map((candidate) => (
-              <Text key={candidate.id} style={styles.stateText}>
-                • {candidate.name}: {candidate.reason}
+        <Pressable
+          onPress={() => navigation.navigate('Search')}
+          style={styles.selectionActionChip}
+        >
+          <Text style={styles.selectionActionText}>Search Products</Text>
+        </Pressable>
+        {visibleEntries.length > 0 ? (
+          <View style={styles.selectionActions}>
+            <Pressable
+              onPress={handleToggleSelectAll}
+              style={styles.selectionActionChip}
+            >
+              <Text style={styles.selectionActionText}>
+                {selectedEntryIds.length === visibleEntries.length
+                  ? 'Clear All'
+                  : 'Select All'}
               </Text>
-            ))}
+            </Pressable>
+            {selectionMode ? (
+              <>
+                <Pressable
+                  onPress={() => setSelectedEntryIds([])}
+                  style={styles.selectionActionChip}
+                >
+                  <Text style={styles.selectionActionText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleDeleteEntries(selectedEntryIds)}
+                  style={styles.deleteActionChip}
+                >
+                  <Text style={styles.deleteActionText}>Delete Selected</Text>
+                </Pressable>
+              </>
+            ) : null}
           </View>
         ) : null}
+      </View>
 
-        {isLoading ? (
-          <FlatList
-            contentContainerStyle={styles.listContent}
-            data={[1, 2, 3, 4]}
-            keyExtractor={(item) => `history-skeleton-${item}`}
-            renderItem={() => <HistoryListItemSkeleton />}
-            scrollEnabled={false}
-            showsVerticalScrollIndicator={false}
+      {historyInsights.length > 0 ? (
+        <View style={styles.insightsWrap}>
+          <HistoryInsightsCard colors={colors} insights={historyInsights} />
+        </View>
+      ) : null}
+
+      {productChangeAlerts.length > 0 ? (
+        <View style={styles.insightsWrap}>
+          <ProductChangeAlertsCard
+            alerts={productChangeAlerts}
+            onOpenAlert={handleOpenChangedProduct}
           />
-        ) : visibleEntries.length > 0 ? (
-          <FlatList
-            contentContainerStyle={styles.listContent}
-            data={visibleEntries}
-            initialNumToRender={8}
-            keyExtractor={(item) => item.id}
-            maxToRenderPerBatch={8}
-            removeClippedSubviews
-            renderItem={renderHistoryItem}
-            showsVerticalScrollIndicator={false}
-            updateCellsBatchingPeriod={60}
-            windowSize={5}
+        </View>
+      ) : null}
+
+      {repeatBuyCandidates.length > 0 ? (
+        <View style={styles.insightsWrap}>
+          <UsualBuysCard
+            hideHistoryAction
+            items={repeatBuyCandidates.map((candidate) => {
+              const matchingEntry =
+                historyEntries.find((entry) => entry.id === candidate.id) ?? null;
+              const favoriteCode =
+                matchingEntry?.product.code || matchingEntry?.barcode || candidate.id;
+
+              return {
+                id: candidate.id,
+                isFavorite: favoriteProductCodes.includes(favoriteCode),
+                name: candidate.name,
+                score: matchingEntry?.score ?? null,
+                summary: candidate.riskSummary,
+                usageCount: candidate.scanCount,
+              };
+            })}
+            onOpenHistory={() => undefined}
+            onOpenSearch={() => navigation.navigate('Search')}
           />
-        ) : (
-          <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>
-              {searchQuery.trim()
-                ? 'No scans matched your search'
-                : 'No saved scans yet'}
+        </View>
+      ) : null}
+
+      {replacementCandidates.length > 0 ? (
+        <View style={styles.stateCard}>
+          <Text style={styles.stateTitle}>Replace first</Text>
+          {replacementCandidates.map((candidate) => (
+            <Text key={candidate.id} style={styles.stateText}>
+              • {candidate.name}: {candidate.reason}
             </Text>
-            <Text style={styles.stateText}>
-              {searchQuery.trim()
-                ? 'Try a different name, barcode, or risk note.'
-                : 'Scan a packaged product and it will appear here automatically.'}
-            </Text>
-          </View>
-        )}
+          ))}
+        </View>
+      ) : null}
+    </ScreenReveal>
+  );
+
+  const loadingItems: HistoryListRow[] = [1, 2, 3, 4];
+  const listData: HistoryListRow[] = isLoading ? loadingItems : visibleEntries;
+
+  return (
+    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
+      <View style={styles.screen}>
+        <FlatList
+          contentContainerStyle={styles.listContent}
+          data={listData}
+          initialNumToRender={8}
+          keyboardShouldPersistTaps="handled"
+          keyExtractor={(item) =>
+            isHistoryEntry(item) ? item.id : `history-skeleton-${item}`
+          }
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={styles.stateCard}>
+                <Text style={styles.stateTitle}>
+                  {searchQuery.trim()
+                    ? 'No scans matched your search'
+                    : 'No saved scans yet'}
+                </Text>
+                <Text style={styles.stateText}>
+                  {searchQuery.trim()
+                    ? 'Try a different name, barcode, or risk note.'
+                    : 'Scan a packaged product and it will appear here automatically.'}
+                </Text>
+              </View>
+            ) : null
+          }
+          ListHeaderComponent={headerContent}
+          maxToRenderPerBatch={8}
+          removeClippedSubviews
+          renderItem={({ item }) =>
+            isHistoryEntry(item) ? (
+              renderHistoryItem({ item })
+            ) : (
+              <HistoryListItemSkeleton />
+            )
+          }
+          showsVerticalScrollIndicator={false}
+          style={styles.list}
+          updateCellsBatchingPeriod={60}
+          windowSize={5}
+        />
+        <BottomMenuBar activeRoute="History" />
       </View>
     </SafeAreaView>
   );
@@ -420,12 +431,6 @@ const createStyles = (
   typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: 18,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
   controls: {
     gap: 12,
   },
@@ -448,6 +453,12 @@ const createStyles = (
   header: {
     gap: 10,
   },
+  headerContent: {
+    gap: 18,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 18,
+  },
   headerMeta: {
     color: colors.primary,
     fontFamily: typography.bodyFontFamily,
@@ -460,10 +471,16 @@ const createStyles = (
   },
   listContent: {
     gap: 12,
-    paddingBottom: 24,
+    paddingBottom: 132,
+  },
+  list: {
+    flex: 1,
   },
   safeArea: {
     backgroundColor: colors.background,
+    flex: 1,
+  },
+  screen: {
     flex: 1,
   },
   deleteActionChip: {

@@ -19,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import ViewShot from 'react-native-view-shot';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import BottomMenuBar from '../components/BottomMenuBar';
 import EnvironmentalImpactCard from '../components/EnvironmentalImpactCard';
 import IngredientExplanationModal from '../components/IngredientExplanationModal';
 import PremiumGuidanceCard from '../components/PremiumGuidanceCard';
@@ -186,13 +187,11 @@ function getScanCompletionCopy(resultSource: ScanResultSource) {
   if (resultSource === 'ingredient-ocr') {
     return {
       body: 'Ingredients read.',
-      label: 'Done',
     };
   }
 
   return {
     body: 'Product loaded.',
-    label: 'Done',
   };
 }
 
@@ -261,6 +260,18 @@ function getConfidenceTone(colors: AppColors, confidence: ResultConfidence | nul
   return colors.danger;
 }
 
+function getConfidenceBackground(colors: AppColors, confidence: ResultConfidence | null) {
+  if (confidence === 'high') {
+    return colors.successMuted;
+  }
+
+  if (confidence === 'medium') {
+    return colors.warningMuted;
+  }
+
+  return colors.dangerMuted;
+}
+
 function getConfidenceLabel(confidence: ResultConfidence | null) {
   if (confidence === 'high') {
     return 'High confidence';
@@ -326,9 +337,6 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     () => formatProductName(product?.name),
     [product?.name]
   );
-  const barcodeFormatLabel = barcodeType
-    ? barcodeType.replace(/_/g, ' ').toUpperCase()
-    : null;
   const scanCompletionCopy = getScanCompletionCopy(resultSource);
   const insights = analysisResult?.insights ?? null;
   const confidence = analysisResult?.confidence ?? null;
@@ -848,9 +856,12 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <ScrollView
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: Math.max(insets.bottom + 136, 160) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {shareableResult && (isSharePickerVisible || isShareCaptureMounted) ? (
@@ -880,20 +891,48 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         ) : null}
 
         <View style={styles.scoreHeroCard}>
-          <View style={styles.scoreHeroTopRow}>
-            <View style={styles.completionPill}>
-              <Ionicons color={colors.success} name="checkmark-circle" size={16} />
-              <Text style={styles.completionPillText}>{scanCompletionCopy.label}</Text>
-            </View>
-            <View style={styles.profileChip}>
-              <Text style={styles.profileChipText}>
-                {insights?.profileLabel || 'Loading...'}
+          <View style={styles.scoreHeroHeaderRow}>
+            {product?.imageUrl ? (
+              <Image
+                source={{ uri: product.imageUrl }}
+                resizeMode="contain"
+                style={styles.scoreHeroImage}
+              />
+            ) : null}
+            <View style={styles.scoreHeroHeaderText}>
+              <Text style={styles.scoreHeroProductName}>{displayProductName}</Text>
+              <Text style={styles.scoreHeroSubtext}>
+                {[product?.brand, product?.quantity].filter(Boolean).join(' • ') ||
+                  scanCompletionCopy.body}
               </Text>
+              <View style={styles.scoreHeroMetaRow}>
+                {confidence ? (
+                  <View
+                    style={[
+                      styles.confidencePill,
+                      {
+                        backgroundColor: getConfidenceBackground(colors, confidence),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.confidencePillText,
+                        { color: getConfidenceTone(colors, confidence) },
+                      ]}
+                    >
+                      {getConfidenceLabel(confidence)}
+                    </Text>
+                  </View>
+                ) : null}
+                {insights?.profileLabel ? (
+                  <View style={styles.profileChip}>
+                    <Text style={styles.profileChipText}>{insights.profileLabel}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
-
-          <Text style={styles.scoreHeroProductName}>{displayProductName}</Text>
-          <Text style={styles.scoreHeroSubtext}>{scanCompletionCopy.body}</Text>
 
           {!analysisResult ? (
             <ResultCardSkeleton />
@@ -956,14 +995,14 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                   <Text style={styles.scoreHeroSummary}>
                     {decisionSummary || insights.summary}
                   </Text>
-                  {confidence ? (
+                  {confidence && confidenceReason ? (
                     <Text
                       style={[
                         styles.scoreHeroConfidence,
                         { color: getConfidenceTone(colors, confidence) },
                       ]}
                     >
-                      {`${getConfidenceLabel(confidence)} · ${confidenceReason}`}
+                      {confidenceReason}
                     </Text>
                   ) : null}
                   {topConcern ? (
@@ -982,17 +1021,6 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                     },
                   ]}
                 />
-              </View>
-              <View style={styles.scoreLegendRow}>
-                <Text style={[styles.scoreLegendText, { color: colors.danger }]}>
-                  Red &lt;50
-                </Text>
-                <Text style={[styles.scoreLegendText, { color: colors.warning }]}>
-                  Yellow 50-79
-                </Text>
-                <Text style={[styles.scoreLegendText, { color: colors.success }]}>
-                  Green 80+
-                </Text>
               </View>
 
               {insights.cautions.length > 0 ? (
@@ -1013,9 +1041,11 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 </View>
               ) : null}
 
-              <View style={styles.trustBlock}>
-                <Text style={styles.disclaimerText}>{disclaimerText}</Text>
-              </View>
+              {confidence === 'low' ? (
+                <View style={styles.trustBlock}>
+                  <Text style={styles.disclaimerText}>{disclaimerText}</Text>
+                </View>
+              ) : null}
             </>
           ) : (
             <View style={styles.trustBlock}>
@@ -1029,19 +1059,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>Product Overview</Text>
-
-          {product?.imageUrl ? (
-            <Image
-              source={{ uri: product.imageUrl }}
-              // This image can be large on Android, so keep it out of the
-              // share tree and decode it only once in the visible layout.
-              style={styles.productImage}
-              resizeMode="contain"
-            />
-          ) : null}
-
-          <Text style={styles.value}>{displayProductName}</Text>
+          <Text style={styles.label}>Quick actions</Text>
           {product.adminMetadata?.reviewStatus &&
           product.adminMetadata.reviewStatus !== 'draft' ? (
             <View style={styles.reviewBadge}>
@@ -1053,22 +1071,11 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               </Text>
             </View>
           ) : null}
-          {product?.nameReason ? (
-            <Text style={styles.statusText}>{product.nameReason}</Text>
-          ) : null}
           {product ? (
             <>
-              {product.brand || product.quantity ? (
-                <Text style={styles.metaText}>
-                  {[product.brand, product.quantity].filter(Boolean).join(' • ')}
-                </Text>
-              ) : null}
-              {barcodeFormatLabel && resultSource === 'barcode' ? (
-                <Text style={styles.statusText}>{barcodeFormatLabel}</Text>
-              ) : null}
               {product.categories.length > 0 ? (
                 <View style={styles.tagWrap}>
-                  {product.categories.slice(0, 3).map((category) => (
+                  {product.categories.slice(0, 2).map((category) => (
                     <View key={category} style={styles.tagChip}>
                       <Text style={styles.tagText}>{category}</Text>
                     </View>
@@ -1131,7 +1138,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
           )}
         </View>
 
-        {trustSnapshot ? <ResultTrustCard trust={trustSnapshot} /> : null}
+        {trustSnapshot && confidence === 'low' ? (
+          <ResultTrustCard trust={trustSnapshot} />
+        ) : null}
 
         {restrictionSummary ? (
           <ProductRestrictionCard
@@ -1153,7 +1162,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         ) : null}
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>Ingredients</Text>
+          <Text style={styles.label}>What&apos;s inside</Text>
           {!ingredientAnalysis ? (
             <ResultCardSkeleton />
           ) : ingredientAnalysis.explainedIngredients.length > 0 ? (
@@ -1202,7 +1211,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 ))}
               </View>
               <Text style={styles.statusText}>
-                Tap an ingredient for details.
+                Tap any ingredient to learn more.
               </Text>
             </>
           ) : (
@@ -1240,7 +1249,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>Nutrition Snapshot</Text>
+          <Text style={styles.label}>Nutrition</Text>
           {!analysisResult ? (
             <ResultCardSkeleton compact />
           ) : insights?.metrics.length ? (
@@ -1255,7 +1264,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
 
           {insights?.processingLabel ? (
             <Text style={styles.statusText}>
-              Processing: {insights.processingLabel}
+              Processing level: {insights.processingLabel}
             </Text>
           ) : null}
 
@@ -1294,6 +1303,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       {environmentalInsight ? <EnvironmentalImpactCard insight={environmentalInsight} /> : null}
 
       </ScrollView>
+      <BottomMenuBar scannerProfileId={selectedProfileId} />
       {shareableResult ? (
         <Pressable
           accessibilityLabel="Share result card"
@@ -1302,7 +1312,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
           onPress={handleOpenSharePicker}
           style={({ pressed }) => [
             styles.floatingShareButton,
-            { bottom: Math.max(insets.bottom + 20, 36) },
+            { bottom: Math.max(insets.bottom + 96, 112) },
             isSharing && styles.floatingShareButtonDisabled,
             pressed && !isSharing && styles.floatingShareButtonPressed,
           ]}
@@ -1416,6 +1426,17 @@ const createStyles = (
   contentContainer: {
     gap: 18,
     padding: 24,
+  },
+  confidencePill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  confidencePillText: {
+    fontFamily: typography.accentFontFamily,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   disclaimerText: {
     color: colors.textMuted,
@@ -1651,6 +1672,15 @@ const createStyles = (
     gap: 16,
     padding: 22,
   },
+  scoreHeroHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+  },
+  scoreHeroHeaderText: {
+    flex: 1,
+    gap: 8,
+  },
   scoreHeroGrade: {
     fontFamily: typography.accentFontFamily,
     fontSize: 13,
@@ -1658,17 +1688,28 @@ const createStyles = (
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
+  scoreHeroImage: {
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    height: 92,
+    width: 92,
+  },
   scoreHeroMainRow: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 18,
+  },
+  scoreHeroMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   scoreHeroProductName: {
     color: colors.text,
     fontFamily: typography.displayFontFamily,
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '800',
-    lineHeight: 36,
+    lineHeight: 34,
   },
   scoreHeroSubtext: {
     color: colors.textMuted,
@@ -1709,12 +1750,7 @@ const createStyles = (
   },
   scoreHeroTextBlock: {
     flex: 1,
-    gap: 6,
-  },
-  scoreHeroTopRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   scoreHeroValue: {
     fontFamily: typography.numericFontFamily,

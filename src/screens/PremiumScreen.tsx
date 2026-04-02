@@ -8,6 +8,7 @@ import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import { useAppTheme } from '../components/AppThemeProvider';
 import NoInternetScreen from '../components/NoInternetScreen';
 import PrimaryButton from '../components/PrimaryButton';
+import ScreenReveal from '../components/ScreenReveal';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import SubscriptionOptionCard from '../components/SubscriptionOptionCard';
 import TrustPromiseCard from '../components/TrustPromiseCard';
@@ -18,7 +19,6 @@ import {
   PREMIUM_PRIMARY_VALUE_FEATURES,
   PREMIUM_PRICE_PREVIEW_COPY,
 } from '../constants/premium';
-import { REVENUECAT_ENTITLEMENT_ID } from '../constants/revenueCat';
 import type { PremiumEntitlement } from '../models/premium';
 import type { RootStackParamList } from '../navigation/types';
 import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
@@ -63,6 +63,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   const billingState = getRevenueCatPremiumState(customerInfo);
   const activeProductLabel =
     entitlement.billingProductIdentifier || billingState.productIdentifier || 'No active plan';
+  const hasBillingAccess = revenueCatAvailable && packageOptions.length > 0;
 
   const loadPremiumState = useCallback(async () => {
     const latestCustomerInfo = await loadRevenueCatCustomerInfo();
@@ -250,6 +251,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScreenReveal>
         <View style={styles.heroCard}>
           <Text style={styles.eyebrow}>Inqoura Premium</Text>
           <Text style={styles.title}>
@@ -259,50 +261,33 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
           </Text>
           <Text style={styles.subtitle}>
             {highlightedFeature?.description ||
-              `Free helps you scan. Premium helps you understand what matters, what to swap, and what your habits are turning into over time. It never buys a better score. ${PREMIUM_PRICE_PREVIEW_COPY}`}
+              `Free helps you scan. Premium helps you spot what matters faster, compare better, and shop with more confidence over time. ${PREMIUM_PRICE_PREVIEW_COPY}`}
           </Text>
-          <View
-            style={[
-              styles.statusBadge,
-              entitlement.isPremium ? styles.statusBadgeActive : styles.statusBadgeInactive,
-            ]}
-          >
-            <Text
+          <View style={styles.statusRow}>
+            <View
               style={[
-                styles.statusBadgeText,
-                entitlement.isPremium
-                  ? styles.statusBadgeTextActive
-                  : styles.statusBadgeTextInactive,
+                styles.statusBadge,
+                entitlement.isPremium ? styles.statusBadgeActive : styles.statusBadgeInactive,
               ]}
             >
-              {entitlement.isPremium
-                ? `Active via ${entitlement.source.replace(/-/g, ' ')}`
-                : 'Free plan'}
-            </Text>
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  entitlement.isPremium
+                    ? styles.statusBadgeTextActive
+                    : styles.statusBadgeTextInactive,
+                ]}
+              >
+                {entitlement.isPremium ? 'Premium active' : 'Free plan'}
+              </Text>
+            </View>
+            <View style={styles.planPill}>
+              <Text style={styles.planPillText}>{activeProductLabel}</Text>
+            </View>
           </View>
         </View>
 
         <TrustPromiseCard />
-
-        <View style={styles.billingCard}>
-          <Text style={styles.sectionTitle}>Billing status</Text>
-          <Text style={styles.billingText}>
-            Entitlement: {REVENUECAT_ENTITLEMENT_ID}
-          </Text>
-          <Text style={styles.billingText}>Active plan: {activeProductLabel}</Text>
-          <Text style={styles.billingText}>
-            Manageable in store: {entitlement.managementUrl || billingState.managementUrl ? 'Yes' : 'Not yet'}
-          </Text>
-          {!revenueCatAvailable ? (
-            <Text style={styles.billingWarning}>
-              RevenueCat is only configured with your Android public SDK key right now. Add an iOS key before using this on iPhone.
-            </Text>
-          ) : packageOptions.length === 0 ? (
-            <Text style={styles.billingWarning}>
-              No current offering was returned. In RevenueCat, create a current offering and attach packages with identifiers `monthly`, `yearly`, `three_month`, and `six_month`.
-            </Text>
-          ) : null}
-        </View>
 
         <View style={styles.featureCard}>
           <Text style={styles.sectionTitle}>What free already includes</Text>
@@ -342,7 +327,14 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
               />
             ))}
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.billingCard}>
+            <Text style={styles.sectionTitle}>Plans will appear here soon</Text>
+            <Text style={styles.billingWarning}>
+              We could not load subscription options on this device yet. Try again in a moment.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.noteCard}>
           <Text style={styles.noteTitle}>Also included</Text>
@@ -355,29 +347,30 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
 
         {highlightedFeature ? (
           <View style={styles.highlightCard}>
-            <Text style={styles.highlightLabel}>Selected premium feature</Text>
+            <Text style={styles.highlightLabel}>Selected feature</Text>
             <Text style={styles.highlightTitle}>{highlightedFeature.title}</Text>
             <Text style={styles.highlightText}>{highlightedFeature.description}</Text>
           </View>
         ) : null}
 
         <PrimaryButton
-          disabled={!revenueCatAvailable || Boolean(pendingActionId)}
-          label={entitlement.isPremium ? 'Open Premium Paywall' : 'See RevenueCat Paywall'}
+          disabled={!hasBillingAccess || Boolean(pendingActionId)}
+          label={entitlement.isPremium ? 'View Plans' : 'See Plans'}
           onPress={() => void handlePresentPaywall()}
         />
         <PrimaryButton
           disabled={!revenueCatAvailable || Boolean(pendingActionId)}
-          label="Restore Purchases"
+          label="Restore"
           onPress={() => void handleRestorePress()}
         />
         {(entitlement.isPremium || billingState.managementUrl) && revenueCatAvailable ? (
           <PrimaryButton
             disabled={Boolean(pendingActionId)}
-            label="Open Customer Center"
+            label="Manage Subscription"
             onPress={() => void handleOpenCustomerCenter()}
           />
         ) : null}
+        </ScreenReveal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -395,12 +388,6 @@ const createStyles = (
       borderWidth: 1,
       gap: 8,
       padding: 20,
-    },
-    billingText: {
-      color: colors.text,
-      fontFamily: typography.bodyFontFamily,
-      fontSize: 14,
-      lineHeight: 20,
     },
     billingWarning: {
       color: colors.textMuted,
@@ -512,6 +499,18 @@ const createStyles = (
       backgroundColor: colors.background,
       flex: 1,
     },
+    planPill: {
+      backgroundColor: colors.primaryMuted,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    planPillText: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+    },
     statusBadge: {
       alignSelf: 'flex-start',
       borderRadius: 999,
@@ -535,6 +534,12 @@ const createStyles = (
     },
     statusBadgeTextInactive: {
       color: colors.textMuted,
+    },
+    statusRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
     },
     subscriptionSection: {
       gap: 14,

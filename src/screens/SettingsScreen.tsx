@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import BottomMenuBar from '../components/BottomMenuBar';
 import DietProfileModal from '../components/DietProfileModal';
 import HouseholdProfileEditorModal from '../components/HouseholdProfileEditorModal';
 import HouseholdProfilesModal from '../components/HouseholdProfilesModal';
@@ -621,7 +622,8 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     !historyNotificationsEnabled || historyNotificationPermissionState !== 'granted';
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
+      <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>{profileName || profileEmail || APP_NAME}</Text>
@@ -793,6 +795,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           />
         </SettingsSection>
       </ScrollView>
+      <BottomMenuBar activeRoute="Settings" scannerProfileId={dietProfileId} />
 
       <DietProfileModal
         isFirstLaunch={false}
@@ -876,6 +879,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         onToggleRestriction={handleToggleHouseholdRestriction}
         visible={isHouseholdEditorVisible}
       />
+      </View>
     </SafeAreaView>
   );
 }
@@ -888,6 +892,7 @@ const createStyles = (
     content: {
       gap: 24,
       padding: 24,
+      paddingBottom: 132,
     },
     roleBadge: {
       alignSelf: 'flex-start',
@@ -904,6 +909,9 @@ const createStyles = (
     },
     safeArea: {
       backgroundColor: colors.background,
+      flex: 1,
+    },
+    screen: {
       flex: 1,
     },
     subtitle: {

@@ -4,7 +4,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import BottomMenuBar from '../components/BottomMenuBar';
 import ProductSearchResultRow from '../components/ProductSearchResultRow';
+import ScreenReveal from '../components/ScreenReveal';
 import type { DietProfileId } from '../constants/dietProfiles';
 import type { RootStackParamList } from '../navigation/types';
 import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
@@ -21,6 +23,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ProductSearchResult[]>([]);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeProfileId, setActiveProfileId] = useState<DietProfileId | undefined>(undefined);
   const deferredQuery = useDeferredValue(query);
@@ -51,6 +54,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
         ? await searchProducts(nextQuery)
         : await browseSearchProducts();
       setResults(nextResults);
+      setHasLoadedOnce(true);
     } finally {
       setIsLoading(false);
     }
@@ -71,46 +75,49 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   };
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setQuery}
-          placeholder="Search products or brands"
-          placeholderTextColor={colors.textMuted}
-          style={styles.searchInput}
-          value={query}
-        />
-
-        {!query.trim() ? (
-          <Text style={styles.helperText}>
-            Browse your usual buys, saved products, and household-ready picks.
-          </Text>
-        ) : null}
-
-        {isLoading ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Searching...</Text>
-          </View>
-        ) : results.length > 0 ? (
-          <FlatList
-            contentContainerStyle={styles.listContent}
-            data={results}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ProductSearchResultRow onPress={handleOpenResult} result={item} />
-            )}
-            showsVerticalScrollIndicator={false}
+    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
+      <View style={styles.screen}>
+        <ScreenReveal style={styles.container}>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setQuery}
+            placeholder="Search products or brands"
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+            value={query}
           />
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No products found</Text>
-            <Text style={styles.emptyText}>
-              Try a shorter search or scan the barcode directly.
-            </Text>
-          </View>
-        )}
+
+          {isLoading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Searching...</Text>
+            </View>
+          ) : results.length > 0 ? (
+            <FlatList
+              style={styles.resultsList}
+              contentContainerStyle={styles.listContent}
+              data={results}
+              keyboardShouldPersistTaps="handled"
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <ProductSearchResultRow onPress={handleOpenResult} result={item} />
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>
+                {hasLoadedOnce ? 'No products found' : 'Start searching'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {query.trim()
+                  ? 'Try a shorter name, a brand, or scan the barcode instead.'
+                  : 'Search by product or brand.'}
+              </Text>
+            </View>
+          )}
+        </ScreenReveal>
+        <BottomMenuBar activeRoute="Search" scannerProfileId={activeProfileId} />
       </View>
     </SafeAreaView>
   );
@@ -149,18 +156,18 @@ const createStyles = (
       fontSize: 18,
       fontWeight: '700',
     },
-    helperText: {
-      color: colors.textMuted,
-      fontFamily: typography.bodyFontFamily,
-      fontSize: 14,
-      lineHeight: 21,
-    },
     listContent: {
       gap: 12,
-      paddingBottom: 24,
+      paddingBottom: 132,
+    },
+    resultsList: {
+      flex: 1,
     },
     safeArea: {
       backgroundColor: colors.background,
+      flex: 1,
+    },
+    screen: {
       flex: 1,
     },
     searchInput: {

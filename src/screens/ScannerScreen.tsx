@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAppTheme } from '../components/AppThemeProvider';
 import BarcodeScannerPanel from '../components/BarcodeScannerPanel';
+import BottomMenuBar from '../components/BottomMenuBar';
 import ManualBarcodeEntry from '../components/ManualBarcodeEntry';
 import PrimaryButton from '../components/PrimaryButton';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
@@ -403,13 +404,13 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
     hasPermission && isFocused && isAppActive && scannerState === 'ready' && !isLookupInFlight;
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.backgroundGlow} />
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 12, 24) },
+            { paddingBottom: Math.max(insets.bottom + 122, 148) },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -479,6 +480,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
             ) : null}
           </View>
         </ScrollView>
+        <BottomMenuBar activeRoute="Scanner" scannerProfileId={selectedProfileId} />
       </View>
     </SafeAreaView>
   );

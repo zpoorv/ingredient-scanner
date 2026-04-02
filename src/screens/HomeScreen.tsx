@@ -1,15 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import BottomMenuBar from '../components/BottomMenuBar';
 import DietProfileModal from '../components/DietProfileModal';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryNotificationsCard from '../components/HistoryNotificationsCard';
 import ProductChangeAlertsCard from '../components/ProductChangeAlertsCard';
-import PrimaryButton from '../components/PrimaryButton';
-import TrustPromiseCard from '../components/TrustPromiseCard';
+import ScreenReveal from '../components/ScreenReveal';
 import UsualBuysCard, { type UsualBuyCardItem } from '../components/UsualBuysCard';
 import {
   DEFAULT_DIET_PROFILE_ID,
@@ -86,23 +86,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const selectedProfile =
     DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === selectedProfileId) ||
     DIET_PROFILE_DEFINITIONS[0];
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          accessibilityLabel="Open settings"
-          onPress={() => navigation.navigate('Settings')}
-          style={({ pressed }) => [
-            styles.headerProfileButton,
-            pressed && styles.headerProfileButtonPressed,
-          ]}
-        >
-          <Text style={styles.headerProfileButtonText}>Settings</Text>
-        </Pressable>
-      ),
-    });
-  }, [navigation, styles, selectedProfileId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -265,23 +248,21 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   };
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.backgroundGlow} />
 
         <ScrollView
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 28, 44) },
+            { paddingBottom: Math.max(insets.bottom + 122, 148) },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.content}>
+          <ScreenReveal style={styles.content}>
             <View style={styles.heroBlock}>
-              <Text style={styles.title}>Scan food fast</Text>
-              <Text style={styles.subtitle}>
-                Barcode, ingredients, and a clear trust-backed decision in seconds.
-              </Text>
+              <Text style={styles.title}>Scan smarter</Text>
+              <Text style={styles.subtitle}>Barcode or ingredients. Clear answer in seconds.</Text>
             </View>
 
             {adminAnnouncement?.title || adminAnnouncement?.body ? (
@@ -306,78 +287,35 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               <Text style={styles.profileSummaryText}>
                 {isHouseholdProfileActive
                   ? `${selectedProfile.label} household profile is active.`
-                  : `${selectedProfile.label} is your default shopping profile.`}
+                  : `${selectedProfile.label} is active.`}
               </Text>
-              <Pressable
-                onPress={() => navigation.navigate('Settings')}
-                style={styles.inlineAction}
-              >
-                <Text style={styles.inlineActionText}>Manage Household Profiles</Text>
-              </Pressable>
             </View>
 
             <View style={styles.profileSummaryCard}>
               <Text style={styles.profileSummaryLabel}>Diet Profile</Text>
               <Text style={styles.profileSummaryTitle}>{selectedProfile.label}</Text>
             </View>
-
-            <View style={styles.premiumCard}>
-              <View style={styles.premiumCardHeader}>
-                <View>
-                  <Text style={styles.premiumCardLabel}>Premium</Text>
-                  <Text style={styles.premiumCardTitle}>
-                    {premiumEntitlement.isPremium
-                      ? 'Premium is active on this account'
-                      : 'Unlock premium tools'}
+            <View style={styles.statRow}>
+              {isIngredientOcrEnabled && ocrQuotaSnapshot ? (
+                <View style={styles.statCard}>
+                  <Text style={styles.profileSummaryLabel}>Ingredient Scans</Text>
+                  <Text style={styles.statTitle}>
+                    {ocrQuotaSnapshot.isUnlimited
+                      ? 'Unlimited'
+                      : `${ocrQuotaSnapshot.remaining} left`}
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.premiumBadge,
-                    premiumEntitlement.isPremium
-                      ? styles.premiumBadgeActive
-                      : styles.premiumBadgeInactive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.premiumBadgeText,
-                      premiumEntitlement.isPremium
-                        ? styles.premiumBadgeTextActive
-                        : styles.premiumBadgeTextInactive,
-                    ]}
-                  >
-                    {premiumEntitlement.isPremium ? 'Premium' : 'Basic'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.premiumCardText}>
-                {premiumEntitlement.isPremium
-                  ? 'Deeper guidance, smarter OCR help, and weekly shopping insights are on.'
-                  : 'Free covers the core scan. Premium adds deeper guidance and habit help.'}
-              </Text>
+              ) : null}
               <Pressable
                 onPress={() => navigation.navigate('Premium')}
-                style={styles.premiumAction}
+                style={[styles.statCard, styles.statCardPressable]}
               >
-                <Text style={styles.premiumActionText}>
-                  {premiumEntitlement.isPremium ? 'Manage Premium' : 'Compare Plans'}
+                <Text style={styles.profileSummaryLabel}>Plan</Text>
+                <Text style={styles.statTitle}>
+                  {premiumEntitlement.isPremium ? 'Premium' : 'Basic'}
                 </Text>
               </Pressable>
             </View>
-
-            <TrustPromiseCard compact />
-
-            {isIngredientOcrEnabled && ocrQuotaSnapshot ? (
-              <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>OCR</Text>
-                <Text style={styles.profileSummaryTitle}>
-                  {ocrQuotaSnapshot.isUnlimited
-                    ? 'Unlimited scans today'
-                    : `${ocrQuotaSnapshot.remaining} scan${ocrQuotaSnapshot.remaining === 1 ? '' : 's'} left today`}
-                </Text>
-              </View>
-            ) : null}
 
             <UsualBuysCard
               items={usualBuys}
@@ -385,11 +323,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               onOpenSearch={() => navigation.navigate('Search')}
             />
 
-            {historyInsights.length > 0 ? (
+            {isHistoryEnabled && historyInsights.length > 0 ? (
               <HistoryInsightsCard colors={colors} insights={historyInsights} />
             ) : null}
 
-            {historyNotifications.length > 0 ? (
+            {isHistoryEnabled && historyNotifications.length > 0 ? (
               <HistoryNotificationsCard notifications={historyNotifications} />
             ) : null}
 
@@ -423,70 +361,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 {comparisonSummary ? (
                   <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
                 ) : null}
-                <Pressable
-                  onPress={() => navigation.navigate('ShelfMode')}
-                  style={styles.inlineAction}
-                >
-                  <Text style={styles.inlineActionText}>Open Shelf Mode</Text>
-                </Pressable>
               </View>
             ) : null}
-
-            <View style={styles.footerActions}>
-              <PrimaryButton
-                label="Open Scanner"
-                onPress={() =>
-                  navigation.navigate('Scanner', { profileId: selectedProfileId })
-                }
-              />
-              <Pressable
-                onPress={() => navigation.navigate('Search')}
-                style={styles.secondaryAction}
-              >
-                <Text style={styles.secondaryActionText}>Search Products</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => navigation.navigate('ShelfMode')}
-                style={styles.secondaryAction}
-              >
-                <Text style={styles.secondaryActionText}>Open Shelf Mode</Text>
-              </Pressable>
-              {isIngredientOcrEnabled ? (
-                <Pressable
-                  onPress={() =>
-                    navigation.navigate('IngredientOcr', {
-                      profileId: selectedProfileId,
-                    })
-                  }
-                  style={styles.secondaryAction}
-                >
-                  <Text style={styles.secondaryActionText}>
-                    {ocrQuotaSnapshot?.isUnlimited
-                      ? 'Scan Ingredient Label'
-                      : `Scan Ingredient Label${
-                          ocrQuotaSnapshot ? ` (${ocrQuotaSnapshot.remaining} left)` : ''
-                        }`}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {isHistoryEnabled ? (
-                <Pressable
-                  onPress={() => navigation.navigate('History')}
-                  style={styles.secondaryAction}
-                >
-                  <Text style={styles.secondaryActionText}>View Scan History</Text>
-                </Pressable>
-              ) : null}
-              <Pressable
-                onPress={() => navigation.navigate('Settings')}
-                style={styles.secondaryAction}
-              >
-                <Text style={styles.secondaryActionText}>Open Settings</Text>
-              </Pressable>
-            </View>
-          </View>
+          </ScreenReveal>
         </ScrollView>
       </View>
+      <BottomMenuBar activeRoute="Home" scannerProfileId={selectedProfileId} />
       <DietProfileModal
         isFirstLaunch={isFirstLaunchProfileFlow}
         onApply={() => void handleApplyProfile()}
@@ -550,42 +430,9 @@ const createStyles = (
   content: {
     gap: 24,
   },
-  footerActions: {
-    gap: 12,
-    marginTop: 4,
-  },
   heroBlock: {
     gap: 14,
-    paddingTop: 8,
-  },
-  headerProfileButton: {
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  headerProfileButtonPressed: {
-    opacity: 0.86,
-  },
-  headerProfileButtonText: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  inlineAction: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  inlineActionText: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 13,
-    fontWeight: '800',
+    paddingTop: 12,
   },
   profileSummaryCard: {
     backgroundColor: colors.surface,
@@ -615,71 +462,23 @@ const createStyles = (
     fontSize: 20,
     fontWeight: '700',
   },
-  premiumAction: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  premiumActionText: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  premiumBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  premiumBadgeActive: {
-    backgroundColor: colors.successMuted,
-  },
-  premiumBadgeInactive: {
-    backgroundColor: colors.warningMuted,
-  },
-  premiumBadgeText: {
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  premiumBadgeTextActive: {
-    color: colors.success,
-  },
-  premiumBadgeTextInactive: {
-    color: colors.warning,
-  },
-  premiumCard: {
+  statCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 24,
     borderWidth: 1,
-    gap: 10,
+    flex: 1,
+    gap: 8,
     padding: 18,
   },
-  premiumCardHeader: {
-    alignItems: 'center',
+  statCardPressable: {
+    justifyContent: 'center',
+  },
+  statRow: {
     flexDirection: 'row',
     gap: 12,
-    justifyContent: 'space-between',
   },
-  premiumCardLabel: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  premiumCardText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyFontFamily,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  premiumCardTitle: {
+  statTitle: {
     color: colors.text,
     fontFamily: typography.headingFontFamily,
     fontSize: 18,
@@ -691,21 +490,6 @@ const createStyles = (
   },
   scrollContent: {
     flexGrow: 1,
-  },
-  secondaryAction: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    minHeight: 50,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  secondaryActionText: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 15,
-    fontWeight: '700',
   },
   subtitle: {
     color: colors.textMuted,

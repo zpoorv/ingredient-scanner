@@ -76,9 +76,9 @@ export async function fetchProductsByQuery(query: string, pageSize = 16) {
   }
 
   const payload = await fetchJsonWithTimeout<OpenFoodFactsSearchResponse>(
-    `${OPEN_FOOD_FACTS_BASE_URL}/cgi/search.pl?search_terms=${encodeURIComponent(
+    `${OPEN_FOOD_FACTS_BASE_URL}/search?search_terms=${encodeURIComponent(
       normalizedQuery
-    )}&search_simple=1&action=process&json=1&page_size=${pageSize}&fields=${PRODUCT_FIELDS}`
+    )}&page_size=${pageSize}&sort_by=unique_scans_n&fields=${PRODUCT_FIELDS}`
   );
 
   return Array.isArray(payload.products)
