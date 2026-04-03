@@ -4,19 +4,34 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
-import BottomMenuBar from '../components/BottomMenuBar';
+import NativeSponsoredCard from '../components/NativeSponsoredCard';
 import ProductSearchResultRow from '../components/ProductSearchResultRow';
 import ScreenReveal from '../components/ScreenReveal';
 import type { DietProfileId } from '../constants/dietProfiles';
+import type { PremiumEntitlement } from '../models/premium';
+import type { UserProfile } from '../models/userProfile';
 import type { RootStackParamList } from '../navigation/types';
 import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
+import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import {
   browseSearchProducts,
   searchProducts,
   type ProductSearchResult,
 } from '../services/productSearchService';
+import { loadUserProfile } from '../services/userProfileService';
+import { getPremiumSession, subscribePremiumSession } from '../store';
+import {
+  buildHouseholdFitResult,
+  getHouseholdFitRank,
+} from '../utils/householdFit';
 
 type SearchScreenProps = NativeStackScreenProps<RootStackParamList, 'Search'>;
+type SearchAdRow = { id: string; type: 'ad' };
+type SearchListRow = ProductSearchResult | SearchAdRow;
+
+function isSearchAdRow(item: SearchListRow): item is SearchAdRow {
+  return 'type' in item;
+}
 
 export default function SearchScreen({ navigation }: SearchScreenProps) {
   const { colors, typography } = useAppTheme();
@@ -26,16 +41,24 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeProfileId, setActiveProfileId] = useState<DietProfileId | undefined>(undefined);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
+    getPremiumSession()
+  );
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
     let isMounted = true;
 
     const restoreProfile = async () => {
-      const effectiveProfile = await loadEffectiveShoppingProfile();
+      const [effectiveProfile, profile] = await Promise.all([
+        loadEffectiveShoppingProfile(),
+        loadUserProfile(),
+      ]);
 
       if (isMounted) {
         setActiveProfileId(effectiveProfile.dietProfileId);
+        setUserProfile(profile);
       }
     };
 
@@ -43,6 +66,27 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    void loadCurrentPremiumEntitlement().then((entitlement) => {
+      if (isMounted) {
+        setPremiumEntitlement(entitlement);
+      }
+    });
+
+    const unsubscribe = subscribePremiumSession((entitlement) => {
+      if (isMounted) {
+        setPremiumEntitlement(entitlement);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
     };
   }, []);
 
@@ -64,6 +108,33 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     void loadResults(deferredQuery);
   }, [deferredQuery, loadResults]);
 
+  const rankedResults = useMemo(() => {
+    const nextResults = results.map((result) => ({
+      ...result,
+      householdFit: buildHouseholdFitResult(
+        result.product,
+        userProfile,
+        activeProfileId
+      ),
+    }));
+
+    return nextResults.sort((left, right) => {
+      const fitGap =
+        getHouseholdFitRank(right.householdFit?.verdict) -
+        getHouseholdFitRank(left.householdFit?.verdict);
+
+      if (fitGap !== 0) {
+        return fitGap;
+      }
+
+      if (left.sourceLabel !== right.sourceLabel) {
+        return left.sourceLabel === 'saved' ? -1 : 1;
+      }
+
+      return left.product.name.localeCompare(right.product.name);
+    });
+  }, [activeProfileId, results, userProfile]);
+
   const handleOpenResult = (result: ProductSearchResult) => {
     navigation.push('Result', {
       barcode: result.product.barcode,
@@ -73,6 +144,15 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
       resultSource: 'barcode',
     });
   };
+  const listData = useMemo<SearchListRow[]>(() => {
+    if (isLoading || premiumEntitlement.isPremium || rankedResults.length < 8) {
+      return rankedResults;
+    }
+
+    const nextRows: SearchListRow[] = [...rankedResults];
+    nextRows.splice(5, 0, { id: 'search-native-ad', type: 'ad' });
+    return nextRows;
+  }, [isLoading, premiumEntitlement.isPremium, rankedResults]);
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
@@ -92,16 +172,20 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Searching...</Text>
             </View>
-          ) : results.length > 0 ? (
+          ) : rankedResults.length > 0 ? (
             <FlatList
               style={styles.resultsList}
               contentContainerStyle={styles.listContent}
-              data={results}
+              data={listData}
               keyboardShouldPersistTaps="handled"
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ProductSearchResultRow onPress={handleOpenResult} result={item} />
-              )}
+              renderItem={({ item }) =>
+                isSearchAdRow(item) ? (
+                  <NativeSponsoredCard compact surface="search" />
+                ) : (
+                  <ProductSearchResultRow onPress={handleOpenResult} result={item} />
+                )
+              }
               showsVerticalScrollIndicator={false}
             />
           ) : (
@@ -117,7 +201,6 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             </View>
           )}
         </ScreenReveal>
-        <BottomMenuBar activeRoute="Search" scannerProfileId={activeProfileId} />
       </View>
     </SafeAreaView>
   );

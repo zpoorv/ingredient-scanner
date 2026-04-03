@@ -1,78 +1,104 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Alert, InteractionManager, Linking } from 'react-native';
+import { Alert, InteractionManager, Linking, Pressable, StyleSheet, View } from 'react-native';
 
+import BottomMenuBar from '../components/BottomMenuBar';
 import { useAppTheme } from '../components/AppThemeProvider';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import { APP_NAME } from '../constants/branding';
 import {
   flushPendingHistoryNavigation,
+  openMainRoute,
   rootNavigationRef,
+  type MainNavigationRoute,
 } from './navigationRef';
-import LoginScreen from '../screens/LoginScreen';
+import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
+import LoginScreen from '../screens/LoginScreen';
+import ResultScreen from '../screens/ResultScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import ScannerScreen from '../screens/ScannerScreen';
+import SearchScreen from '../screens/SearchScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import SignUpScreen from '../screens/SignUpScreen';
 import { hydrateAuthSession } from '../services/authService';
+import { AuthServiceError } from '../services/authHelpers';
 import {
   canHandleEmailLink,
   completeEmailLinkSignIn,
 } from '../services/emailLinkAuthService';
-import {
-  refreshCurrentPremiumEntitlement,
-} from '../services/premiumEntitlementService';
-import { AuthServiceError } from '../services/authHelpers';
+import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
+import { refreshCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import { clearPremiumSession, getAuthSession, subscribeAuthSession } from '../store';
-import ResultScreen from '../screens/ResultScreen';
-import ResetPasswordScreen from '../screens/ResetPasswordScreen';
-import ScannerScreen from '../screens/ScannerScreen';
-import SignUpScreen from '../screens/SignUpScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const loadSettingsScreen = () => import('../screens/SettingsScreen');
+
 const loadPremiumScreen = () => import('../screens/PremiumScreen');
 const loadProfileDetailsScreen = () => import('../screens/ProfileDetailsScreen');
-const loadHistoryScreen = () => import('../screens/HistoryScreen');
 const loadShelfModeScreen = () => import('../screens/ShelfModeScreen');
 const loadIngredientOcrScreen = () => import('../screens/IngredientOcrScreen');
-const loadSearchScreen = () => import('../screens/SearchScreen');
 const loadHelpScreen = () => import('../screens/HelpScreen');
 const loadPrivacyPolicyScreen = () => import('../screens/PrivacyPolicyScreen');
 const loadAboutScreen = () => import('../screens/AboutScreen');
 const loadFeedbackScreen = () => import('../screens/FeedbackScreen');
 
-const SettingsScreen = lazy(loadSettingsScreen);
 const PremiumScreen = lazy(loadPremiumScreen);
 const ProfileDetailsScreen = lazy(loadProfileDetailsScreen);
-const HistoryScreen = lazy(loadHistoryScreen);
 const ShelfModeScreen = lazy(loadShelfModeScreen);
 const IngredientOcrScreen = lazy(loadIngredientOcrScreen);
-const SearchScreen = lazy(loadSearchScreen);
 const HelpScreen = lazy(loadHelpScreen);
 const PrivacyPolicyScreen = lazy(loadPrivacyPolicyScreen);
 const AboutScreen = lazy(loadAboutScreen);
 const FeedbackScreen = lazy(loadFeedbackScreen);
 
 const AUTHENTICATED_SCREEN_LOADERS = [
-  loadSettingsScreen,
   loadPremiumScreen,
   loadProfileDetailsScreen,
-  loadHistoryScreen,
   loadShelfModeScreen,
   loadIngredientOcrScreen,
-  loadSearchScreen,
   loadHelpScreen,
   loadPrivacyPolicyScreen,
   loadAboutScreen,
   loadFeedbackScreen,
 ];
 
+const BOTTOM_BAR_ROUTES = new Set<keyof RootStackParamList>([
+  'Home',
+  'Search',
+  'History',
+  'Settings',
+  'Scanner',
+  'Premium',
+  'Result',
+]);
+const HIDE_BACK_ARROW_ROUTES = new Set<keyof RootStackParamList>([
+  'Home',
+  'Search',
+  'History',
+  'Settings',
+  'Premium',
+  'Result',
+]);
+const PREMIUM_ICON_ROUTES = new Set<keyof RootStackParamList>([
+  'Home',
+  'Search',
+  'History',
+  'Settings',
+  'Result',
+]);
+
 export default function RootNavigator() {
   const [authSession, setAuthSession] = useState(getAuthSession());
+  const [currentRouteName, setCurrentRouteName] =
+    useState<keyof RootStackParamList | null>(null);
   const [isHandlingEmailLink, setIsHandlingEmailLink] = useState(false);
   const { colors, typography } = useAppTheme();
   const currentUserId = authSession.user?.id ?? null;
   const isAuthenticated = authSession.status === 'authenticated';
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const navigationTheme = {
     ...DefaultTheme,
@@ -86,6 +112,10 @@ export default function RootNavigator() {
       text: colors.text,
     },
   };
+
+  const syncCurrentRoute = useCallback(() => {
+    setCurrentRouteName(rootNavigationRef.getCurrentRoute()?.name ?? null);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeAuthSession(setAuthSession);
@@ -112,8 +142,6 @@ export default function RootNavigator() {
       return;
     }
 
-    // Warm the lazy screens after the first paint so navigation does not pause
-    // the first time a user opens Settings, History, OCR, or support pages.
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       void Promise.allSettled(
         AUTHENTICATED_SCREEN_LOADERS.map((loadScreen) => loadScreen())
@@ -167,128 +195,202 @@ export default function RootNavigator() {
     };
   }, []);
 
+  const handleOpenPremium = useCallback(() => {
+    if (!rootNavigationRef.isReady() || currentRouteName === 'Premium') {
+      return;
+    }
+
+    rootNavigationRef.navigate('Premium');
+  }, [currentRouteName]);
+
+  const handleBottomRoutePress = useCallback(
+    async (route: MainNavigationRoute | 'Scanner') => {
+      if (route === 'Scanner') {
+        if (!rootNavigationRef.isReady() || currentRouteName === 'Scanner') {
+          return;
+        }
+
+        const effectiveProfile = await loadEffectiveShoppingProfile();
+        rootNavigationRef.navigate('Scanner', {
+          profileId: effectiveProfile.dietProfileId,
+        });
+        return;
+      }
+
+      openMainRoute(route);
+    },
+    [currentRouteName]
+  );
+
+  const activeBottomRoute =
+    currentRouteName === 'Home' ||
+    currentRouteName === 'Search' ||
+    currentRouteName === 'History' ||
+    currentRouteName === 'Settings' ||
+    currentRouteName === 'Scanner'
+      ? currentRouteName
+      : undefined;
+  const shouldShowBottomBar =
+    isAuthenticated &&
+    currentRouteName !== null &&
+    BOTTOM_BAR_ROUTES.has(currentRouteName);
+
   return (
     <Suspense fallback={<AuthBootstrapScreen />}>
       <NavigationContainer
         onReady={() => {
+          syncCurrentRoute();
           flushPendingHistoryNavigation(isAuthenticated);
+        }}
+        onStateChange={() => {
+          syncCurrentRoute();
         }}
         ref={rootNavigationRef}
         theme={navigationTheme}
       >
-        <Stack.Navigator
-          screenOptions={{
-            animation: 'slide_from_right',
-            contentStyle: { backgroundColor: colors.background },
-            headerShadowVisible: false,
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.text,
-            headerTitleStyle: {
-              color: colors.text,
-              fontFamily: typography.headingFontFamily,
-              fontWeight: '700',
-            },
-          }}
-        >
-          {authSession.status === 'loading' || isHandlingEmailLink ? (
-            <Stack.Screen
-              name="Login"
-              component={AuthBootstrapScreen}
-              options={{ headerShown: false }}
-            />
-          ) : isAuthenticated ? (
-            <>
-              <Stack.Screen
-                name="Home"
-                component={HomeScreen}
-                options={{ title: APP_NAME }}
-              />
-              <Stack.Screen
-                name="Settings"
-                component={SettingsScreen}
-                options={{ title: 'Settings' }}
-              />
-              <Stack.Screen
-                name="Premium"
-                component={PremiumScreen}
-                options={{ title: 'Premium' }}
-              />
-              <Stack.Screen
-                name="ProfileDetails"
-                component={ProfileDetailsScreen}
-                options={{ title: 'Profile' }}
-              />
-              <Stack.Screen
-                name="History"
-                component={HistoryScreen}
-                options={{ title: 'Scan History' }}
-              />
-              <Stack.Screen
-                name="Search"
-                component={SearchScreen}
-                options={{ title: 'Search Products' }}
-              />
-              <Stack.Screen
-                name="ShelfMode"
-                component={ShelfModeScreen}
-                options={{ title: 'Shelf Mode' }}
-              />
-              <Stack.Screen
-                name="Scanner"
-                component={ScannerScreen}
-                options={{ title: 'Scan Barcode' }}
-              />
-              <Stack.Screen
-                name="IngredientOcr"
-                component={IngredientOcrScreen}
-                options={{ title: 'Scan Ingredients' }}
-              />
-              <Stack.Screen
-                name="Result"
-                component={ResultScreen}
-                options={{ title: 'Product Details' }}
-              />
-              <Stack.Screen
-                name="Help"
-                component={HelpScreen}
-                options={{ title: 'Help' }}
-              />
-              <Stack.Screen
-                name="PrivacyPolicy"
-                component={PrivacyPolicyScreen}
-                options={{ title: 'Privacy Policy' }}
-              />
-              <Stack.Screen
-                name="About"
-                component={AboutScreen}
-                options={{ title: 'About' }}
-              />
-              <Stack.Screen
-                name="Feedback"
-                component={FeedbackScreen}
-                options={{ title: 'Send Feedback' }}
-              />
-            </>
-          ) : (
-            <>
+        <View style={styles.root}>
+          <Stack.Navigator
+            screenOptions={({ route }) => ({
+              animation: 'slide_from_right',
+              contentStyle: { backgroundColor: colors.background },
+              headerBackVisible: !HIDE_BACK_ARROW_ROUTES.has(route.name),
+              headerLeft: HIDE_BACK_ARROW_ROUTES.has(route.name) ? () => null : undefined,
+              headerRight: PREMIUM_ICON_ROUTES.has(route.name)
+                ? () => (
+                    <Pressable
+                      accessibilityLabel="Open premium"
+                      accessibilityRole="button"
+                      onPress={handleOpenPremium}
+                      style={({ pressed }) => [
+                        styles.headerButton,
+                        pressed && styles.headerButtonPressed,
+                      ]}
+                    >
+                      <Ionicons color={colors.primary} name="sparkles-outline" size={20} />
+                    </Pressable>
+                  )
+                : undefined,
+              headerShadowVisible: false,
+              headerStyle: { backgroundColor: colors.surface },
+              headerTintColor: colors.text,
+              headerTitleStyle: {
+                color: colors.text,
+                fontFamily: typography.headingFontFamily,
+                fontWeight: '700',
+              },
+            })}
+          >
+            {authSession.status === 'loading' || isHandlingEmailLink ? (
               <Stack.Screen
                 name="Login"
-                component={LoginScreen}
-                options={{ title: 'Log In' }}
+                component={AuthBootstrapScreen}
+                options={{ headerShown: false }}
               />
-              <Stack.Screen
-                name="SignUp"
-                component={SignUpScreen}
-                options={{ title: 'Create Account' }}
+            ) : isAuthenticated ? (
+              <>
+                <Stack.Screen
+                  name="Home"
+                  component={HomeScreen}
+                  options={{ title: APP_NAME }}
+                />
+                <Stack.Screen
+                  name="Settings"
+                  component={SettingsScreen}
+                  options={{ title: 'Settings' }}
+                />
+                <Stack.Screen
+                  name="Premium"
+                  component={PremiumScreen}
+                  options={{ title: 'Premium' }}
+                />
+                <Stack.Screen
+                  name="ProfileDetails"
+                  component={ProfileDetailsScreen}
+                  options={{ title: 'Profile' }}
+                />
+                <Stack.Screen
+                  name="History"
+                  component={HistoryScreen}
+                  options={{ title: 'History' }}
+                />
+                <Stack.Screen
+                  name="Search"
+                  component={SearchScreen}
+                  options={{ title: 'Search' }}
+                />
+                <Stack.Screen
+                  name="ShelfMode"
+                  component={ShelfModeScreen}
+                  options={{ title: 'Shelf Mode' }}
+                />
+                <Stack.Screen
+                  name="Scanner"
+                  component={ScannerScreen}
+                  options={{ title: 'Scan Barcode' }}
+                />
+                <Stack.Screen
+                  name="IngredientOcr"
+                  component={IngredientOcrScreen}
+                  options={{ title: 'Scan Ingredients' }}
+                />
+                <Stack.Screen
+                  name="Result"
+                  component={ResultScreen}
+                  options={{ title: 'Product Details' }}
+                />
+                <Stack.Screen
+                  name="Help"
+                  component={HelpScreen}
+                  options={{ title: 'Help' }}
+                />
+                <Stack.Screen
+                  name="PrivacyPolicy"
+                  component={PrivacyPolicyScreen}
+                  options={{ title: 'Privacy Policy' }}
+                />
+                <Stack.Screen
+                  name="About"
+                  component={AboutScreen}
+                  options={{ title: 'About' }}
+                />
+                <Stack.Screen
+                  name="Feedback"
+                  component={FeedbackScreen}
+                  options={{ title: 'Send Feedback' }}
+                />
+              </>
+            ) : (
+              <>
+                <Stack.Screen
+                  name="Login"
+                  component={LoginScreen}
+                  options={{ title: 'Log In' }}
+                />
+                <Stack.Screen
+                  name="SignUp"
+                  component={SignUpScreen}
+                  options={{ title: 'Create Account' }}
+                />
+                <Stack.Screen
+                  name="ResetPassword"
+                  component={ResetPasswordScreen}
+                  options={{ title: 'Reset Password' }}
+                />
+              </>
+            )}
+          </Stack.Navigator>
+
+          {shouldShowBottomBar ? (
+            <View pointerEvents="box-none" style={styles.bottomBarOverlay}>
+              <BottomMenuBar
+                activeRoute={activeBottomRoute}
+                onSelectRoute={(route) => {
+                  void handleBottomRoutePress(route);
+                }}
               />
-              <Stack.Screen
-                name="ResetPassword"
-                component={ResetPasswordScreen}
-                options={{ title: 'Reset Password' }}
-              />
-            </>
-          )}
-        </Stack.Navigator>
+            </View>
+          ) : null}
+        </View>
       </NavigationContainer>
     </Suspense>
   );
@@ -302,3 +404,28 @@ function AuthBootstrapScreen() {
     />
   );
 }
+
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
+  StyleSheet.create({
+    bottomBarOverlay: {
+      bottom: 0,
+      left: 0,
+      position: 'absolute',
+      right: 0,
+    },
+    headerButton: {
+      alignItems: 'center',
+      backgroundColor: colors.primaryMuted,
+      borderRadius: 999,
+      height: 36,
+      justifyContent: 'center',
+      width: 36,
+    },
+    headerButtonPressed: {
+      opacity: 0.82,
+    },
+    root: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+  });

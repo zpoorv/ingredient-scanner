@@ -11,6 +11,7 @@ import type { PremiumEntitlement } from '../models/premium';
 import type { RootStackParamList } from '../navigation/types';
 import {
   clearComparisonSession,
+  finishComparisonTrip,
   loadComparisonSession,
   removeComparisonSessionEntry,
 } from '../services/comparisonSessionStorage';
@@ -32,10 +33,41 @@ function formatVerdict(value: string) {
   }
 }
 
+function formatHouseholdFit(value: ComparisonSessionEntry['householdFitVerdict']) {
+  switch (value) {
+    case 'works-for-everyone':
+      return 'Works for everyone';
+    case 'works-for-you-only':
+      return 'Works for you only';
+    case 'one-household-caution':
+      return 'One caution';
+    default:
+      return 'Needs a household check';
+  }
+}
+
+function formatTripDecision(value: ComparisonSessionEntry['tripDecision']) {
+  switch (value) {
+    case 'buy':
+      return 'Buy';
+    case 'changed-product':
+      return 'Changed';
+    case 'usual-buy':
+      return 'Usual buy';
+    case 'skip':
+      return 'Skip';
+    default:
+      return 'Compare';
+  }
+}
+
 export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [entries, setEntries] = useState<ComparisonSessionEntry[]>([]);
+  const [recentTripSummaries, setRecentTripSummaries] = useState<
+    { id: string; recapLine: string; startedAt: string }[]
+  >([]);
   const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement | null>(
     null
   );
@@ -55,6 +87,13 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
         }
 
         setEntries(session.entries);
+        setRecentTripSummaries(
+          session.recentTrips.map((trip) => ({
+            id: trip.id,
+            recapLine: trip.summary.recapLine,
+            startedAt: trip.startedAt,
+          }))
+        );
         setPremiumEntitlement(entitlement);
       };
 
@@ -70,21 +109,47 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
   const handleRemoveEntry = async (barcode: string) => {
     const nextSession = await removeComparisonSessionEntry(barcode);
     setEntries(nextSession.entries);
+    setRecentTripSummaries(
+      nextSession.recentTrips.map((trip) => ({
+        id: trip.id,
+        recapLine: trip.summary.recapLine,
+        startedAt: trip.startedAt,
+      }))
+    );
   };
 
   const handleClear = async () => {
     const nextSession = await clearComparisonSession();
     setEntries(nextSession.entries);
+    setRecentTripSummaries(
+      nextSession.recentTrips.map((trip) => ({
+        id: trip.id,
+        recapLine: trip.summary.recapLine,
+        startedAt: trip.startedAt,
+      }))
+    );
+  };
+
+  const handleFinishTrip = async () => {
+    const nextSession = await finishComparisonTrip();
+    setEntries(nextSession.entries);
+    setRecentTripSummaries(
+      nextSession.recentTrips.map((trip) => ({
+        id: trip.id,
+        recapLine: trip.summary.recapLine,
+        startedAt: trip.startedAt,
+      }))
+    );
   };
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Shelf Mode</Text>
-          <Text style={styles.title}>Compare what is in your hand right now</Text>
+          <Text style={styles.eyebrow}>Trip Mode</Text>
+          <Text style={styles.title}>Keep the best shelf decision in view</Text>
           <Text style={styles.body}>
-            Scan a few similar products and keep the cleaner regular-use pick in view.
+            Scan a few similar products, keep the strongest fit for your household, and finish the trip with one clear recap.
           </Text>
           <Text style={styles.highlight}>{summary.whyThisWins}</Text>
         </View>
@@ -102,10 +167,26 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
             </Text>
           </View>
         </View>
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Best household fit</Text>
+            <Text style={styles.summaryValue}>
+              {summary.rows.find((row) => row.barcode === summary.bestHouseholdFitBarcode)?.name ??
+                'Need more scans'}
+            </Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Best lower-impact option</Text>
+            <Text style={styles.summaryValue}>
+              {summary.rows.find((row) => row.barcode === summary.bestLowerImpactBarcode)?.name ??
+                'No eco data yet'}
+            </Text>
+          </View>
+        </View>
 
         {summary.rows.length > 0 ? (
           <View style={styles.tableCard}>
-            <Text style={styles.sectionTitle}>Shelf comparison</Text>
+            <Text style={styles.sectionTitle}>Trip comparison</Text>
             {summary.rows.map((row) => (
               <View key={row.barcode} style={styles.rowCard}>
                 <View style={styles.rowHeader}>
@@ -119,20 +200,35 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
                     <Text style={styles.scorePill}>{Math.round(row.score)}</Text>
                   ) : null}
                 </View>
+                <View style={styles.tripBadgeRow}>
+                  <Text style={styles.tripBadge}>{formatTripDecision(row.tripDecision)}</Text>
+                  <Text style={styles.tripDetailText}>
+                    {formatHouseholdFit(row.householdFitVerdict)}
+                  </Text>
+                  {row.ecoScore ? (
+                    <Text style={styles.tripDetailText}>Eco {row.ecoScore.toUpperCase()}</Text>
+                  ) : null}
+                </View>
                 <Text style={styles.rowBody}>{row.decisionSummary}</Text>
                 {row.topConcern ? (
                   <Text style={styles.concernText}>Main issue: {row.topConcern}</Text>
                 ) : null}
                 <View style={styles.rowActions}>
                   <Pressable
-                    onPress={() =>
+                    onPress={() => {
+                      const entry = entries.find((item) => item.barcode === row.barcode);
+
+                      if (!entry) {
+                        return;
+                      }
+
                       navigation.push('Result', {
                         barcode: row.barcode,
                         persistToHistory: false,
-                        profileId: entries.find((entry) => entry.barcode === row.barcode)?.profileId,
-                        product: entries.find((entry) => entry.barcode === row.barcode)?.product!,
-                      })
-                    }
+                        profileId: entry.profileId,
+                        product: entry.product,
+                      });
+                    }}
                     style={styles.actionChip}
                   >
                     <Text style={styles.actionChipText}>Open</Text>
@@ -149,12 +245,27 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
           </View>
         ) : (
           <View style={styles.emptyCard}>
-            <Text style={styles.sectionTitle}>Nothing in the tray yet</Text>
+            <Text style={styles.sectionTitle}>No active trip yet</Text>
             <Text style={styles.body}>
-              Open the scanner, scan two or more products from the same shelf, and they will appear here automatically.
+              Open the scanner, scan two or more products from the same shelf, and this trip will fill itself in automatically.
             </Text>
           </View>
         )}
+
+        {recentTripSummaries.length > 0 ? (
+          <View style={styles.tableCard}>
+            <Text style={styles.sectionTitle}>Recent trips</Text>
+            {recentTripSummaries.slice(0, 3).map((trip, index) => (
+              <View key={trip.id} style={styles.rowCard}>
+                <Text style={styles.rowTitle}>Trip {index + 1}</Text>
+                <Text style={styles.rowBody}>{trip.recapLine}</Text>
+                <Text style={styles.rowMeta}>
+                  Started {new Date(trip.startedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {premiumEntitlement?.isPremium ? (
           <View style={styles.premiumCard}>
@@ -177,7 +288,10 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
         )}
 
         {entries.length > 0 ? (
-          <PrimaryButton label="Clear Shelf Tray" onPress={() => void handleClear()} />
+          <>
+            <PrimaryButton label="Finish This Trip" onPress={() => void handleFinishTrip()} />
+            <PrimaryButton label="Clear Active Tray" onPress={() => void handleClear()} />
+          </>
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -273,6 +387,24 @@ const createStyles = (
       color: colors.textMuted,
       fontFamily: typography.bodyFontFamily,
       fontSize: 13,
+    },
+    tripBadge: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    tripBadgeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    tripDetailText: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 12,
+      fontWeight: '600',
     },
     rowTextBlock: { flex: 1, gap: 4 },
     rowTitle: {

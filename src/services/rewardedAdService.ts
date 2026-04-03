@@ -1,24 +1,12 @@
 import { Platform } from 'react-native';
 
-let isInitialized = false;
-
-const DEFAULT_REWARDED_AD_UNIT_ID = 'ca-app-pub-3940256099942544/5224354917';
+import {
+  buildRewardedAdRequestOptions,
+  describeAdMobError,
+  getRewardedAdUnitId,
+} from './adMobService';
 
 type RewardedAdResult = 'dismissed' | 'rewarded' | 'unavailable';
-
-function getRewardedAdUnitId() {
-  return process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID || DEFAULT_REWARDED_AD_UNIT_ID;
-}
-
-async function ensureRewardedAdsInitialized() {
-  if (isInitialized || (Platform.OS !== 'android' && Platform.OS !== 'ios')) {
-    return;
-  }
-
-  const mobileAdsModule = await import('react-native-google-mobile-ads');
-  await mobileAdsModule.default().initialize();
-  isInitialized = true;
-}
 
 export async function showRewardedOcrUnlockAd(): Promise<RewardedAdResult> {
   if (Platform.OS !== 'android' && Platform.OS !== 'ios') {
@@ -26,14 +14,21 @@ export async function showRewardedOcrUnlockAd(): Promise<RewardedAdResult> {
   }
 
   try {
-    await ensureRewardedAdsInitialized();
+    const requestOptions = await buildRewardedAdRequestOptions();
+
+    if (!requestOptions) {
+      if (__DEV__) {
+        console.warn('[AdMob] Rewarded OCR ad blocked before request creation.');
+      }
+      return 'unavailable';
+    }
 
     const mobileAdsModule = await import('react-native-google-mobile-ads');
     const { AdEventType, RewardedAd, RewardedAdEventType } = mobileAdsModule;
-    const rewardedAd = RewardedAd.createForAdRequest(getRewardedAdUnitId(), {
-      keywords: ['food', 'grocery', 'health'],
-      requestNonPersonalizedAdsOnly: true,
-    });
+    const rewardedAd = RewardedAd.createForAdRequest(
+      getRewardedAdUnitId(),
+      requestOptions
+    );
 
     return await new Promise<RewardedAdResult>((resolve) => {
       let hasEarnedReward = false;
@@ -57,7 +52,13 @@ export async function showRewardedOcrUnlockAd(): Promise<RewardedAdResult> {
         unsubscribeError();
         resolve(hasEarnedReward ? 'rewarded' : 'dismissed');
       });
-      const unsubscribeError = rewardedAd.addAdEventListener(AdEventType.ERROR, () => {
+      const unsubscribeError = rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
+        if (__DEV__) {
+          console.warn(
+            `[AdMob] Rewarded OCR ad failed: ${describeAdMobError(error)}`
+          );
+        }
+
         unsubscribeLoaded();
         unsubscribeReward();
         unsubscribeClosed();
@@ -67,7 +68,11 @@ export async function showRewardedOcrUnlockAd(): Promise<RewardedAdResult> {
 
       rewardedAd.load();
     });
-  } catch {
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(`[AdMob] Rewarded OCR ad failed: ${describeAdMobError(error)}`);
+    }
+
     return 'unavailable';
   }
 }

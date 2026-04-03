@@ -1,5 +1,7 @@
 import type { ScanHistoryEntry } from '../services/scanHistoryStorage';
 import type { HistoryNotificationKind } from '../models/historyNotification';
+import type { ProductTimelineEntry } from '../models/productTimeline';
+import { buildRecentTimelineEntries } from './productTimeline';
 
 export type HistoryTrend = 'improving' | 'steady' | 'watch';
 
@@ -34,6 +36,8 @@ export type HistoryNotification = {
 export type HistoryOverview = {
   insights: HistoryInsight[];
   notifications: HistoryNotification[];
+  recentChanges: ProductTimelineEntry[];
+  replaceFirstCandidate: HistoryReplacementCandidate | null;
   repeatBuyCandidates: HistoryRepeatBuyCandidate[];
   replacementCandidates: HistoryReplacementCandidate[];
   weeklyTrend: HistoryTrend;
@@ -334,11 +338,15 @@ export function buildHistoryOverview(
   historyEntries: ScanHistoryEntry[],
   options: BuildHistoryInsightsOptions = {}
 ): HistoryOverview {
+  const replacementCandidates = buildReplacementCandidates(historyEntries);
+
   return {
     insights: buildHistoryInsights(historyEntries, options),
     notifications: buildHistoryNotifications(historyEntries, 'weekly'),
+    recentChanges: buildRecentTimelineEntries(historyEntries),
+    replaceFirstCandidate: replacementCandidates[0] ?? null,
     repeatBuyCandidates: buildRepeatBuyCandidates(historyEntries),
-    replacementCandidates: buildReplacementCandidates(historyEntries),
+    replacementCandidates,
     weeklyTrend: buildWeeklyTrend(historyEntries),
   };
 }

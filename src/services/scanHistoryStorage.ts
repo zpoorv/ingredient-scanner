@@ -5,12 +5,18 @@ import {
 } from '../constants/dietProfiles';
 import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs/index';
 import type { HealthScoreGrade } from '../constants/productHealthScore';
+import type { ProductTimelineEntry } from '../models/productTimeline';
 import type { ResolvedProduct } from '../types/product';
 import { getAuthSession } from '../store';
 import {
   buildScanHistorySnapshot,
   type ScanHistoryRiskLevel,
 } from '../utils/scanHistory';
+import {
+  appendProductTimelineEntry,
+  buildProductTimelineEntry,
+  normalizeProductTimelineEntries,
+} from '../utils/productTimeline';
 import {
   deleteRemoteScanHistoryEntries,
   loadRemoteScanHistory,
@@ -38,6 +44,7 @@ export type ScanHistoryEntry = {
   scanCount: number;
   score: number | null;
   scannedAt: string;
+  productTimeline: ProductTimelineEntry[];
 };
 
 type SaveScanHistoryInput = {
@@ -77,6 +84,7 @@ function toHistoryEntry(
     scanCount: (existingEntry?.scanCount || 0) + 1,
     score: snapshot.score,
     scannedAt,
+    productTimeline: normalizeProductTimelineEntries(existingEntry?.productTimeline),
   };
 }
 
@@ -96,6 +104,7 @@ function isValidHistoryEntry(value: unknown): value is ScanHistoryEntry {
       (typeof candidate.profileId === 'string' && isDietProfileId(candidate.profileId))) &&
     (typeof candidate.score === 'number' || candidate.score === null) &&
     typeof candidate.riskSummary === 'string' &&
+    (candidate.productTimeline === undefined || Array.isArray(candidate.productTimeline)) &&
     typeof candidate.product === 'object'
   );
 }
@@ -107,6 +116,7 @@ function normalizeHistoryEntry(entry: ScanHistoryEntry): ScanHistoryEntry {
       entry.profileId && isDietProfileId(entry.profileId)
         ? entry.profileId
         : DEFAULT_DIET_PROFILE_ID,
+    productTimeline: normalizeProductTimelineEntries(entry.productTimeline),
   };
 }
 
@@ -254,6 +264,13 @@ export async function saveScanToHistory(
     (entry) => entry.barcode === input.barcode
   );
   const nextEntry = toHistoryEntry(input, existingEntry);
+  const timelineEntry = existingEntry
+    ? buildProductTimelineEntry(existingEntry, nextEntry)
+    : null;
+  nextEntry.productTimeline = appendProductTimelineEntry(
+    existingEntry?.productTimeline ?? [],
+    timelineEntry
+  );
   const nextEntries = historyEntries.filter(
     (entry) => entry.barcode !== input.barcode
   );

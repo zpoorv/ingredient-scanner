@@ -51,7 +51,15 @@ export async function loadCorrectionReports() {
   const snapshot = await getDocs(collection(db, 'correctionReports'));
   return snapshot.docs
     .map((item) => ({ id: item.id, ...item.data() }))
-    .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''));
+    .sort((left, right) => {
+      const priorityGap = (right.priorityScore || 0) - (left.priorityScore || 0);
+
+      if (priorityGap !== 0) {
+        return priorityGap;
+      }
+
+      return (right.createdAt || '').localeCompare(left.createdAt || '');
+    });
 }
 
 export async function saveCorrectionReportStatus(reportId, patch) {

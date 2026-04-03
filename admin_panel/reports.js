@@ -18,14 +18,23 @@ async function loadReports() {
     setHtml(
       'reportsList',
       reports.length
-        ? reports
+          ? reports
             .map(
               (report) => `
                 <article class="list-row">
                   <div>
                     <strong>${report.productName || `Barcode ${report.barcode}`}</strong>
                     <div class="muted">${report.reason} · ${report.summary}</div>
-                    <div class="muted">${report.barcode} · ${report.confidence} confidence · ${formatDateTime(report.createdAt)}</div>
+                    <div class="muted">
+                      ${report.barcode} · ${report.confidence} confidence · priority ${report.priorityScore ?? 0} · ${formatDateTime(report.createdAt)}
+                    </div>
+                    <div class="muted">
+                      ${report.reportType === 'trust-confirmation' ? 'Trust confirmation' : 'Issue report'}
+                      ${report.trustConfirmationType ? ` · ${report.trustConfirmationType.replace('-', ' ')}` : ''}
+                      ${report.repeatBuyWeight ? ` · repeat weight ${report.repeatBuyWeight}` : ''}
+                      ${report.confirmationCount ? ` · confirmations ${report.confirmationCount}` : ''}
+                      ${report.timelineSeverity ? ` · timeline ${report.timelineSeverity}` : ''}
+                    </div>
                   </div>
                   <div class="list-meta">
                     <span class="badge">${report.status}</span>

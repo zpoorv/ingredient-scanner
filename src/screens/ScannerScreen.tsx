@@ -17,7 +17,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAppTheme } from '../components/AppThemeProvider';
 import BarcodeScannerPanel from '../components/BarcodeScannerPanel';
-import BottomMenuBar from '../components/BottomMenuBar';
 import ManualBarcodeEntry from '../components/ManualBarcodeEntry';
 import PrimaryButton from '../components/PrimaryButton';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
@@ -480,7 +479,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
             ) : null}
           </View>
         </ScrollView>
-        <BottomMenuBar activeRoute="Scanner" scannerProfileId={selectedProfileId} />
       </View>
     </SafeAreaView>
   );

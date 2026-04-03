@@ -1,3 +1,4 @@
+import type { HouseholdFitResult } from '../models/householdFit';
 import type { ResolvedProduct } from '../types/product';
 import { loadSavedProductCollections } from './favoriteProductsService';
 import {
@@ -8,6 +9,7 @@ import {
 import { searchResolvedProducts } from './productLookup';
 
 export type ProductSearchResult = {
+  householdFit?: HouseholdFitResult | null;
   id: string;
   isFavorite: boolean;
   product: ResolvedProduct;

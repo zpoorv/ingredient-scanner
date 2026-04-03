@@ -1,19 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from './AppThemeProvider';
-import type { DietProfileId } from '../constants/dietProfiles';
-import type { RootStackParamList } from '../navigation/types';
+import type { MainNavigationRoute } from '../navigation/navigationRef';
 
-type MainRouteName = 'History' | 'Home' | 'Scanner' | 'Search' | 'Settings';
+type MainRouteName = MainNavigationRoute | 'Scanner';
 
 type BottomMenuBarProps = {
   activeRoute?: MainRouteName;
-  scannerProfileId?: DietProfileId;
+  onSelectRoute: (route: MainRouteName) => void;
 };
 
 type BottomMenuItem = {
@@ -32,9 +29,8 @@ const ITEMS: BottomMenuItem[] = [
 
 export default function BottomMenuBar({
   activeRoute,
-  scannerProfileId,
+  onSelectRoute,
 }: BottomMenuBarProps) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
@@ -44,12 +40,7 @@ export default function BottomMenuBar({
       return;
     }
 
-    if (route === 'Scanner') {
-      navigation.navigate('Scanner', scannerProfileId ? { profileId: scannerProfileId } : undefined);
-      return;
-    }
-
-    navigation.navigate(route);
+    onSelectRoute(route);
   };
 
   return (

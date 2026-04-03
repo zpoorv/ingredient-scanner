@@ -199,7 +199,8 @@ export async function initializeRevenueCatForCurrentUser() {
     Purchases.configure({
       apiKey,
       appUserID: currentUserId,
-      diagnosticsEnabled: __DEV__,
+      // RevenueCat diagnostics are optional and can fail on restrictive DNS/network setups.
+      diagnosticsEnabled: false,
     });
     await Purchases.setLogLevel(
       __DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.INFO

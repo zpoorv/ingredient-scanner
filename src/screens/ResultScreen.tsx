@@ -19,10 +19,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import ViewShot from 'react-native-view-shot';
 
 import { useAppTheme } from '../components/AppThemeProvider';
-import BottomMenuBar from '../components/BottomMenuBar';
 import EnvironmentalImpactCard from '../components/EnvironmentalImpactCard';
+import HouseholdFitCard from '../components/HouseholdFitCard';
 import IngredientExplanationModal from '../components/IngredientExplanationModal';
 import PremiumGuidanceCard from '../components/PremiumGuidanceCard';
+import ProductTimelineCard from '../components/ProductTimelineCard';
 import ProductRestrictionCard from '../components/ProductRestrictionCard';
 import ProductSuggestionsCard from '../components/ProductSuggestionsCard';
 import ReportProductIssueModal from '../components/ReportProductIssueModal';
@@ -45,6 +46,7 @@ import { upsertComparisonSessionEntry } from '../services/comparisonSessionStora
 import {
   buildCorrectionReportSummary,
   submitCorrectionReport,
+  submitTrustConfirmation,
 } from '../services/correctionReportService';
 import {
   loadSavedProductCollections,
@@ -66,12 +68,26 @@ import {
   saveShareCardStyleId,
   syncShareCardStyleForCurrentUser,
 } from '../services/shareCardPreferenceStorage';
+import {
+  loadProductTrustConfirmation,
+  recordProductTrustConfirmation,
+  type ProductTrustConfirmation,
+} from '../services/productTrustConfirmationStorage';
 import { loadUserProfile } from '../services/userProfileService';
+import {
+  loadCommonProductByBarcode,
+} from '../services/commonProductStorage';
+import {
+  loadScanHistory,
+  subscribeScanHistoryChanges,
+  type ScanHistoryEntry,
+} from '../services/scanHistoryStorage';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import { getRestrictionDefinition } from '../constants/restrictions';
 import {
   SHARE_CARD_STYLE_DEFINITIONS,
 } from '../constants/shareCardStyles';
+import type { HouseholdFitResult } from '../models/householdFit';
 import { getGradeTone } from '../utils/gradeTone';
 import {
   type IngredientExplanationLookup,
@@ -88,9 +104,11 @@ import {
   type ResultConfidence,
   type ResultAnalysis,
 } from '../utils/resultAnalysis';
+import { buildHouseholdFitResult } from '../utils/householdFit';
 import { assessProductRestrictions } from '../utils/restrictionMatching';
 import { buildShareableResultCaption } from '../utils/shareableResult';
 import { buildEnvironmentalImpactInsight } from '../utils/environmentalImpact';
+import type { UserProfile } from '../models/userProfile';
 
 type ResultScreenProps = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
@@ -333,6 +351,12 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const [activeRestrictionIds, setActiveRestrictionIds] = useState<RestrictionId[]>([]);
   const [restrictionSeverity, setRestrictionSeverity] =
     useState<RestrictionSeverity>('strict');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [historyEntry, setHistoryEntry] = useState<ScanHistoryEntry | null>(null);
+  const [trustConfirmation, setTrustConfirmation] =
+    useState<ProductTrustConfirmation | null>(null);
+  const [isSubmittingTrustConfirmation, setIsSubmittingTrustConfirmation] =
+    useState(false);
   const displayProductName = useMemo(
     () => formatProductName(product?.name),
     [product?.name]
@@ -387,6 +411,10 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     [product]
   );
   const productIdentifier = product.code || barcode;
+  const timelinePreview = useMemo(
+    () => historyEntry?.productTimeline.slice(0, 2) ?? [],
+    [historyEntry?.productTimeline]
+  );
   const selectedRestrictionLabels = useMemo(
     () =>
       activeRestrictionIds
@@ -413,6 +441,13 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
 
     return `No strong matches found for ${selectedRestrictionLabels.join(', ')}.`;
   }, [activeRestrictionIds.length, restrictionAssessment.summary, selectedRestrictionLabels]);
+  const householdFit = useMemo<HouseholdFitResult | null>(
+    () =>
+      hasResolvedProfile
+        ? buildHouseholdFitResult(product, userProfile, selectedProfileId)
+        : null,
+    [hasResolvedProfile, product, selectedProfileId, userProfile]
+  );
   const isFavorite = favoriteProductCodes.includes(productIdentifier);
   const isSavedForCompare = comparisonProductCodes.includes(productIdentifier);
   const canShowPremiumGuidance = hasPremiumFeatureAccess(
@@ -506,6 +541,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         return;
       }
 
+      setUserProfile(profile);
       setActiveRestrictionIds(effectiveProfile.restrictionIds ?? profile?.restrictionIds ?? []);
       setRestrictionSeverity(
         effectiveProfile.restrictionSeverity ?? profile?.restrictionSeverity ?? 'strict'
@@ -518,6 +554,38 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const restoreHistoryContext = async () => {
+      const [historyEntries, confirmation] = await Promise.all([
+        loadScanHistory(),
+        loadProductTrustConfirmation(barcode),
+      ]);
+      const matchingHistoryEntry =
+        historyEntries.find((entry) => entry.barcode === barcode || entry.id === barcode) ??
+        null;
+
+      if (!isMounted) {
+        return;
+      }
+
+      setHistoryEntry(matchingHistoryEntry);
+      setTrustConfirmation(confirmation);
+    };
+
+    const unsubscribe = subscribeScanHistoryChanges(() => {
+      void restoreHistoryContext();
+    });
+
+    void restoreHistoryContext();
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [barcode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -675,18 +743,58 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       return;
     }
 
-    void upsertComparisonSessionEntry({
-      addedAt: new Date().toISOString(),
-      barcode,
-      confidence: analysisResult.confidence,
-      decisionSummary: analysisResult.decisionSummary,
-      decisionVerdict: analysisResult.decisionVerdict,
-      name: displayProductName,
-      product,
-      profileId: selectedProfileId,
-      topConcern: analysisResult.topConcern,
-    });
-  }, [analysisResult, barcode, displayProductName, product, selectedProfileId]);
+    const syncTripContext = async () => {
+      const commonProduct = await loadCommonProductByBarcode(barcode);
+      const repeatBuyWeight = Math.max(
+        historyEntry?.scanCount ?? 0,
+        commonProduct?.usageCount ?? 0
+      );
+      const latestTimelineEntry = historyEntry?.productTimeline[0] ?? null;
+      const isChangedProduct = Boolean(latestTimelineEntry);
+      const tripDecision =
+        isChangedProduct
+          ? 'changed-product'
+          : repeatBuyWeight >= 3
+            ? 'usual-buy'
+            : analysisResult.decisionVerdict === 'good-regular-pick' &&
+                householdFit?.verdict !== 'doesnt-fit-this-household'
+              ? 'buy'
+              : analysisResult.decisionVerdict === 'not-ideal-often' ||
+                  analysisResult.foodStatus === 'non-food' ||
+                  analysisResult.foodStatus === 'unclear'
+                ? 'skip'
+                : 'compare';
+
+      await upsertComparisonSessionEntry({
+        addedAt: new Date().toISOString(),
+        barcode,
+        categoryLabel: product.categories[0] ?? null,
+        confidence: analysisResult.confidence,
+        decisionSummary: analysisResult.decisionSummary,
+        decisionVerdict: analysisResult.decisionVerdict,
+        householdBlockingReason: householdFit?.blockingReason ?? null,
+        householdFitVerdict: householdFit?.verdict ?? null,
+        isChangedProduct,
+        name: displayProductName,
+        product,
+        profileId: selectedProfileId,
+        topConcern: analysisResult.topConcern,
+        tripDecision,
+      });
+    };
+
+    void syncTripContext();
+  }, [
+    analysisResult,
+    barcode,
+    displayProductName,
+    historyEntry?.productTimeline,
+    historyEntry?.scanCount,
+    householdFit?.blockingReason,
+    householdFit?.verdict,
+    product,
+    selectedProfileId,
+  ]);
 
   const updateShareCardImageReady = (ready: boolean) => {
     shareCardImageReadyRef.current = ready;
@@ -835,6 +943,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     try {
       await submitCorrectionReport({
         barcode,
+        confirmationCount:
+          (trustConfirmation?.differentCount ?? 0) + (trustConfirmation?.matchCount ?? 0),
         confidence: analysisResult.confidence,
         foodStatus: analysisResult.foodStatus,
         priorityScore:
@@ -842,8 +952,10 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
           (analysisResult.confidence === 'low' ? 90 : 55),
         productName: displayProductName,
         reason,
+        repeatBuyWeight: historyEntry?.scanCount ?? 0,
         resultSource,
         summary: buildCorrectionReportSummary(reason, analysisResult.topConcern),
+        timelineSeverity: timelinePreview[0]?.severity ?? null,
         topConcern: analysisResult.topConcern,
       });
       Alert.alert('Review request sent', 'We queued this product for a manual trust check.');
@@ -852,6 +964,55 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         'Could not send request',
         'Try again in a moment if this product still looks off.'
       );
+    }
+  };
+
+  const handleTrustConfirmation = async (
+    trustConfirmationType: 'looks-different' | 'matches-pack'
+  ) => {
+    if (!analysisResult || isSubmittingTrustConfirmation) {
+      return;
+    }
+
+    setIsSubmittingTrustConfirmation(true);
+
+    try {
+      const nextConfirmation = await recordProductTrustConfirmation(
+        barcode,
+        trustConfirmationType
+      );
+
+      setTrustConfirmation(nextConfirmation);
+
+      await submitTrustConfirmation({
+        barcode,
+        confirmationCount:
+          trustConfirmationType === 'looks-different'
+            ? nextConfirmation.differentCount
+            : nextConfirmation.matchCount,
+        confidence: analysisResult.confidence,
+        foodStatus: analysisResult.foodStatus,
+        productName: displayProductName,
+        repeatBuyWeight: historyEntry?.scanCount ?? 0,
+        resultSource,
+        timelineSeverity: timelinePreview[0]?.severity ?? null,
+        topConcern: analysisResult.topConcern,
+        trustConfirmationType,
+      });
+
+      Alert.alert(
+        'Thanks for the check',
+        trustConfirmationType === 'looks-different'
+          ? 'We flagged this product for a closer review.'
+          : 'We saved your pack confirmation for future trust checks.'
+      );
+    } catch {
+      Alert.alert(
+        'Could not save that right now',
+        'Try again in a moment if this pack still needs a review.'
+      );
+    } finally {
+      setIsSubmittingTrustConfirmation(false);
     }
   };
 
@@ -1058,6 +1219,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
           )}
         </View>
 
+        {householdFit ? <HouseholdFitCard fit={householdFit} /> : null}
+
         <View style={styles.infoCard}>
           <Text style={styles.label}>Quick actions</Text>
           {product.adminMetadata?.reviewStatus &&
@@ -1136,6 +1299,46 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
           ) : (
             <Text style={styles.statusText}>No product details yet.</Text>
           )}
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.label}>Trust check</Text>
+          <Text style={styles.statusText}>
+            {historyEntry?.scanCount && historyEntry.scanCount >= 2
+              ? historyEntry.scanCount === 2
+                ? 'You have scanned this before.'
+                : `You have scanned this ${historyEntry.scanCount} times.`
+              : 'Confirm whether this pack still matches what you are holding.'}
+          </Text>
+          {timelinePreview.length > 0 ? (
+            <ProductTimelineCard entries={timelinePreview} title="Changed since last buy" />
+          ) : (
+            <Text style={styles.statusText}>No meaningful pack changes seen yet.</Text>
+          )}
+          <View style={styles.savedActionRow}>
+            <Pressable
+              disabled={isSubmittingTrustConfirmation}
+              onPress={() => void handleTrustConfirmation('matches-pack')}
+              style={styles.savedActionChip}
+            >
+              <Text style={styles.savedActionText}>Matches pack today</Text>
+            </Pressable>
+            <Pressable
+              disabled={isSubmittingTrustConfirmation}
+              onPress={() => void handleTrustConfirmation('looks-different')}
+              style={styles.savedActionChip}
+            >
+              <Text style={styles.savedActionText}>Looks different today</Text>
+            </Pressable>
+          </View>
+          {trustConfirmation ? (
+            <Text style={styles.statusText}>
+              {trustConfirmation.matchCount} match check
+              {trustConfirmation.matchCount === 1 ? '' : 's'} •{' '}
+              {trustConfirmation.differentCount} difference report
+              {trustConfirmation.differentCount === 1 ? '' : 's'}
+            </Text>
+          ) : null}
         </View>
 
         {trustSnapshot && confidence === 'low' ? (
@@ -1303,7 +1506,6 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       {environmentalInsight ? <EnvironmentalImpactCard insight={environmentalInsight} /> : null}
 
       </ScrollView>
-      <BottomMenuBar scannerProfileId={selectedProfileId} />
       {shareableResult ? (
         <Pressable
           accessibilityLabel="Share result card"

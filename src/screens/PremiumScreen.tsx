@@ -251,7 +251,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenReveal>
+        <ScreenReveal style={styles.flow}>
         <View style={styles.heroCard}>
           <Text style={styles.eyebrow}>Inqoura Premium</Text>
           <Text style={styles.title}>
@@ -353,23 +353,25 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
           </View>
         ) : null}
 
-        <PrimaryButton
-          disabled={!hasBillingAccess || Boolean(pendingActionId)}
-          label={entitlement.isPremium ? 'View Plans' : 'See Plans'}
-          onPress={() => void handlePresentPaywall()}
-        />
-        <PrimaryButton
-          disabled={!revenueCatAvailable || Boolean(pendingActionId)}
-          label="Restore"
-          onPress={() => void handleRestorePress()}
-        />
-        {(entitlement.isPremium || billingState.managementUrl) && revenueCatAvailable ? (
+        <View style={styles.buttonStack}>
           <PrimaryButton
-            disabled={Boolean(pendingActionId)}
-            label="Manage Subscription"
-            onPress={() => void handleOpenCustomerCenter()}
+            disabled={!hasBillingAccess || Boolean(pendingActionId)}
+            label={entitlement.isPremium ? 'View Plans' : 'See Plans'}
+            onPress={() => void handlePresentPaywall()}
           />
-        ) : null}
+          <PrimaryButton
+            disabled={!revenueCatAvailable || Boolean(pendingActionId)}
+            label="Restore"
+            onPress={() => void handleRestorePress()}
+          />
+          {(entitlement.isPremium || billingState.managementUrl) && revenueCatAvailable ? (
+            <PrimaryButton
+              disabled={Boolean(pendingActionId)}
+              label="Manage Subscription"
+              onPress={() => void handleOpenCustomerCenter()}
+            />
+          ) : null}
+        </View>
         </ScreenReveal>
       </ScrollView>
     </SafeAreaView>
@@ -396,8 +398,11 @@ const createStyles = (
       lineHeight: 21,
       marginTop: 4,
     },
+    buttonStack: {
+      gap: 12,
+    },
     content: {
-      gap: 18,
+      paddingBottom: 164,
       padding: 24,
     },
     eyebrow: {
@@ -433,6 +438,9 @@ const createStyles = (
       fontFamily: typography.bodyFontFamily,
       fontSize: 15,
       lineHeight: 22,
+    },
+    flow: {
+      gap: 18,
     },
     sectionTitle: {
       color: colors.text,

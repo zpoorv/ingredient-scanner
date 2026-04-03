@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs
 import type { ProductChangeAlert } from '../models/productChangeAlert';
 import type { ScanHistoryEntry } from './scanHistoryStorage';
 import { getAuthSession } from '../store';
-import { normalizeIngredientValue } from '../utils/ingredientHighlighting';
+import { buildProductTimelineEntry } from '../utils/productTimeline';
 
 const PRODUCT_CHANGE_ALERT_STORAGE_KEY_PREFIX = 'inqoura/product-change-alerts/v1';
 const MAX_ALERTS = 24;
@@ -27,54 +27,6 @@ function normalizeAlertList(alerts: ProductChangeAlert[]) {
         new Date(right.detectedAt).getTime() - new Date(left.detectedAt).getTime()
     )
     .slice(0, MAX_ALERTS);
-}
-
-function normalizeText(value?: string | null) {
-  return normalizeIngredientValue(value || '');
-}
-
-function normalizeList(value: string[]) {
-  return [...value].map((item) => item.trim().toLowerCase()).sort().join('|');
-}
-
-function getChangedFields(previousEntry: ScanHistoryEntry, nextEntry: ScanHistoryEntry) {
-  const changedFields: string[] = [];
-
-  if (
-    normalizeText(previousEntry.product.ingredientsText) !==
-    normalizeText(nextEntry.product.ingredientsText)
-  ) {
-    changedFields.push('ingredients');
-  }
-
-  if (
-    normalizeList(previousEntry.product.allergens) !==
-    normalizeList(nextEntry.product.allergens)
-  ) {
-    changedFields.push('allergens');
-  }
-
-  if (
-    previousEntry.product.additiveCount !== nextEntry.product.additiveCount ||
-    normalizeList(previousEntry.product.additiveTags) !==
-      normalizeList(nextEntry.product.additiveTags)
-  ) {
-    changedFields.push('additives');
-  }
-
-  return changedFields;
-}
-
-function buildAlertSummary(changedFields: string[]) {
-  if (changedFields.includes('allergens')) {
-    return 'Allergen details changed since your last scan.';
-  }
-
-  if (changedFields.includes('ingredients')) {
-    return 'Ingredients changed since your last scan.';
-  }
-
-  return 'This product changed since your last scan.';
 }
 
 async function loadAlertsForScope(scopeId: string) {
@@ -122,9 +74,9 @@ export async function recordProductChangeAlert(
   previousEntry: ScanHistoryEntry,
   nextEntry: ScanHistoryEntry
 ) {
-  const changedFields = getChangedFields(previousEntry, nextEntry);
+  const timelineEntry = buildProductTimelineEntry(previousEntry, nextEntry);
 
-  if (changedFields.length === 0) {
+  if (!timelineEntry) {
     return null;
   }
 
@@ -132,13 +84,13 @@ export async function recordProductChangeAlert(
   const alerts = await loadAlertsForScope(scopeId);
   const alert: ProductChangeAlert = {
     barcode: nextEntry.barcode,
-    changedFields,
-    detectedAt: nextEntry.scannedAt,
-    id: `${nextEntry.barcode}:${nextEntry.scannedAt}`,
+    changedFields: timelineEntry.changedFields,
+    detectedAt: timelineEntry.detectedAt,
+    id: timelineEntry.id,
     name: nextEntry.name,
-    previousScannedAt: previousEntry.scannedAt,
-    severity: changedFields.includes('allergens') ? 'high' : 'caution',
-    summary: buildAlertSummary(changedFields),
+    previousScannedAt: timelineEntry.previousScannedAt ?? previousEntry.scannedAt,
+    severity: timelineEntry.severity === 'high' ? 'high' : 'caution',
+    summary: timelineEntry.summary,
   };
 
   await saveAlertsForScope(scopeId, [alert, ...alerts]);

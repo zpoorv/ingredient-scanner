@@ -41,6 +41,7 @@ function HistoryListItem({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const gradeTone = getGradeTone(entry.gradeLabel);
   const profile = getDietProfileDefinition(entry.profileId);
+  const latestTimelineSummary = entry.productTimeline[0]?.summary ?? null;
 
   return (
     <Pressable
@@ -75,6 +76,9 @@ function HistoryListItem({
         {isFavorite ? ' • Favorite' : ''}
       </Text>
       <Text style={styles.summaryText}>{entry.riskSummary}</Text>
+      {latestTimelineSummary ? (
+        <Text style={styles.timelineText}>Changed: {latestTimelineSummary}</Text>
+      ) : null}
 
       <View style={styles.footerRow}>
         <Text style={styles.timestampText}>{formatTimestamp(entry.scannedAt)}</Text>
@@ -180,6 +184,12 @@ const createStyles = (
       color: colors.text,
       fontSize: 15,
       lineHeight: 22,
+    },
+    timelineText: {
+      color: colors.warning,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 19,
     },
     selectionChip: {
       backgroundColor: colors.surface,

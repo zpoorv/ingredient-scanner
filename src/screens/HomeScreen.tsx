@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
-import BottomMenuBar from '../components/BottomMenuBar';
 import DietProfileModal from '../components/DietProfileModal';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryNotificationsCard from '../components/HistoryNotificationsCard';
+import NativeSponsoredCard from '../components/NativeSponsoredCard';
+import ProductTimelineCard from '../components/ProductTimelineCard';
 import ProductChangeAlertsCard from '../components/ProductChangeAlertsCard';
 import ScreenReveal from '../components/ScreenReveal';
 import UsualBuysCard, { type UsualBuyCardItem } from '../components/UsualBuysCard';
@@ -17,6 +18,7 @@ import {
   type DietProfileId,
 } from '../constants/dietProfiles';
 import type { PremiumEntitlement } from '../models/premium';
+import { openMainRoute } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/types';
 import {
   loadDietProfileIntroSeen,
@@ -34,6 +36,10 @@ import { loadProductChangeAlerts } from '../services/productChangeAlertService';
 import { loadUsualBuyProducts } from '../services/commonProductStorage';
 import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
 import {
+  hasShownNativeAdThisSession,
+  markNativeAdShownThisSession,
+} from '../services/adSessionService';
+import {
   loadScanHistory,
   subscribeScanHistoryChanges,
 } from '../services/scanHistoryStorage';
@@ -44,8 +50,11 @@ import {
   buildHistoryOverview,
   type HistoryInsight,
   type HistoryNotification,
+  type HistoryReplacementCandidate,
 } from '../utils/historyPersonalization';
 import type { ProductChangeAlert } from '../models/productChangeAlert';
+import type { ProductTimelineEntry } from '../models/productTimeline';
+import { buildShelfComparisonSummary } from '../utils/shelfComparison';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -66,8 +75,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [historyInsights, setHistoryInsights] = useState<HistoryInsight[]>([]);
   const [historyNotifications, setHistoryNotifications] = useState<HistoryNotification[]>([]);
   const [productChangeAlerts, setProductChangeAlerts] = useState<ProductChangeAlert[]>([]);
+  const [recentChanges, setRecentChanges] = useState<ProductTimelineEntry[]>([]);
+  const [replaceFirstCandidate, setReplaceFirstCandidate] =
+    useState<HistoryReplacementCandidate | null>(null);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [comparisonSummary, setComparisonSummary] = useState<string | null>(null);
+  const [recentTripSummary, setRecentTripSummary] = useState<string | null>(null);
   const [shelfItemCount, setShelfItemCount] = useState(0);
   const [activeShopperName, setActiveShopperName] = useState('You');
   const [isHouseholdProfileActive, setIsHouseholdProfileActive] = useState(false);
@@ -82,6 +95,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     getPremiumSession()
   );
   const [usualBuys, setUsualBuys] = useState<UsualBuyCardItem[]>([]);
+  const [shouldMountHomeNativeAd] = useState(
+    !hasShownNativeAdThisSession('home')
+  );
 
   const selectedProfile =
     DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === selectedProfileId) ||
@@ -123,12 +139,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       setActiveShopperName(effectiveShoppingProfile.name);
       setIsHouseholdProfileActive(effectiveShoppingProfile.usesHouseholdProfile);
       setShelfItemCount(comparisonSession.entries.length);
-      const comparisonEntries = comparisonSession.entries;
-      setComparisonSummary(
-        comparisonEntries.length >= 2
-          ? `${comparisonEntries[0].name} vs ${comparisonEntries[1].name}`
-          : null
-      );
+      const activeTripSummary =
+        comparisonSession.entries.length > 0
+          ? buildShelfComparisonSummary(comparisonSession.entries).tripRecapLine
+          : null;
+      setComparisonSummary(activeTripSummary);
+      setRecentTripSummary(comparisonSession.recentTrips[0]?.summary.recapLine ?? null);
       setUsualBuys(
         usualBuyProducts.map((item) => {
           const matchingHistoryEntry =
@@ -157,6 +173,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           entitlement.isPremium && (profile?.historyInsightsEnabled ?? true),
       });
       setHistoryInsights(historyOverview.insights);
+      setRecentChanges(historyOverview.recentChanges.slice(0, 2));
+      setReplaceFirstCandidate(historyOverview.replaceFirstCandidate);
       setHistoryNotifications(
         profile?.historyNotificationsEnabled
           ? buildHistoryNotifications(
@@ -247,6 +265,29 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     await markDietProfileIntroSeen();
   };
 
+  const handleHomeAdLoaded = useCallback(() => {
+    markNativeAdShownThisSession('home');
+  }, []);
+  const shouldShowHomeNativeAd =
+    !premiumEntitlement.isPremium && shouldMountHomeNativeAd;
+  const shouldInsertHomeAdAfterInsights =
+    shouldShowHomeNativeAd && isHistoryEnabled && historyInsights.length > 0;
+  const shouldInsertHomeAdAfterNotifications =
+    shouldShowHomeNativeAd &&
+    !shouldInsertHomeAdAfterInsights &&
+    isHistoryEnabled &&
+    historyNotifications.length > 0;
+  const shouldInsertHomeAdAfterAlerts =
+    shouldShowHomeNativeAd &&
+    !shouldInsertHomeAdAfterInsights &&
+    !shouldInsertHomeAdAfterNotifications &&
+    productChangeAlerts.length > 0;
+  const shouldInsertHomeAdAfterUsualBuys =
+    shouldShowHomeNativeAd &&
+    !shouldInsertHomeAdAfterInsights &&
+    !shouldInsertHomeAdAfterNotifications &&
+    !shouldInsertHomeAdAfterAlerts;
+
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <View style={styles.container}>
@@ -317,25 +358,62 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </Pressable>
             </View>
 
+            {replaceFirstCandidate ? (
+              <View style={styles.profileSummaryCard}>
+                <Text style={styles.profileSummaryLabel}>Replace first</Text>
+                <Text style={styles.profileSummaryTitle}>{replaceFirstCandidate.name}</Text>
+                <Text style={styles.profileSummaryText}>{replaceFirstCandidate.reason}</Text>
+              </View>
+            ) : null}
+
+            {comparisonSummary ? (
+              <View style={styles.profileSummaryCard}>
+                <Text style={styles.profileSummaryLabel}>Trip in progress</Text>
+                <Text style={styles.profileSummaryTitle}>Keep this trip moving</Text>
+                <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
+              </View>
+            ) : recentTripSummary ? (
+              <View style={styles.profileSummaryCard}>
+                <Text style={styles.profileSummaryLabel}>Last trip</Text>
+                <Text style={styles.profileSummaryTitle}>Recent recap</Text>
+                <Text style={styles.profileSummaryText}>{recentTripSummary}</Text>
+              </View>
+            ) : null}
+
             <UsualBuysCard
               items={usualBuys}
-              onOpenHistory={() => navigation.navigate('History')}
-              onOpenSearch={() => navigation.navigate('Search')}
+              onOpenHistory={() => openMainRoute('History')}
+              onOpenSearch={() => openMainRoute('Search')}
             />
+            {shouldInsertHomeAdAfterUsualBuys ? (
+              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
+            ) : null}
 
             {isHistoryEnabled && historyInsights.length > 0 ? (
               <HistoryInsightsCard colors={colors} insights={historyInsights} />
+            ) : null}
+            {shouldInsertHomeAdAfterInsights ? (
+              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
             ) : null}
 
             {isHistoryEnabled && historyNotifications.length > 0 ? (
               <HistoryNotificationsCard notifications={historyNotifications} />
             ) : null}
+            {shouldInsertHomeAdAfterNotifications ? (
+              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
+            ) : null}
 
             {productChangeAlerts.length > 0 ? (
               <ProductChangeAlertsCard
                 alerts={productChangeAlerts}
-                onOpenAlert={() => navigation.navigate('History')}
+                onOpenAlert={() => openMainRoute('History')}
               />
+            ) : null}
+            {recentChanges.length > 0 ? (
+              <ProductTimelineCard entries={recentChanges} title="Recent changes" />
+            ) : null}
+            {shouldInsertHomeAdAfterAlerts ? (
+              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
             ) : null}
 
             {premiumEntitlement.isPremium && (favoriteCount > 0 || comparisonSummary) ? (
@@ -366,7 +444,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </ScreenReveal>
         </ScrollView>
       </View>
-      <BottomMenuBar activeRoute="Home" scannerProfileId={selectedProfileId} />
       <DietProfileModal
         isFirstLaunch={isFirstLaunchProfileFlow}
         onApply={() => void handleApplyProfile()}

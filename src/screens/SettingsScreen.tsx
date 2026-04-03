@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import BottomMenuBar from '../components/BottomMenuBar';
 import DietProfileModal from '../components/DietProfileModal';
 import HouseholdProfileEditorModal from '../components/HouseholdProfileEditorModal';
 import HouseholdProfilesModal from '../components/HouseholdProfilesModal';
@@ -31,6 +30,7 @@ import type { HouseholdProfile } from '../models/householdProfile';
 import type { HistoryNotificationPermissionState } from '../models/historyNotification';
 import type { RestrictionId, RestrictionSeverity } from '../models/restrictions';
 import type { HistoryNotificationCadence } from '../models/userProfile';
+import { openMainRoute } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/types';
 import type { ShareCardStyleId } from '../models/shareCardStyle';
 import { deleteCurrentAccount } from '../services/accountDeletionService';
@@ -44,6 +44,10 @@ import {
   requestHistoryNotificationPermission,
   syncHistoryNotificationsForCurrentUser,
 } from '../services/historyNotificationService';
+import {
+  describeAdMobError,
+  openMobileAdsInspector,
+} from '../services/adMobService';
 import {
   saveDietProfile,
   syncDietProfileForCurrentUser,
@@ -609,6 +613,26 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       });
   };
 
+  const handleOpenAdInspector = async () => {
+    try {
+      const didOpen = await openMobileAdsInspector();
+
+      if (!didOpen) {
+        Alert.alert(
+          'Ad Inspector unavailable',
+          'Ad Inspector is only available on Android and iOS builds.'
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Ad Inspector unavailable',
+        error instanceof AuthServiceError
+          ? error.message
+          : describeAdMobError(error)
+      );
+    }
+  };
+
   const historyNotificationStatus = getHistoryNotificationStatusLabel(
     historyNotificationsEnabled,
     historyNotificationPermissionState,
@@ -640,7 +664,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             value="Open"
           />
           <SettingsRow
-            onPress={() => navigation.navigate('History')}
+            onPress={() => openMainRoute('History')}
             title="History"
             value="Open"
           />
@@ -769,7 +793,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             value={historyNotificationStatus}
           />
           <SettingsRow
-            onPress={() => navigation.navigate('History')}
+            onPress={() => openMainRoute('History')}
             subtitle="Premium can save favorites and keep two products ready to compare."
             title="Saved Products"
             value={favoriteCount > 0 ? `${favoriteCount} saved` : 'Open'}
@@ -793,10 +817,15 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
             onPress={() => navigation.navigate('Feedback')}
             title="Send Feedback"
           />
+          {__DEV__ ? (
+            <SettingsRow
+              onPress={() => void handleOpenAdInspector()}
+              subtitle="Check rewarded and native placements with Google's debug panel."
+              title="Ad Inspector"
+            />
+          ) : null}
         </SettingsSection>
       </ScrollView>
-      <BottomMenuBar activeRoute="Settings" scannerProfileId={dietProfileId} />
-
       <DietProfileModal
         isFirstLaunch={false}
         onApply={() => void handleApplyDietProfile()}

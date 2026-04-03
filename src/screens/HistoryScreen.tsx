@@ -12,14 +12,18 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
-import BottomMenuBar from '../components/BottomMenuBar';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryListItemSkeleton from '../components/HistoryListItemSkeleton';
 import HistoryListItem from '../components/HistoryListItem';
+import NativeSponsoredCard from '../components/NativeSponsoredCard';
+import ProductTimelineCard from '../components/ProductTimelineCard';
 import ProductChangeAlertsCard from '../components/ProductChangeAlertsCard';
 import ScreenReveal from '../components/ScreenReveal';
 import UsualBuysCard from '../components/UsualBuysCard';
+import type { PremiumEntitlement } from '../models/premium';
 import type { ProductChangeAlert } from '../models/productChangeAlert';
+import type { ProductTimelineEntry } from '../models/productTimeline';
+import { openMainRoute } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/types';
 import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import { loadProductChangeAlerts } from '../services/productChangeAlertService';
@@ -37,10 +41,12 @@ import {
   type HistoryRepeatBuyCandidate,
   type HistoryTrend,
 } from '../utils/historyPersonalization';
+import { getPremiumSession, subscribePremiumSession } from '../store';
 
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'History'>;
 type SortOrder = 'newest' | 'oldest';
-type HistoryListRow = ScanHistoryEntry | number;
+type HistoryAdRow = { id: string; type: 'ad' };
+type HistoryListRow = HistoryAdRow | ScanHistoryEntry | number;
 
 function matchesQuery(entry: ScanHistoryEntry, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -62,8 +68,8 @@ function matchesQuery(entry: ScanHistoryEntry, query: string) {
   return searchableText.includes(normalizedQuery);
 }
 
-function isHistoryEntry(item: HistoryListRow): item is ScanHistoryEntry {
-  return typeof item !== 'number';
+function isHistoryAdRow(item: HistoryListRow): item is HistoryAdRow {
+  return typeof item !== 'number' && 'type' in item;
 }
 
 export default function HistoryScreen({ navigation }: HistoryScreenProps) {
@@ -74,18 +80,29 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
   const [historyTrend, setHistoryTrend] = useState<HistoryTrend>('steady');
   const [isLoading, setIsLoading] = useState(true);
   const [productChangeAlerts, setProductChangeAlerts] = useState<ProductChangeAlert[]>([]);
+  const [recentChanges, setRecentChanges] = useState<ProductTimelineEntry[]>([]);
   const [favoriteProductCodes, setFavoriteProductCodes] = useState<string[]>([]);
   const [replacementCandidates, setReplacementCandidates] = useState<
     HistoryReplacementCandidate[]
   >([]);
+  const [replaceFirstCandidate, setReplaceFirstCandidate] =
+    useState<HistoryReplacementCandidate | null>(null);
   const [repeatBuyCandidates, setRepeatBuyCandidates] = useState<
     HistoryRepeatBuyCandidate[]
   >([]);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
+    getPremiumSession()
+  );
   const isFocused = useIsFocused();
   const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  useEffect(() => {
+    const unsubscribe = subscribePremiumSession(setPremiumEntitlement);
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (!isFocused) {
@@ -106,6 +123,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         ]);
 
         if (isMounted) {
+          setPremiumEntitlement(entitlement);
           setHistoryEntries(nextEntries);
           setProductChangeAlerts(changeAlerts);
           setFavoriteProductCodes(profile?.favoriteProductCodes ?? []);
@@ -115,6 +133,8 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           });
           setHistoryInsights(overview.insights);
           setHistoryTrend(overview.weeklyTrend);
+          setRecentChanges(overview.recentChanges);
+          setReplaceFirstCandidate(overview.replaceFirstCandidate);
           setRepeatBuyCandidates(overview.repeatBuyCandidates);
           setReplacementCandidates(overview.replacementCandidates);
         }
@@ -172,7 +192,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
       const matchingEntry = historyEntries.find((entry) => entry.barcode === alert.barcode);
 
       if (!matchingEntry) {
-        navigation.navigate('Search');
+        openMainRoute('Search');
         return;
       }
 
@@ -285,7 +305,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           })}
         </View>
         <Pressable
-          onPress={() => navigation.navigate('Search')}
+          onPress={() => openMainRoute('Search')}
           style={styles.selectionActionChip}
         >
           <Text style={styles.selectionActionText}>Search Products</Text>
@@ -337,6 +357,12 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         </View>
       ) : null}
 
+      {recentChanges.length > 0 ? (
+        <View style={styles.insightsWrap}>
+          <ProductTimelineCard entries={recentChanges.slice(0, 3)} title="Recent changes" />
+        </View>
+      ) : null}
+
       {repeatBuyCandidates.length > 0 ? (
         <View style={styles.insightsWrap}>
           <UsualBuysCard
@@ -357,17 +383,20 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
               };
             })}
             onOpenHistory={() => undefined}
-            onOpenSearch={() => navigation.navigate('Search')}
+            onOpenSearch={() => openMainRoute('Search')}
           />
         </View>
       ) : null}
 
-      {replacementCandidates.length > 0 ? (
+      {replaceFirstCandidate ? (
         <View style={styles.stateCard}>
           <Text style={styles.stateTitle}>Replace first</Text>
-          {replacementCandidates.map((candidate) => (
-            <Text key={candidate.id} style={styles.stateText}>
-              • {candidate.name}: {candidate.reason}
+          <Text style={styles.stateText}>
+            {replaceFirstCandidate.name}: {replaceFirstCandidate.reason}
+          </Text>
+          {replacementCandidates.slice(1).map((candidate) => (
+            <Text key={candidate.id} style={styles.secondaryStateText}>
+              {candidate.name}: {candidate.reason}
             </Text>
           ))}
         </View>
@@ -375,8 +404,19 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     </ScreenReveal>
   );
 
-  const loadingItems: HistoryListRow[] = [1, 2, 3, 4];
-  const listData: HistoryListRow[] = isLoading ? loadingItems : visibleEntries;
+  const listData = useMemo<HistoryListRow[]>(() => {
+    if (isLoading) {
+      return [1, 2, 3, 4];
+    }
+
+    if (premiumEntitlement.isPremium || visibleEntries.length < 6) {
+      return visibleEntries;
+    }
+
+    const nextRows: HistoryListRow[] = [...visibleEntries];
+    nextRows.splice(4, 0, { id: 'history-native-ad', type: 'ad' });
+    return nextRows;
+  }, [isLoading, premiumEntitlement.isPremium, visibleEntries]);
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
@@ -387,7 +427,9 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           initialNumToRender={8}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(item) =>
-            isHistoryEntry(item) ? item.id : `history-skeleton-${item}`
+            typeof item === 'number'
+              ? `history-skeleton-${item}`
+              : item.id
           }
           ListEmptyComponent={
             !isLoading ? (
@@ -407,12 +449,14 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           }
           ListHeaderComponent={headerContent}
           maxToRenderPerBatch={8}
-          removeClippedSubviews
+          removeClippedSubviews={false}
           renderItem={({ item }) =>
-            isHistoryEntry(item) ? (
-              renderHistoryItem({ item })
-            ) : (
+            typeof item === 'number' ? (
               <HistoryListItemSkeleton />
+            ) : isHistoryAdRow(item) ? (
+              <NativeSponsoredCard compact surface="history" />
+            ) : (
+              renderHistoryItem({ item })
             )
           }
           showsVerticalScrollIndicator={false}
@@ -420,7 +464,6 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           updateCellsBatchingPeriod={60}
           windowSize={5}
         />
-        <BottomMenuBar activeRoute="History" />
       </View>
     </SafeAreaView>
   );
@@ -482,6 +525,12 @@ const createStyles = (
   },
   screen: {
     flex: 1,
+  },
+  secondaryStateText: {
+    color: colors.textMuted,
+    fontFamily: typography.bodyFontFamily,
+    fontSize: 13,
+    lineHeight: 18,
   },
   deleteActionChip: {
     backgroundColor: colors.dangerMuted,

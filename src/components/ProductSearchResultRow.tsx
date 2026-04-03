@@ -27,6 +27,17 @@ export default function ProductSearchResultRow({
       <Text style={styles.summary}>
         {result.product.categories.slice(0, 2).join(' • ') || result.product.barcode}
       </Text>
+      {result.householdFit ? (
+        <Text style={styles.householdFit}>
+          {result.householdFit.verdict === 'works-for-everyone'
+            ? 'Works for everyone'
+            : result.householdFit.verdict === 'one-household-caution'
+              ? 'One household caution'
+              : result.householdFit.verdict === 'works-for-you-only'
+                ? 'Works for you only'
+                : "Doesn't fit this household"}
+        </Text>
+      ) : null}
       {result.isFavorite ? <Text style={styles.favorite}>Favorite</Text> : null}
     </Pressable>
   );
@@ -63,6 +74,12 @@ const createStyles = (
       flexDirection: 'row',
       gap: 12,
       justifyContent: 'space-between',
+    },
+    householdFit: {
+      color: colors.primary,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 13,
+      fontWeight: '700',
     },
     meta: {
       color: colors.text,

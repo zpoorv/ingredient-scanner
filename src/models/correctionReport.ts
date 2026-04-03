@@ -9,9 +9,12 @@ export type CorrectionReportReason =
   | 'other';
 
 export type CorrectionReportStatus = 'open' | 'reviewing' | 'resolved';
+export type CorrectionReportType = 'issue-report' | 'trust-confirmation';
+export type TrustConfirmationType = 'looks-different' | 'matches-pack';
 
 export type CorrectionReport = {
   barcode: string;
+  confirmationCount?: number | null;
   confidence: ResultConfidence;
   createdAt: string;
   foodStatus: ProductFoodStatus;
@@ -19,11 +22,15 @@ export type CorrectionReport = {
   priorityScore: number;
   productName: string;
   reason: CorrectionReportReason;
+  repeatBuyWeight?: number | null;
+  reportType?: CorrectionReportType;
   reporterEmail: string | null;
   reporterName: string | null;
   reporterUid: string | null;
   resultSource: 'barcode' | 'ingredient-ocr';
   status: CorrectionReportStatus;
   summary: string;
+  timelineSeverity?: 'high' | 'low' | 'medium' | null;
   topConcern: string | null;
+  trustConfirmationType?: TrustConfirmationType | null;
 };
