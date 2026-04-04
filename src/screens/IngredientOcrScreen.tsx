@@ -35,9 +35,9 @@ import {
 } from '../services/ingredientLabelOcr';
 import {
   hasPremiumFeatureAccess,
-  loadCurrentPremiumEntitlement,
 } from '../services/premiumEntitlementService';
 import { showRewardedOcrUnlockAd } from '../services/rewardedAdService';
+import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { getPremiumSession } from '../store';
 import { buildResolvedProductFromOcr } from '../utils/ocrResolvedProduct';
 
@@ -93,7 +93,7 @@ export default function IngredientOcrScreen({
       return;
     }
 
-    void loadCurrentPremiumEntitlement().then(async (entitlement) => {
+    void loadSessionPremiumEntitlement('stale-while-revalidate').then(async (entitlement) => {
       const quotaSnapshot = await loadFeatureQuotaSnapshot('ingredient-ocr', entitlement);
 
       if (isMounted) {
@@ -112,7 +112,7 @@ export default function IngredientOcrScreen({
     width,
     height,
   }: PendingOcrAsset) => {
-    const entitlement = await loadCurrentPremiumEntitlement();
+    const entitlement = await loadSessionPremiumEntitlement('stale-while-revalidate');
     const quotaResult = await consumeFeatureQuota('ingredient-ocr', entitlement);
 
     setPremiumEntitlement(entitlement);

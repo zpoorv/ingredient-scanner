@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs
 
 import type { PremiumEntitlement, PremiumFeatureId } from '../models/premium';
 import { getAuthSession, getPremiumSession } from '../store';
+import { getCanonicalUtcDayKey } from './timeIntegrityService';
 
 export type DailyFeatureId = Extract<
   PremiumFeatureId,
@@ -39,11 +40,7 @@ function getFeatureUsageScopeId(uid?: string | null) {
   return uid ? `user:${uid}` : 'guest';
 }
 
-function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getDefaultFeatureUsageState(dayKey = getTodayKey()): FeatureUsageState {
+function getDefaultFeatureUsageState(dayKey: string): FeatureUsageState {
   return {
     dayKey,
     features: {
@@ -68,15 +65,15 @@ function isFeatureUsageRecord(value: unknown): value is FeatureUsageRecord {
   return typeof candidate.used === 'number' && typeof candidate.bonusCredits === 'number';
 }
 
-function normalizeFeatureUsageState(value: unknown): FeatureUsageState {
-  const fallback = getDefaultFeatureUsageState();
+function normalizeFeatureUsageState(value: unknown, currentDayKey: string): FeatureUsageState {
+  const fallback = getDefaultFeatureUsageState(currentDayKey);
 
   if (!value || typeof value !== 'object') {
     return fallback;
   }
 
   const candidate = value as Partial<FeatureUsageState>;
-  const dayKey = candidate.dayKey === getTodayKey() ? candidate.dayKey : getTodayKey();
+  const dayKey = typeof candidate.dayKey === 'string' ? candidate.dayKey : currentDayKey;
   const features = (candidate.features ?? {}) as Partial<
     Record<DailyFeatureId, FeatureUsageRecord>
   >;
@@ -94,17 +91,17 @@ function normalizeFeatureUsageState(value: unknown): FeatureUsageState {
   };
 }
 
-async function loadScopedFeatureUsageState(scopeId: string) {
+async function loadScopedFeatureUsageState(scopeId: string, currentDayKey: string) {
   const rawValue = await AsyncStorage.getItem(getFeatureUsageStorageKey(scopeId));
 
   if (!rawValue) {
-    return getDefaultFeatureUsageState();
+    return getDefaultFeatureUsageState(currentDayKey);
   }
 
   try {
-    return normalizeFeatureUsageState(JSON.parse(rawValue));
+    return normalizeFeatureUsageState(JSON.parse(rawValue), currentDayKey);
   } catch {
-    return getDefaultFeatureUsageState();
+    return getDefaultFeatureUsageState(currentDayKey);
   }
 }
 
@@ -165,10 +162,11 @@ function buildQuotaSnapshot(
 
 async function loadFeatureUsageState() {
   const scopeId = getFeatureUsageScopeId(getAuthSession().user?.id);
-  const state = await loadScopedFeatureUsageState(scopeId);
+  const currentDayKey = await getCanonicalUtcDayKey();
+  const state = await loadScopedFeatureUsageState(scopeId, currentDayKey);
 
-  if (state.dayKey !== getTodayKey()) {
-    const nextState = getDefaultFeatureUsageState();
+  if (state.dayKey !== currentDayKey) {
+    const nextState = getDefaultFeatureUsageState(currentDayKey);
     await writeScopedFeatureUsageState(scopeId, nextState);
     return { scopeId, state: nextState };
   }

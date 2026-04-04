@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import DeferredSection from '../components/DeferredSection';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryListItemSkeleton from '../components/HistoryListItemSkeleton';
 import HistoryListItem from '../components/HistoryListItem';
@@ -25,14 +27,20 @@ import type { ProductChangeAlert } from '../models/productChangeAlert';
 import type { ProductTimelineEntry } from '../models/productTimeline';
 import { openMainRoute } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/types';
-import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
-import { loadProductChangeAlerts } from '../services/productChangeAlertService';
+import { measurePerformanceTrace } from '../services/performanceTrace';
+import type { CachePolicy } from '../services/sessionDataService';
+import {
+  loadSessionPremiumEntitlement,
+  loadSessionProductChangeAlerts,
+  loadSessionScanHistory,
+  loadSessionUserProfile,
+} from '../services/sessionDataService';
 import {
   deleteScanHistoryEntries,
-  loadScanHistory,
+  subscribeScanHistoryChanges,
   type ScanHistoryEntry,
 } from '../services/scanHistoryStorage';
-import { loadUserProfile } from '../services/userProfileService';
+import { getCanonicalNowMs } from '../services/timeIntegrityService';
 import { getDietProfileDefinition } from '../utils/dietProfiles';
 import {
   buildHistoryOverview,
@@ -96,6 +104,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
   const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
     getPremiumSession()
   );
+  const [hasMeasuredOverview, setHasMeasuredOverview] = useState(false);
   const isFocused = useIsFocused();
   const deferredSearchQuery = useDeferredValue(searchQuery);
 
@@ -111,16 +120,22 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 
     let isMounted = true;
 
-    const loadHistory = async () => {
-      setIsLoading(true);
+    const loadHistory = async (
+      policy: CachePolicy = 'cache-first',
+      shouldShowLoadingState = historyEntries.length === 0
+    ) => {
+      if (shouldShowLoadingState) {
+        setIsLoading(true);
+      }
 
       try {
         const [nextEntries, entitlement, profile, changeAlerts] = await Promise.all([
-          loadScanHistory(),
-          loadCurrentPremiumEntitlement(),
-          loadUserProfile(),
-          loadProductChangeAlerts(),
+          loadSessionScanHistory(policy),
+          loadSessionPremiumEntitlement(policy),
+          loadSessionUserProfile(policy),
+          loadSessionProductChangeAlerts(policy),
         ]);
+        const currentTimeMs = await getCanonicalNowMs();
 
         if (isMounted) {
           setPremiumEntitlement(entitlement);
@@ -128,6 +143,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           setProductChangeAlerts(changeAlerts);
           setFavoriteProductCodes(profile?.favoriteProductCodes ?? []);
           const overview = buildHistoryOverview(nextEntries, {
+            currentTimeMs,
             includePremiumPatterns:
               entitlement.isPremium && (profile?.historyInsightsEnabled ?? true),
           });
@@ -137,6 +153,11 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           setReplaceFirstCandidate(overview.replaceFirstCandidate);
           setRepeatBuyCandidates(overview.repeatBuyCandidates);
           setReplacementCandidates(overview.replacementCandidates);
+
+          if (!hasMeasuredOverview) {
+            measurePerformanceTrace('app-start', 'history-overview-ready');
+            setHasMeasuredOverview(true);
+          }
         }
       } finally {
         if (isMounted) {
@@ -145,12 +166,17 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
       }
     };
 
-    void loadHistory();
+    const unsubscribeHistory = subscribeScanHistoryChanges(() => {
+      void loadHistory('stale-while-revalidate', false);
+    });
+
+    void loadHistory(historyEntries.length > 0 ? 'stale-while-revalidate' : 'cache-first');
 
     return () => {
       isMounted = false;
+      unsubscribeHistory();
     };
-  }, [isFocused]);
+  }, [hasMeasuredOverview, historyEntries.length, isFocused]);
 
   const visibleEntries = useMemo(() => {
     const filteredEntries = historyEntries.filter((entry) =>
@@ -342,65 +368,69 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
         ) : null}
       </View>
 
-      {historyInsights.length > 0 ? (
-        <View style={styles.insightsWrap}>
-          <HistoryInsightsCard colors={colors} insights={historyInsights} />
-        </View>
-      ) : null}
+      <DeferredSection>
+        <>
+          {historyInsights.length > 0 ? (
+            <View style={styles.insightsWrap}>
+              <HistoryInsightsCard colors={colors} insights={historyInsights} />
+            </View>
+          ) : null}
 
-      {productChangeAlerts.length > 0 ? (
-        <View style={styles.insightsWrap}>
-          <ProductChangeAlertsCard
-            alerts={productChangeAlerts}
-            onOpenAlert={handleOpenChangedProduct}
-          />
-        </View>
-      ) : null}
+          {productChangeAlerts.length > 0 ? (
+            <View style={styles.insightsWrap}>
+              <ProductChangeAlertsCard
+                alerts={productChangeAlerts}
+                onOpenAlert={handleOpenChangedProduct}
+              />
+            </View>
+          ) : null}
 
-      {recentChanges.length > 0 ? (
-        <View style={styles.insightsWrap}>
-          <ProductTimelineCard entries={recentChanges.slice(0, 3)} title="Recent changes" />
-        </View>
-      ) : null}
+          {recentChanges.length > 0 ? (
+            <View style={styles.insightsWrap}>
+              <ProductTimelineCard entries={recentChanges.slice(0, 3)} title="Recent changes" />
+            </View>
+          ) : null}
 
-      {repeatBuyCandidates.length > 0 ? (
-        <View style={styles.insightsWrap}>
-          <UsualBuysCard
-            hideHistoryAction
-            items={repeatBuyCandidates.map((candidate) => {
-              const matchingEntry =
-                historyEntries.find((entry) => entry.id === candidate.id) ?? null;
-              const favoriteCode =
-                matchingEntry?.product.code || matchingEntry?.barcode || candidate.id;
+          {repeatBuyCandidates.length > 0 ? (
+            <View style={styles.insightsWrap}>
+              <UsualBuysCard
+                hideHistoryAction
+                items={repeatBuyCandidates.map((candidate) => {
+                  const matchingEntry =
+                    historyEntries.find((entry) => entry.id === candidate.id) ?? null;
+                  const favoriteCode =
+                    matchingEntry?.product.code || matchingEntry?.barcode || candidate.id;
 
-              return {
-                id: candidate.id,
-                isFavorite: favoriteProductCodes.includes(favoriteCode),
-                name: candidate.name,
-                score: matchingEntry?.score ?? null,
-                summary: candidate.riskSummary,
-                usageCount: candidate.scanCount,
-              };
-            })}
-            onOpenHistory={() => undefined}
-            onOpenSearch={() => openMainRoute('Search')}
-          />
-        </View>
-      ) : null}
+                  return {
+                    id: candidate.id,
+                    isFavorite: favoriteProductCodes.includes(favoriteCode),
+                    name: candidate.name,
+                    score: matchingEntry?.score ?? null,
+                    summary: candidate.riskSummary,
+                    usageCount: candidate.scanCount,
+                  };
+                })}
+                onOpenHistory={() => undefined}
+                onOpenSearch={() => openMainRoute('Search')}
+              />
+            </View>
+          ) : null}
 
-      {replaceFirstCandidate ? (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Replace first</Text>
-          <Text style={styles.stateText}>
-            {replaceFirstCandidate.name}: {replaceFirstCandidate.reason}
-          </Text>
-          {replacementCandidates.slice(1).map((candidate) => (
-            <Text key={candidate.id} style={styles.secondaryStateText}>
-              {candidate.name}: {candidate.reason}
-            </Text>
-          ))}
-        </View>
-      ) : null}
+          {replaceFirstCandidate ? (
+            <View style={styles.stateCard}>
+              <Text style={styles.stateTitle}>Replace first</Text>
+              <Text style={styles.stateText}>
+                {replaceFirstCandidate.name}: {replaceFirstCandidate.reason}
+              </Text>
+              {replacementCandidates.slice(1).map((candidate) => (
+                <Text key={candidate.id} style={styles.secondaryStateText}>
+                  {candidate.name}: {candidate.reason}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </>
+      </DeferredSection>
     </ScreenReveal>
   );
 
@@ -449,7 +479,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           }
           ListHeaderComponent={headerContent}
           maxToRenderPerBatch={8}
-          removeClippedSubviews={false}
+          removeClippedSubviews={Platform.OS === 'android'}
           renderItem={({ item }) =>
             typeof item === 'number' ? (
               <HistoryListItemSkeleton />

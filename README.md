@@ -172,6 +172,15 @@ npm run android:aab
 npm run android:apk:release
 ```
 
+## Security And Production Hardening
+
+Useful repo docs:
+
+- `SECURITY.md`
+- `SECURITY_HARDENING.md`
+- `PLAY_INTEGRITY_PLAN.md`
+- `FIREBASE_GITHUB_SECURITY_CHECKLIST.md`
+
 ## Privacy And Account Deletion
 
 Public web pages live in:

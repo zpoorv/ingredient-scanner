@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  InteractionManager,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import DeferredSection from '../components/DeferredSection';
 import DietProfileModal from '../components/DietProfileModal';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryNotificationsCard from '../components/HistoryNotificationsCard';
@@ -26,24 +34,27 @@ import {
   saveDietProfile,
 } from '../services/dietProfileStorage';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
-import { loadComparisonSession } from '../services/comparisonSessionStorage';
 import {
   loadFeatureQuotaSnapshot,
   type FeatureQuotaSnapshot,
 } from '../services/featureUsageStorage';
-import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
-import { loadProductChangeAlerts } from '../services/productChangeAlertService';
 import { loadUsualBuyProducts } from '../services/commonProductStorage';
-import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
+import type { CachePolicy } from '../services/sessionDataService';
+import {
+  loadSessionComparisonSession,
+  loadSessionEffectiveShoppingProfile,
+  loadSessionPremiumEntitlement,
+  loadSessionProductChangeAlerts,
+  loadSessionScanHistory,
+  loadSessionUserProfile,
+} from '../services/sessionDataService';
+import { getCanonicalNowMs } from '../services/timeIntegrityService';
 import {
   hasShownNativeAdThisSession,
   markNativeAdShownThisSession,
 } from '../services/adSessionService';
-import {
-  loadScanHistory,
-  subscribeScanHistoryChanges,
-} from '../services/scanHistoryStorage';
-import { loadUserProfile } from '../services/userProfileService';
+import { measurePerformanceTrace } from '../services/performanceTrace';
+import { subscribeScanHistoryChanges } from '../services/scanHistoryStorage';
 import { getPremiumSession, subscribeAuthSession, subscribePremiumSession } from '../store';
 import {
   buildHistoryNotifications,
@@ -98,6 +109,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [shouldMountHomeNativeAd] = useState(
     !hasShownNativeAdThisSession('home')
   );
+  const [hasMeasuredFirstPaint, setHasMeasuredFirstPaint] = useState(false);
 
   const selectedProfile =
     DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === selectedProfileId) ||
@@ -105,39 +117,44 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   useEffect(() => {
     let isMounted = true;
+    let secondaryInteractionHandle: ReturnType<
+      typeof InteractionManager.runAfterInteractions
+    > | null = null;
 
-    const refreshPremiumState = async () => {
-      const entitlement = await loadCurrentPremiumEntitlement();
+    const loadSecondaryHomeData = async (
+      policy: CachePolicy,
+      isPremium: boolean,
+      profileFavoriteProductCodes: string[]
+    ) => {
       const [
-        quotaSnapshot,
+        config,
         profile,
         historyEntries,
         comparisonSession,
         changeAlerts,
-        effectiveShoppingProfile,
         usualBuyProducts,
-      ] =
-        await Promise.all([
-          loadFeatureQuotaSnapshot('ingredient-ocr', entitlement),
-          loadUserProfile(),
-          loadScanHistory(),
-          loadComparisonSession(),
-          loadProductChangeAlerts(),
-          loadEffectiveShoppingProfile(),
-          loadUsualBuyProducts(3),
-        ]);
+      ] = await Promise.all([
+        loadAdminAppConfig(),
+        loadSessionUserProfile(policy),
+        loadSessionScanHistory(policy),
+        loadSessionComparisonSession(policy),
+        loadSessionProductChangeAlerts(policy),
+        loadUsualBuyProducts(3),
+      ]);
+      const currentTimeMs = await getCanonicalNowMs();
 
       if (!isMounted) {
         return;
       }
 
-      setPremiumEntitlement(entitlement);
-      setOcrQuotaSnapshot(quotaSnapshot);
+      setAdminAnnouncement({
+        body: config.homeAnnouncementBody,
+        title: config.homeAnnouncementTitle,
+      });
+      setIsHistoryEnabled(config.enableHistory);
+      setIsIngredientOcrEnabled(config.enableIngredientOcr);
       setFavoriteCount(profile?.favoriteProductCodes?.length ?? 0);
       setProductChangeAlerts(changeAlerts);
-      setSelectedProfileId(effectiveShoppingProfile.dietProfileId);
-      setActiveShopperName(effectiveShoppingProfile.name);
-      setIsHouseholdProfileActive(effectiveShoppingProfile.usesHouseholdProfile);
       setShelfItemCount(comparisonSession.entries.length);
       const activeTripSummary =
         comparisonSession.entries.length > 0
@@ -157,7 +174,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
           return {
             id: item.code || item.barcode,
-            isFavorite: (profile?.favoriteProductCodes ?? []).includes(item.code || item.barcode),
+            isFavorite: profileFavoriteProductCodes.includes(item.code || item.barcode),
             name: item.name,
             score: matchingHistoryEntry?.score ?? null,
             summary:
@@ -169,8 +186,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         })
       );
       const historyOverview = buildHistoryOverview(historyEntries, {
-        includePremiumPatterns:
-          entitlement.isPremium && (profile?.historyInsightsEnabled ?? true),
+        currentTimeMs,
+        includePremiumPatterns: isPremium && (profile?.historyInsightsEnabled ?? true),
       });
       setHistoryInsights(historyOverview.insights);
       setRecentChanges(historyOverview.recentChanges.slice(0, 2));
@@ -179,27 +196,67 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         profile?.historyNotificationsEnabled
           ? buildHistoryNotifications(
               historyEntries,
-              profile.historyNotificationCadence ?? 'weekly'
+              profile.historyNotificationCadence ?? 'weekly',
+              currentTimeMs
             )
           : []
       );
     };
 
+    const refreshHomeState = async (policy: CachePolicy = 'cache-first') => {
+      const [entitlement, profile, effectiveShoppingProfile, comparisonSession] =
+        await Promise.all([
+          loadSessionPremiumEntitlement(policy),
+          loadSessionUserProfile(policy),
+          loadSessionEffectiveShoppingProfile(policy),
+          loadSessionComparisonSession(policy),
+        ]);
+      const quotaSnapshot = await loadFeatureQuotaSnapshot('ingredient-ocr', entitlement);
+
+      if (!isMounted) {
+        return;
+      }
+
+      setPremiumEntitlement(entitlement);
+      setOcrQuotaSnapshot(quotaSnapshot);
+      setFavoriteCount(profile?.favoriteProductCodes?.length ?? 0);
+      setSelectedProfileId(effectiveShoppingProfile.dietProfileId);
+      setActiveShopperName(effectiveShoppingProfile.name);
+      setIsHouseholdProfileActive(effectiveShoppingProfile.usesHouseholdProfile);
+      setShelfItemCount(comparisonSession.entries.length);
+      setComparisonSummary(
+        comparisonSession.entries.length > 0
+          ? buildShelfComparisonSummary(comparisonSession.entries).tripRecapLine
+          : null
+      );
+      setRecentTripSummary(comparisonSession.recentTrips[0]?.summary.recapLine ?? null);
+
+      secondaryInteractionHandle?.cancel();
+      secondaryInteractionHandle = InteractionManager.runAfterInteractions(() => {
+        void loadSecondaryHomeData(
+          policy,
+          entitlement.isPremium,
+          profile?.favoriteProductCodes ?? []
+        );
+      });
+    };
+
     const unsubscribe = subscribeAuthSession((session) => {
-      void refreshPremiumState();
+      void refreshHomeState('stale-while-revalidate');
     });
     const unsubscribePremium = subscribePremiumSession((entitlement) => {
       setPremiumEntitlement(entitlement);
-      void refreshPremiumState();
+      void refreshHomeState('stale-while-revalidate');
     });
     const unsubscribeHistory = subscribeScanHistoryChanges(() => {
-      void refreshPremiumState();
+      void refreshHomeState('stale-while-revalidate');
     });
 
-    void refreshPremiumState();
+    void refreshHomeState();
 
     return () => {
       isMounted = false;
+      secondaryInteractionHandle?.cancel();
       unsubscribe();
       unsubscribePremium();
       unsubscribeHistory();
@@ -211,7 +268,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
     const restoreProfile = async () => {
       const [effectiveShoppingProfile, hasSeenIntro] = await Promise.all([
-        loadEffectiveShoppingProfile(),
+        loadSessionEffectiveShoppingProfile('cache-first'),
         loadDietProfileIntroSeen(),
       ]);
 
@@ -233,29 +290,19 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    if (hasMeasuredFirstPaint) {
+      return;
+    }
 
-    const restoreAdminConfig = async () => {
-      const config = await loadAdminAppConfig();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setAdminAnnouncement({
-        body: config.homeAnnouncementBody,
-        title: config.homeAnnouncementTitle,
-      });
-      setIsHistoryEnabled(config.enableHistory);
-      setIsIngredientOcrEnabled(config.enableIngredientOcr);
-    };
-
-    void restoreAdminConfig();
+    const frameHandle = requestAnimationFrame(() => {
+      measurePerformanceTrace('app-start', 'home-first-paint');
+      setHasMeasuredFirstPaint(true);
+    });
 
     return () => {
-      isMounted = false;
+      cancelAnimationFrame(frameHandle);
     };
-  }, []);
+  }, [hasMeasuredFirstPaint]);
 
   const handleApplyProfile = async () => {
     setSelectedProfileId(draftProfileId);
@@ -305,22 +352,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               <Text style={styles.title}>Scan smarter</Text>
               <Text style={styles.subtitle}>Barcode or ingredients. Clear answer in seconds.</Text>
             </View>
-
-            {adminAnnouncement?.title || adminAnnouncement?.body ? (
-              <View style={styles.announcementCard}>
-                <Text style={styles.announcementLabel}>Announcement</Text>
-                {adminAnnouncement.title ? (
-                  <Text style={styles.announcementTitle}>
-                    {adminAnnouncement.title}
-                  </Text>
-                ) : null}
-                {adminAnnouncement.body ? (
-                  <Text style={styles.announcementText}>
-                    {adminAnnouncement.body}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
 
             <View style={styles.profileSummaryCard}>
               <Text style={styles.profileSummaryLabel}>Shopping For</Text>
@@ -380,67 +411,88 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
               </View>
             ) : null}
 
-            <UsualBuysCard
-              items={usualBuys}
-              onOpenHistory={() => openMainRoute('History')}
-              onOpenSearch={() => openMainRoute('Search')}
-            />
-            {shouldInsertHomeAdAfterUsualBuys ? (
-              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-            ) : null}
-
-            {isHistoryEnabled && historyInsights.length > 0 ? (
-              <HistoryInsightsCard colors={colors} insights={historyInsights} />
-            ) : null}
-            {shouldInsertHomeAdAfterInsights ? (
-              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-            ) : null}
-
-            {isHistoryEnabled && historyNotifications.length > 0 ? (
-              <HistoryNotificationsCard notifications={historyNotifications} />
-            ) : null}
-            {shouldInsertHomeAdAfterNotifications ? (
-              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-            ) : null}
-
-            {productChangeAlerts.length > 0 ? (
-              <ProductChangeAlertsCard
-                alerts={productChangeAlerts}
-                onOpenAlert={() => openMainRoute('History')}
-              />
-            ) : null}
-            {recentChanges.length > 0 ? (
-              <ProductTimelineCard entries={recentChanges} title="Recent changes" />
-            ) : null}
-            {shouldInsertHomeAdAfterAlerts ? (
-              <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-            ) : null}
-
-            {premiumEntitlement.isPremium && (favoriteCount > 0 || comparisonSummary) ? (
-              <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>Saved products</Text>
-                <Text style={styles.profileSummaryTitle}>
-                  {favoriteCount > 0
-                    ? `${favoriteCount} favorite${favoriteCount === 1 ? '' : 's'} saved`
-                    : 'Comparison ready'}
-                </Text>
-                {comparisonSummary ? (
-                  <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
+            <DeferredSection>
+              <>
+                {adminAnnouncement?.title || adminAnnouncement?.body ? (
+                  <View style={styles.announcementCard}>
+                    <Text style={styles.announcementLabel}>Announcement</Text>
+                    {adminAnnouncement.title ? (
+                      <Text style={styles.announcementTitle}>
+                        {adminAnnouncement.title}
+                      </Text>
+                    ) : null}
+                    {adminAnnouncement.body ? (
+                      <Text style={styles.announcementText}>
+                        {adminAnnouncement.body}
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : null}
-              </View>
-            ) : null}
 
-            {shelfItemCount > 0 ? (
-              <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>Shelf Mode</Text>
-                <Text style={styles.profileSummaryTitle}>
-                  {shelfItemCount} product{shelfItemCount === 1 ? '' : 's'} ready to compare
-                </Text>
-                {comparisonSummary ? (
-                  <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
+                <UsualBuysCard
+                  items={usualBuys}
+                  onOpenHistory={() => openMainRoute('History')}
+                  onOpenSearch={() => openMainRoute('Search')}
+                />
+                {shouldInsertHomeAdAfterUsualBuys ? (
+                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
                 ) : null}
-              </View>
-            ) : null}
+
+                {isHistoryEnabled && historyInsights.length > 0 ? (
+                  <HistoryInsightsCard colors={colors} insights={historyInsights} />
+                ) : null}
+                {shouldInsertHomeAdAfterInsights ? (
+                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
+                ) : null}
+
+                {isHistoryEnabled && historyNotifications.length > 0 ? (
+                  <HistoryNotificationsCard notifications={historyNotifications} />
+                ) : null}
+                {shouldInsertHomeAdAfterNotifications ? (
+                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
+                ) : null}
+
+                {productChangeAlerts.length > 0 ? (
+                  <ProductChangeAlertsCard
+                    alerts={productChangeAlerts}
+                    onOpenAlert={() => openMainRoute('History')}
+                  />
+                ) : null}
+                {recentChanges.length > 0 ? (
+                  <ProductTimelineCard entries={recentChanges} title="Recent changes" />
+                ) : null}
+                {shouldInsertHomeAdAfterAlerts ? (
+                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
+                ) : null}
+
+                {premiumEntitlement.isPremium &&
+                (favoriteCount > 0 || comparisonSummary) ? (
+                  <View style={styles.profileSummaryCard}>
+                    <Text style={styles.profileSummaryLabel}>Saved products</Text>
+                    <Text style={styles.profileSummaryTitle}>
+                      {favoriteCount > 0
+                        ? `${favoriteCount} favorite${favoriteCount === 1 ? '' : 's'} saved`
+                        : 'Comparison ready'}
+                    </Text>
+                    {comparisonSummary ? (
+                      <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {shelfItemCount > 0 ? (
+                  <View style={styles.profileSummaryCard}>
+                    <Text style={styles.profileSummaryLabel}>Shelf Mode</Text>
+                    <Text style={styles.profileSummaryTitle}>
+                      {shelfItemCount} product{shelfItemCount === 1 ? '' : 's'} ready to compare
+                    </Text>
+                    {comparisonSummary ? (
+                      <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
+                    ) : null}
+                  </View>
+                ) : null}
+              </>
+            </DeferredSection>
           </ScreenReveal>
         </ScrollView>
       </View>

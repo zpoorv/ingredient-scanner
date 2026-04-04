@@ -40,6 +40,7 @@ type RevenueCatPremiumState = {
   managementUrl: string | null;
   productIdentifier: string | null;
   updatedAt: string | null;
+  verification: 'failed' | 'not-requested' | 'verified';
 };
 
 let isRevenueCatConfigured = false;
@@ -170,13 +171,27 @@ export function getRevenueCatPremiumState(
 ): RevenueCatPremiumState {
   const activeEntitlement =
     customerInfo?.entitlements.active[REVENUECAT_ENTITLEMENT_ID] ?? null;
+  const verification = getRevenueCatVerificationState(customerInfo);
 
   return {
-    isActive: Boolean(activeEntitlement?.isActive),
+    isActive: Boolean(activeEntitlement?.isActive) && verification !== 'failed',
     managementUrl: customerInfo?.managementURL ?? null,
     productIdentifier: activeEntitlement?.productIdentifier ?? null,
     updatedAt: customerInfo?.requestDate ?? null,
+    verification,
   };
+}
+
+export function getRevenueCatVerificationState(customerInfo: CustomerInfo | null) {
+  switch (customerInfo?.entitlements.verification) {
+    case 'FAILED':
+      return 'failed' as const;
+    case 'VERIFIED':
+    case 'VERIFIED_ON_DEVICE':
+      return 'verified' as const;
+    default:
+      return 'not-requested' as const;
+  }
 }
 
 export function getActiveRevenueCatEntitlement(
@@ -201,6 +216,8 @@ export async function initializeRevenueCatForCurrentUser() {
       appUserID: currentUserId,
       // RevenueCat diagnostics are optional and can fail on restrictive DNS/network setups.
       diagnosticsEnabled: false,
+      entitlementVerificationMode:
+        Purchases.ENTITLEMENT_VERIFICATION_MODE.INFORMATIONAL,
     });
     await Purchases.setLogLevel(
       __DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.INFO

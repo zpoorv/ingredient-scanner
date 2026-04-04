@@ -7,6 +7,10 @@ import type {
   TripSessionSummary,
 } from '../models/comparisonSession';
 import { getAuthSession } from '../store';
+import {
+  primeSessionResourceCache,
+  SESSION_CACHE_KEYS,
+} from './sessionResourceCache';
 import { buildShelfComparisonSummary } from '../utils/shelfComparison';
 
 const STORAGE_KEY_PREFIX = 'inqoura/shelf-session/v2';
@@ -101,6 +105,7 @@ async function writeSession(input: Partial<ComparisonSession>) {
   };
 
   await AsyncStorage.setItem(getStorageKey(), JSON.stringify(nextSession));
+  primeSessionResourceCache(SESSION_CACHE_KEYS.comparisonSession, nextSession);
   return nextSession;
 }
 
@@ -109,13 +114,15 @@ export async function loadComparisonSession(): Promise<ComparisonSession> {
     const rawValue = await AsyncStorage.getItem(getStorageKey());
 
     if (!rawValue) {
-      return {
+      const emptySession = {
         entries: [],
         recentTrips: [],
         tripId: null,
         tripStartedAt: null,
         updatedAt: null,
       };
+      primeSessionResourceCache(SESSION_CACHE_KEYS.comparisonSession, emptySession);
+      return emptySession;
     }
 
     const parsedValue = JSON.parse(rawValue) as Partial<ComparisonSession>;
@@ -123,7 +130,7 @@ export async function loadComparisonSession(): Promise<ComparisonSession> {
       ? parsedValue.entries.filter(isValidEntry)
       : [];
 
-    return {
+    const nextSession = {
       entries: sortEntries(entries),
       recentTrips: normalizeRecentTrips(parsedValue.recentTrips),
       tripId: typeof parsedValue.tripId === 'string' ? parsedValue.tripId : null,
@@ -133,14 +140,18 @@ export async function loadComparisonSession(): Promise<ComparisonSession> {
           : null,
       updatedAt: typeof parsedValue.updatedAt === 'string' ? parsedValue.updatedAt : null,
     };
+    primeSessionResourceCache(SESSION_CACHE_KEYS.comparisonSession, nextSession);
+    return nextSession;
   } catch {
-    return {
+    const emptySession = {
       entries: [],
       recentTrips: [],
       tripId: null,
       tripStartedAt: null,
       updatedAt: null,
     };
+    primeSessionResourceCache(SESSION_CACHE_KEYS.comparisonSession, emptySession);
+    return emptySession;
   }
 }
 

@@ -12,10 +12,12 @@ export type PremiumFeatureId =
   | 'favorites-and-comparisons';
 
 export type PremiumEntitlementSource =
+  | 'admin-claim'
   | 'admin-role'
+  | 'premium-claim'
   | 'premium-role'
   | 'revenuecat-entitlement'
-  | 'profile-plan'
+  | 'verified-profile-plan'
   | 'none';
 
 export type PremiumEntitlement = {
@@ -63,7 +65,8 @@ export function buildPremiumEntitlement(
     managementUrl: string | null;
     productIdentifier: string | null;
     updatedAt: string | null;
-  } | null
+  } | null,
+  claimSource: 'admin-claim' | 'premium-claim' | null = null
 ): PremiumEntitlement {
   if (!profile) {
     return createDefaultPremiumEntitlement();
@@ -83,14 +86,18 @@ export function buildPremiumEntitlement(
     managementUrl: billingState?.managementUrl ?? null,
     plan: profile.plan,
     role: profile.role,
-    source: isAdmin
+    source: claimSource === 'admin-claim'
+      ? 'admin-claim'
+      : claimSource === 'premium-claim'
+        ? 'premium-claim'
+      : isAdmin
       ? 'admin-role'
       : hasPremiumRole
         ? 'premium-role'
         : hasRevenueCatEntitlement
           ? 'revenuecat-entitlement'
         : hasPremiumPlan
-          ? 'profile-plan'
+          ? 'verified-profile-plan'
           : 'none',
     status: isPremium ? 'active' : 'inactive',
     updatedAt: billingState?.updatedAt ?? profile.updatedAt,

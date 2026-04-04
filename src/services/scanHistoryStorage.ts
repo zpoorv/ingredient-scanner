@@ -25,6 +25,12 @@ import {
 } from './cloudUserDataService';
 import { rememberCommonProduct } from './commonProductStorage';
 import { recordProductChangeAlert } from './productChangeAlertService';
+import {
+  invalidateSessionResourceCache,
+  primeSessionResourceCache,
+  SESSION_CACHE_KEYS,
+} from './sessionResourceCache';
+import { getCanonicalIsoNow } from './timeIntegrityService';
 
 const LEGACY_SCAN_HISTORY_STORAGE_KEY = 'ingredient-scanner/history/v1';
 const SCAN_HISTORY_STORAGE_KEY_PREFIX = 'inqoura/history/v2';
@@ -63,12 +69,12 @@ function sortHistoryEntries(entries: ScanHistoryEntry[]) {
 
 function toHistoryEntry(
   input: SaveScanHistoryInput,
+  scannedAt: string,
   existingEntry?: ScanHistoryEntry
 ): ScanHistoryEntry {
   const profileId =
     input.profileId || existingEntry?.profileId || DEFAULT_DIET_PROFILE_ID;
   const snapshot = buildScanHistorySnapshot(input.product, profileId);
-  const scannedAt = new Date().toISOString();
 
   return {
     barcode: input.barcode,
@@ -234,6 +240,7 @@ export async function loadScanHistory(): Promise<ScanHistoryEntry[]> {
   const sessionUser = getAuthSession().user;
 
   if (!sessionUser) {
+    primeSessionResourceCache(SESSION_CACHE_KEYS.scanHistory, localEntries);
     return localEntries;
   }
 
@@ -244,6 +251,7 @@ export async function loadScanHistory(): Promise<ScanHistoryEntry[]> {
       await replaceRemoteScanHistory(sessionUser.id, localEntries);
     }
 
+    primeSessionResourceCache(SESSION_CACHE_KEYS.scanHistory, localEntries);
     return localEntries;
   }
 
@@ -253,6 +261,7 @@ export async function loadScanHistory(): Promise<ScanHistoryEntry[]> {
     await writeHistoryForScope(historyScopeId, mergedEntries);
   }
 
+  primeSessionResourceCache(SESSION_CACHE_KEYS.scanHistory, mergedEntries);
   return mergedEntries;
 }
 
@@ -260,10 +269,11 @@ export async function saveScanToHistory(
   input: SaveScanHistoryInput
 ): Promise<ScanHistoryEntry> {
   const historyEntries = await loadScanHistory();
+  const scannedAt = await getCanonicalIsoNow();
   const existingEntry = historyEntries.find(
     (entry) => entry.barcode === input.barcode
   );
-  const nextEntry = toHistoryEntry(input, existingEntry);
+  const nextEntry = toHistoryEntry(input, scannedAt, existingEntry);
   const timelineEntry = existingEntry
     ? buildProductTimelineEntry(existingEntry, nextEntry)
     : null;
@@ -290,6 +300,7 @@ export async function saveScanToHistory(
   }
 
   notifyHistoryChangeListeners();
+  primeSessionResourceCache(SESSION_CACHE_KEYS.scanHistory, nextEntries);
 
   return nextEntry;
 }
@@ -310,6 +321,7 @@ export async function deleteScanHistoryEntries(ids: string[]) {
   }
 
   notifyHistoryChangeListeners();
+  primeSessionResourceCache(SESSION_CACHE_KEYS.scanHistory, nextEntries);
 
   return nextEntries;
 }
@@ -329,6 +341,7 @@ export async function clearScanHistoryForUser(uid?: string | null) {
     await replaceRemoteScanHistory(targetUid, []);
   }
 
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.scanHistory);
   notifyHistoryChangeListeners();
 }
 

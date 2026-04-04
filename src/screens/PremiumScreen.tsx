@@ -21,7 +21,6 @@ import {
 } from '../constants/premium';
 import type { PremiumEntitlement } from '../models/premium';
 import type { RootStackParamList } from '../navigation/types';
-import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import type { RevenueCatPackageOption } from '../services/revenueCatService';
 import {
   getRevenueCatErrorMessage,
@@ -37,6 +36,7 @@ import {
   purchaseRevenueCatPackage,
   restoreRevenueCatPurchases,
 } from '../services/revenueCatService';
+import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 
@@ -68,7 +68,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   const loadPremiumState = useCallback(async () => {
     const latestCustomerInfo = await loadRevenueCatCustomerInfo();
     const [latestEntitlement, latestOffering] = await Promise.all([
-      loadCurrentPremiumEntitlement(),
+      loadSessionPremiumEntitlement('stale-while-revalidate'),
       loadRevenueCatOfferings(),
     ]);
     const nextPackageOptions = await loadRevenueCatPackageOptions(

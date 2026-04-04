@@ -26,12 +26,26 @@ import SignUpScreen from '../screens/SignUpScreen';
 import { hydrateAuthSession } from '../services/authService';
 import { AuthServiceError } from '../services/authHelpers';
 import {
+  getCachedAppBootstrapSnapshot,
+  loadAppBootstrapSnapshot,
+} from '../services/appBootstrapSnapshotService';
+import {
   canHandleEmailLink,
   completeEmailLinkSignIn,
 } from '../services/emailLinkAuthService';
 import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
+import {
+  markPerformanceTrace,
+  measurePerformanceTrace,
+} from '../services/performanceTrace';
 import { refreshCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
-import { clearPremiumSession, getAuthSession, subscribeAuthSession } from '../store';
+import { clearSessionResourceCache } from '../services/sessionResourceCache';
+import {
+  clearPremiumSession,
+  getAuthSession,
+  setAuthSession,
+  subscribeAuthSession,
+} from '../store';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -53,17 +67,6 @@ const HelpScreen = lazy(loadHelpScreen);
 const PrivacyPolicyScreen = lazy(loadPrivacyPolicyScreen);
 const AboutScreen = lazy(loadAboutScreen);
 const FeedbackScreen = lazy(loadFeedbackScreen);
-
-const AUTHENTICATED_SCREEN_LOADERS = [
-  loadPremiumScreen,
-  loadProfileDetailsScreen,
-  loadShelfModeScreen,
-  loadIngredientOcrScreen,
-  loadHelpScreen,
-  loadPrivacyPolicyScreen,
-  loadAboutScreen,
-  loadFeedbackScreen,
-];
 
 const BOTTOM_BAR_ROUTES = new Set<keyof RootStackParamList>([
   'Home',
@@ -91,10 +94,15 @@ const PREMIUM_ICON_ROUTES = new Set<keyof RootStackParamList>([
 ]);
 
 export default function RootNavigator() {
-  const [authSession, setAuthSession] = useState(getAuthSession());
+  const initialBootstrapSnapshot = getCachedAppBootstrapSnapshot();
+  const [authSession, setAuthSessionState] = useState(
+    initialBootstrapSnapshot?.authSession ?? getAuthSession()
+  );
   const [currentRouteName, setCurrentRouteName] =
     useState<keyof RootStackParamList | null>(null);
   const [isHandlingEmailLink, setIsHandlingEmailLink] = useState(false);
+  const [hasNavigationReady, setHasNavigationReady] = useState(false);
+  const [hasQueuedAuthHydration, setHasQueuedAuthHydration] = useState(false);
   const { colors, typography } = useAppTheme();
   const currentUserId = authSession.user?.id ?? null;
   const isAuthenticated = authSession.status === 'authenticated';
@@ -118,39 +126,72 @@ export default function RootNavigator() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribeAuthSession(setAuthSession);
-    void hydrateAuthSession();
+    let isMounted = true;
+    const unsubscribe = subscribeAuthSession((nextSession) => {
+      setAuthSessionState(nextSession);
+    });
 
-    return unsubscribe;
-  }, []);
+    if (initialBootstrapSnapshot && getAuthSession().status === 'loading') {
+      setAuthSession(initialBootstrapSnapshot.authSession);
+    }
+
+    if (getAuthSession().status === 'loading') {
+      void loadAppBootstrapSnapshot()
+        .then((snapshot) => {
+          if (!isMounted || getAuthSession().status !== 'loading') {
+            return;
+          }
+
+          setAuthSession(snapshot.authSession);
+        })
+        .catch(() => {
+          if (isMounted && getAuthSession().status === 'loading') {
+            setAuthSession({ status: 'guest', user: null });
+          }
+        });
+    }
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [initialBootstrapSnapshot]);
 
   useEffect(() => {
-    if (authSession.status === 'authenticated' && currentUserId) {
-      void refreshCurrentPremiumEntitlement();
+    if (!hasNavigationReady || hasQueuedAuthHydration) {
       return;
     }
 
-    clearPremiumSession();
-  }, [authSession.status, currentUserId]);
-
-  useEffect(() => {
-    flushPendingHistoryNavigation(isAuthenticated);
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
+    setHasQueuedAuthHydration(true);
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      void Promise.allSettled(
-        AUTHENTICATED_SCREEN_LOADERS.map((loadScreen) => loadScreen())
-      );
+      void hydrateAuthSession().catch(() => null);
     });
 
     return () => {
       interactionHandle.cancel();
     };
+  }, [hasNavigationReady, hasQueuedAuthHydration]);
+
+  useEffect(() => {
+    clearSessionResourceCache();
+
+    if (authSession.status === 'authenticated' && currentUserId && hasNavigationReady) {
+      const interactionHandle = InteractionManager.runAfterInteractions(() => {
+        void refreshCurrentPremiumEntitlement();
+      });
+
+      return () => {
+        interactionHandle.cancel();
+      };
+    }
+
+    if (authSession.status !== 'loading') {
+      clearPremiumSession();
+    }
+  }, [authSession.status, currentUserId, hasNavigationReady]);
+
+  useEffect(() => {
+    flushPendingHistoryNavigation(isAuthenticated);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -239,11 +280,18 @@ export default function RootNavigator() {
     <Suspense fallback={<AuthBootstrapScreen />}>
       <NavigationContainer
         onReady={() => {
+          setHasNavigationReady(true);
           syncCurrentRoute();
           flushPendingHistoryNavigation(isAuthenticated);
+          measurePerformanceTrace('app-start', 'route-ready');
         }}
         onStateChange={() => {
           syncCurrentRoute();
+          const nextRouteName = rootNavigationRef.getCurrentRoute()?.name;
+
+          if (nextRouteName === 'Scanner') {
+            markPerformanceTrace('scanner-open');
+          }
         }}
         ref={rootNavigationRef}
         theme={navigationTheme}

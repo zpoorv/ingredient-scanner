@@ -3,6 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage/lib/commonjs
 import type { ProductChangeAlert } from '../models/productChangeAlert';
 import type { ScanHistoryEntry } from './scanHistoryStorage';
 import { getAuthSession } from '../store';
+import {
+  invalidateSessionResourceCache,
+  primeSessionResourceCache,
+  SESSION_CACHE_KEYS,
+} from './sessionResourceCache';
 import { buildProductTimelineEntry } from '../utils/productTimeline';
 
 const PRODUCT_CHANGE_ALERT_STORAGE_KEY_PREFIX = 'inqoura/product-change-alerts/v1';
@@ -67,7 +72,9 @@ async function saveAlertsForScope(scopeId: string, alerts: ProductChangeAlert[])
 }
 
 export async function loadProductChangeAlerts() {
-  return loadAlertsForScope(getActiveScopeId());
+  const alerts = await loadAlertsForScope(getActiveScopeId());
+  primeSessionResourceCache(SESSION_CACHE_KEYS.productChangeAlerts, alerts);
+  return alerts;
 }
 
 export async function recordProductChangeAlert(
@@ -94,9 +101,11 @@ export async function recordProductChangeAlert(
   };
 
   await saveAlertsForScope(scopeId, [alert, ...alerts]);
+  primeSessionResourceCache(SESSION_CACHE_KEYS.productChangeAlerts, [alert, ...alerts]);
   return alert;
 }
 
 export async function clearProductChangeAlertsForUser(uid?: string | null) {
   await AsyncStorage.removeItem(getStorageKey(getAlertScopeId(uid)));
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.productChangeAlerts);
 }

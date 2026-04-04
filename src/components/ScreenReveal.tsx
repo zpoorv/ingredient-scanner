@@ -12,20 +12,20 @@ export default function ScreenReveal({
   style,
 }: ScreenRevealProps) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(6)).current;
+  const translateY = useRef(new Animated.Value(3)).current;
 
   useEffect(() => {
     const animation = Animated.parallel([
       Animated.timing(opacity, {
         delay: delayMs,
-        duration: 140,
+        duration: 90,
         easing: Easing.out(Easing.cubic),
         toValue: 1,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         delay: delayMs,
-        duration: 160,
+        duration: 110,
         easing: Easing.out(Easing.cubic),
         toValue: 0,
         useNativeDriver: true,

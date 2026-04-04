@@ -1,20 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import * as NavigationBar from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
-import { AppState, LogBox, Platform } from 'react-native';
+import { AppState, InteractionManager, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppThemeProvider, { useAppTheme } from './components/AppThemeProvider';
 import { queueHistoryNavigation } from './navigation/navigationRef';
 import RootNavigator from './navigation/RootNavigator';
+import { loadAppBootstrapSnapshot } from './services/appBootstrapSnapshotService';
 import { startHistoryNotificationRuntime } from './services/historyNotificationRuntime';
+import { markPerformanceTrace } from './services/performanceTrace';
 import { startRevenueCatRuntime } from './services/revenueCatRuntime';
+import { getAuthSession, subscribeAuthSession } from './store';
 
 LogBox.ignoreLogs([
   '[RevenueCat] 😿‼️ Error fetching offerings',
   '[RevenueCat] 😿‼️ PurchasesError(code=NetworkError',
 ]);
+markPerformanceTrace('app-start');
+void loadAppBootstrapSnapshot().catch(() => null);
 
 export default function App() {
   return (
@@ -30,6 +35,8 @@ export default function App() {
 
 function AppShell() {
   const { appearanceMode } = useAppTheme();
+  const [authSession, setAuthSession] = useState(getAuthSession());
+  const [hasCompletedFirstPaint, setHasCompletedFirstPaint] = useState(false);
 
   useEffect(() => {
     const applySystemChrome = async () => {
@@ -65,14 +72,48 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    return startHistoryNotificationRuntime({
-      onOpenHistory: queueHistoryNavigation,
-    });
+    const unsubscribe = subscribeAuthSession(setAuthSession);
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
-    return startRevenueCatRuntime();
+    const frameHandle = requestAnimationFrame(() => {
+      setHasCompletedFirstPaint(true);
+    });
+
+    return () => {
+      cancelAnimationFrame(frameHandle);
+    };
   }, []);
+
+  useEffect(() => {
+    if (authSession.status !== 'authenticated' || !hasCompletedFirstPaint) {
+      return;
+    }
+
+    let historyCleanup: (() => void) | null = null;
+    let revenueCatCleanup: (() => void) | null = null;
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      historyCleanup = startHistoryNotificationRuntime({
+        onOpenHistory: queueHistoryNavigation,
+      });
+      revenueCatCleanup = startRevenueCatRuntime();
+    });
+
+    return () => {
+      interactionHandle.cancel();
+      historyCleanup?.();
+      revenueCatCleanup?.();
+    };
+  }, [authSession.status, authSession.user?.id, hasCompletedFirstPaint]);
+
+  useEffect(() => {
+    if (authSession.status !== 'authenticated') {
+      return;
+    }
+
+    markPerformanceTrace('app-authenticated-shell');
+  }, [authSession.status]);
 
   return (
     <>

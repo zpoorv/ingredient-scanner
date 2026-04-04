@@ -44,6 +44,7 @@ export type HistoryOverview = {
 };
 
 type BuildHistoryInsightsOptions = {
+  currentTimeMs?: number;
   includePremiumPatterns?: boolean;
 };
 
@@ -110,8 +111,11 @@ function buildBasicInsights(historyEntries: ScanHistoryEntry[]) {
   return insights;
 }
 
-function buildPremiumPatternInsights(historyEntries: ScanHistoryEntry[]) {
-  const weekStart = getStartOfWeek();
+function buildPremiumPatternInsights(
+  historyEntries: ScanHistoryEntry[],
+  currentTimeMs = Date.now()
+) {
+  const weekStart = getStartOfWeek(new Date(currentTimeMs));
   const weeklyEntries = historyEntries.filter(
     (entry) => new Date(entry.scannedAt).getTime() >= weekStart.getTime()
   );
@@ -191,13 +195,14 @@ function buildPremiumPatternInsights(historyEntries: ScanHistoryEntry[]) {
 
 export function buildHistoryNotifications(
   historyEntries: ScanHistoryEntry[],
-  cadence: 'smart' | 'weekly' = 'weekly'
+  cadence: 'smart' | 'weekly' = 'weekly',
+  currentTimeMs = Date.now()
 ) {
   if (historyEntries.length === 0) {
     return [] as HistoryNotification[];
   }
 
-  const weekStart = getStartOfWeek();
+  const weekStart = getStartOfWeek(new Date(currentTimeMs));
   const weeklyEntries = historyEntries.filter(
     (entry) => new Date(entry.scannedAt).getTime() >= weekStart.getTime()
   );
@@ -278,7 +283,7 @@ export function buildHistoryInsights(
     return basicInsights.slice(0, 3);
   }
 
-  return [...basicInsights, ...buildPremiumPatternInsights(historyEntries)].slice(
+  return [...basicInsights, ...buildPremiumPatternInsights(historyEntries, options.currentTimeMs)].slice(
     0,
     4
   );
@@ -309,8 +314,11 @@ export function buildReplacementCandidates(historyEntries: ScanHistoryEntry[]) {
     }));
 }
 
-export function buildWeeklyTrend(historyEntries: ScanHistoryEntry[]): HistoryTrend {
-  const weekStart = getStartOfWeek();
+export function buildWeeklyTrend(
+  historyEntries: ScanHistoryEntry[],
+  currentTimeMs = Date.now()
+): HistoryTrend {
+  const weekStart = getStartOfWeek(new Date(currentTimeMs));
   const weeklyEntries = historyEntries.filter(
     (entry) => new Date(entry.scannedAt).getTime() >= weekStart.getTime()
   );
@@ -342,11 +350,15 @@ export function buildHistoryOverview(
 
   return {
     insights: buildHistoryInsights(historyEntries, options),
-    notifications: buildHistoryNotifications(historyEntries, 'weekly'),
+    notifications: buildHistoryNotifications(
+      historyEntries,
+      'weekly',
+      options.currentTimeMs
+    ),
     recentChanges: buildRecentTimelineEntries(historyEntries),
     replaceFirstCandidate: replacementCandidates[0] ?? null,
     repeatBuyCandidates: buildRepeatBuyCandidates(historyEntries),
     replacementCandidates,
-    weeklyTrend: buildWeeklyTrend(historyEntries),
+    weeklyTrend: buildWeeklyTrend(historyEntries, options.currentTimeMs),
   };
 }

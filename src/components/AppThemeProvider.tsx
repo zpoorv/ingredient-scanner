@@ -10,7 +10,10 @@ import {
 import { getThemeColors, getThemeTypography, type AppTypography } from '../constants/theme';
 import type { AppearanceMode, AppLookId } from '../models/preferences';
 import { subscribeAuthSession } from '../store';
-import { loadStoredAuthSessionUser } from '../services/authStorage';
+import {
+  getCachedAppBootstrapSnapshot,
+  loadAppBootstrapSnapshot,
+} from '../services/appBootstrapSnapshotService';
 import {
   loadAppLookIdForUser,
   saveAppLookId,
@@ -34,9 +37,13 @@ type AppThemeContextValue = {
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
 
 export default function AppThemeProvider({ children }: PropsWithChildren) {
-  const [appearanceMode, setAppearanceModeState] = useState<AppearanceMode>('light');
-  const [appLookId, setAppLookIdState] = useState<AppLookId>('classic');
-  const [isReady, setIsReady] = useState(false);
+  const bootstrapSnapshot = getCachedAppBootstrapSnapshot();
+  const [appearanceMode, setAppearanceModeState] = useState<AppearanceMode>(
+    bootstrapSnapshot?.appearanceMode ?? 'light'
+  );
+  const [appLookId, setAppLookIdState] = useState<AppLookId>(
+    bootstrapSnapshot?.appLookId ?? 'classic'
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -44,19 +51,14 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
 
     const restoreAppearanceMode = async ({
       shouldSyncRemote,
-      useStoredFallback,
       userId,
     }: {
       shouldSyncRemote: boolean;
-      useStoredFallback: boolean;
       userId?: string | null;
     }) => {
       requestId += 1;
       const currentRequestId = requestId;
-      const fallbackUserId = useStoredFallback
-        ? (await loadStoredAuthSessionUser())?.id ?? null
-        : null;
-      const resolvedUserId = userId ?? fallbackUserId;
+      const resolvedUserId = userId ?? null;
       const [localMode, localAppLookId] = await Promise.all([
         loadAppearanceModeForUser(resolvedUserId),
         loadAppLookIdForUser(resolvedUserId),
@@ -65,7 +67,6 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
       if (isMounted && currentRequestId === requestId) {
         setAppearanceModeState(localMode);
         setAppLookIdState(localAppLookId);
-        setIsReady(true);
       }
 
       if (!shouldSyncRemote) {
@@ -83,15 +84,29 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
       }
     };
 
-    void restoreAppearanceMode({
-      shouldSyncRemote: false,
-      useStoredFallback: true,
-      userId: null,
-    });
+    void loadAppBootstrapSnapshot()
+      .then((snapshot) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setAppearanceModeState(snapshot.appearanceMode);
+        setAppLookIdState(snapshot.appLookId);
+
+        return restoreAppearanceMode({
+          shouldSyncRemote: false,
+          userId: snapshot.authSession.user?.id ?? null,
+        });
+      })
+      .catch(() => {
+        void restoreAppearanceMode({
+          shouldSyncRemote: false,
+          userId: null,
+        });
+      });
     const unsubscribe = subscribeAuthSession((session) => {
       void restoreAppearanceMode({
         shouldSyncRemote: session.status === 'authenticated',
-        useStoredFallback: false,
         userId: session.user?.id ?? null,
       });
     });
@@ -119,10 +134,6 @@ export default function AppThemeProvider({ children }: PropsWithChildren) {
     }),
     [appLookId, appearanceMode]
   );
-
-  if (!isReady) {
-    return null;
-  }
 
   return (
     <AppThemeContext.Provider value={value}>{children}</AppThemeContext.Provider>

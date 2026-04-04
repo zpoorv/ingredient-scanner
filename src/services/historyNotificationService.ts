@@ -15,6 +15,7 @@ import { getAuthSession } from '../store';
 import { buildHistoryNotifications } from '../utils/historyPersonalization';
 import type { ScanHistoryEntry } from './scanHistoryStorage';
 import { loadScanHistory } from './scanHistoryStorage';
+import { getCanonicalIsoNow, getCanonicalNowMs } from './timeIntegrityService';
 import { loadUserProfile } from './userProfileService';
 
 const HISTORY_NOTIFICATION_CHANNEL_ID = 'history-insights';
@@ -40,8 +41,8 @@ const EMPTY_SCHEDULE_STATE: HistoryNotificationScheduleState = {
 let isNotificationHandlerConfigured = false;
 let lastHandledNotificationResponseId: string | null = null;
 
-function getRecentHistoryEntries(historyEntries: ScanHistoryEntry[]) {
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+function getRecentHistoryEntries(historyEntries: ScanHistoryEntry[], currentTimeMs: number) {
+  const sevenDaysAgo = currentTimeMs - 7 * 24 * 60 * 60 * 1000;
 
   return historyEntries.filter(
     (entry) => new Date(entry.scannedAt).getTime() >= sevenDaysAgo
@@ -56,26 +57,26 @@ function getHistoryNotificationScopeId(uid?: string | null) {
   return uid ? `user:${uid}` : 'guest';
 }
 
-function getNextSundayEvening() {
-  const nextDate = new Date();
+function getNextSundayEvening(currentTimeMs: number) {
+  const nextDate = new Date(currentTimeMs);
   nextDate.setHours(19, 0, 0, 0);
 
   const day = nextDate.getDay();
   const daysUntilSunday = (7 - day) % 7;
   nextDate.setDate(nextDate.getDate() + daysUntilSunday);
 
-  if (nextDate.getTime() <= Date.now()) {
+  if (nextDate.getTime() <= currentTimeMs) {
     nextDate.setDate(nextDate.getDate() + 7);
   }
 
   return nextDate;
 }
 
-function getNextSmartNudgeTime() {
-  const nextDate = new Date();
+function getNextSmartNudgeTime(currentTimeMs: number) {
+  const nextDate = new Date(currentTimeMs);
   nextDate.setHours(18, 0, 0, 0);
 
-  if (nextDate.getTime() <= Date.now()) {
+  if (nextDate.getTime() <= currentTimeMs) {
     nextDate.setDate(nextDate.getDate() + 1);
   }
 
@@ -117,19 +118,24 @@ function resolvePermissionState(
 }
 
 function buildWeeklyNotification(
-  historyEntries: ScanHistoryEntry[]
+  historyEntries: ScanHistoryEntry[],
+  currentTimeMs: number
 ): ScheduledHistoryNotification | null {
-  if (getRecentHistoryEntries(historyEntries).length < 2) {
+  if (getRecentHistoryEntries(historyEntries, currentTimeMs).length < 2) {
     return null;
   }
 
-  const strongestSignal = buildHistoryNotifications(historyEntries, 'weekly')[0];
+  const strongestSignal = buildHistoryNotifications(
+    historyEntries,
+    'weekly',
+    currentTimeMs
+  )[0];
 
   if (!strongestSignal) {
     return null;
   }
 
-  const scheduledAt = getNextSundayEvening();
+  const scheduledAt = getNextSundayEvening(currentTimeMs);
   const sourceId = strongestSignal.id;
 
   return {
@@ -143,19 +149,24 @@ function buildWeeklyNotification(
 }
 
 function buildSmartNotification(
-  historyEntries: ScanHistoryEntry[]
+  historyEntries: ScanHistoryEntry[],
+  currentTimeMs: number
 ): ScheduledHistoryNotification | null {
-  if (getRecentHistoryEntries(historyEntries).length < 3) {
+  if (getRecentHistoryEntries(historyEntries, currentTimeMs).length < 3) {
     return null;
   }
 
-  const strongestSignal = buildHistoryNotifications(historyEntries, 'smart')[0];
+  const strongestSignal = buildHistoryNotifications(
+    historyEntries,
+    'smart',
+    currentTimeMs
+  )[0];
 
   if (!strongestSignal) {
     return null;
   }
 
-  const scheduledAt = getNextSmartNudgeTime();
+  const scheduledAt = getNextSmartNudgeTime(currentTimeMs);
 
   return {
     body: strongestSignal.body,
@@ -169,11 +180,12 @@ function buildSmartNotification(
 
 function buildScheduledNotification(
   historyEntries: ScanHistoryEntry[],
-  cadence: HistoryNotificationCadence
+  cadence: HistoryNotificationCadence,
+  currentTimeMs: number
 ) {
   return cadence === 'smart'
-    ? buildSmartNotification(historyEntries)
-    : buildWeeklyNotification(historyEntries);
+    ? buildSmartNotification(historyEntries, currentTimeMs)
+    : buildWeeklyNotification(historyEntries, currentTimeMs);
 }
 
 async function cancelScheduledNotification(notificationId: string | null) {
@@ -300,11 +312,13 @@ export async function syncHistoryNotificationsForCurrentUser() {
   }
 
   const historyEntries = await loadScanHistory();
+  const currentTimeMs = await getCanonicalNowMs();
   const scopeId = getHistoryNotificationScopeId(sessionUser.id);
   const currentState = await loadScheduleState(scopeId);
   const nextNotification = buildScheduledNotification(
     historyEntries,
-    profile.historyNotificationCadence
+    profile.historyNotificationCadence,
+    currentTimeMs
   );
 
   if (!nextNotification) {
@@ -316,7 +330,7 @@ export async function syncHistoryNotificationsForCurrentUser() {
     await saveScheduleState(scopeId, {
       ...currentState,
       cadence: profile.historyNotificationCadence,
-      lastSyncAt: new Date().toISOString(),
+      lastSyncAt: await getCanonicalIsoNow(),
     });
     return;
   }
@@ -341,7 +355,7 @@ export async function syncHistoryNotificationsForCurrentUser() {
     cadence: profile.historyNotificationCadence,
     currentFingerprint: nextNotification.fingerprint,
     currentNotificationId: notificationId,
-    lastSyncAt: new Date().toISOString(),
+    lastSyncAt: await getCanonicalIsoNow(),
     scheduledAt: nextNotification.scheduledAt.toISOString(),
   });
 }

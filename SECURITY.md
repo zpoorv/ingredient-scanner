@@ -24,3 +24,9 @@ We will review reports as quickly as possible and coordinate a fix before public
 ## Scope Notes
 
 Inqoura relies on Firebase, Google Play Billing / RevenueCat, and AdMob. If a report is clearly caused by one of those platforms, please still send it so we can confirm impact and route it correctly.
+
+Operational hardening notes for maintainers live in:
+
+- `SECURITY_HARDENING.md`
+- `PLAY_INTEGRITY_PLAN.md`
+- `FIREBASE_GITHUB_SECURITY_CHECKLIST.md`

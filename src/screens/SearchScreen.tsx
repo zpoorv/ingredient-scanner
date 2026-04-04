@@ -1,4 +1,11 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,14 +18,16 @@ import type { DietProfileId } from '../constants/dietProfiles';
 import type { PremiumEntitlement } from '../models/premium';
 import type { UserProfile } from '../models/userProfile';
 import type { RootStackParamList } from '../navigation/types';
-import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
-import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
 import {
   browseSearchProducts,
   searchProducts,
   type ProductSearchResult,
 } from '../services/productSearchService';
-import { loadUserProfile } from '../services/userProfileService';
+import {
+  loadSessionEffectiveShoppingProfile,
+  loadSessionPremiumEntitlement,
+  loadSessionUserProfile,
+} from '../services/sessionDataService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import {
   buildHouseholdFitResult,
@@ -46,14 +55,15 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     getPremiumSession()
   );
   const deferredQuery = useDeferredValue(query);
+  const latestRequestIdRef = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
 
     const restoreProfile = async () => {
       const [effectiveProfile, profile] = await Promise.all([
-        loadEffectiveShoppingProfile(),
-        loadUserProfile(),
+        loadSessionEffectiveShoppingProfile('stale-while-revalidate'),
+        loadSessionUserProfile('stale-while-revalidate'),
       ]);
 
       if (isMounted) {
@@ -72,7 +82,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   useEffect(() => {
     let isMounted = true;
 
-    void loadCurrentPremiumEntitlement().then((entitlement) => {
+    void loadSessionPremiumEntitlement('stale-while-revalidate').then((entitlement) => {
       if (isMounted) {
         setPremiumEntitlement(entitlement);
       }
@@ -90,22 +100,40 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     };
   }, []);
 
-  const loadResults = useCallback(async (nextQuery: string) => {
+  const loadResults = useCallback(async (nextQuery: string, requestId: number) => {
     setIsLoading(true);
 
     try {
       const nextResults = nextQuery.trim()
         ? await searchProducts(nextQuery)
         : await browseSearchProducts();
+
+      if (latestRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setResults(nextResults);
       setHasLoadedOnce(true);
     } finally {
-      setIsLoading(false);
+      if (latestRequestIdRef.current === requestId) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    void loadResults(deferredQuery);
+    const requestId = latestRequestIdRef.current + 1;
+    latestRequestIdRef.current = requestId;
+    const debounceMs = deferredQuery.trim() ? 180 : 0;
+
+    setIsLoading(true);
+    const timeoutId = setTimeout(() => {
+      void loadResults(deferredQuery, requestId);
+    }, debounceMs);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [deferredQuery, loadResults]);
 
   const rankedResults = useMemo(() => {

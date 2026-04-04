@@ -15,7 +15,7 @@ import {
   loadComparisonSession,
   removeComparisonSessionEntry,
 } from '../services/comparisonSessionStorage';
-import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
+import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { buildShelfComparisonSummary } from '../utils/shelfComparison';
 
 type ShelfModeScreenProps = NativeStackScreenProps<RootStackParamList, 'ShelfMode'>;
@@ -79,7 +79,7 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
       const restoreSession = async () => {
         const [session, entitlement] = await Promise.all([
           loadComparisonSession(),
-          loadCurrentPremiumEntitlement(),
+          loadSessionPremiumEntitlement('stale-while-revalidate'),
         ]);
 
         if (!isMounted) {

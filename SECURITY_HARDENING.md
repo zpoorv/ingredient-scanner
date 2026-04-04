@@ -32,3 +32,8 @@ Why this matters:
 - A rebuilt clone should not be able to write admin data.
 - A cloned client should not be trusted just because it knows your public Firebase config.
 - Public Firebase config is normal. Security must come from rules, claims, App Check, and project separation.
+
+Additional repo docs:
+
+- `PLAY_INTEGRITY_PLAN.md`
+- `FIREBASE_GITHUB_SECURITY_CHECKLIST.md`

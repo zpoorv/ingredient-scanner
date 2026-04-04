@@ -58,12 +58,16 @@ import {
   loadFeatureQuotaSnapshot,
   type FeatureQuotaSnapshot,
 } from '../services/featureUsageStorage';
-import { loadEffectiveShoppingProfile } from '../services/householdProfilesService';
 import {
   hasPremiumFeatureAccess,
-  loadCurrentPremiumEntitlement,
 } from '../services/premiumEntitlementService';
 import { saveScanToHistory } from '../services/scanHistoryStorage';
+import {
+  loadSessionEffectiveShoppingProfile,
+  loadSessionPremiumEntitlement,
+  loadSessionScanHistory,
+  loadSessionUserProfile,
+} from '../services/sessionDataService';
 import {
   saveShareCardStyleId,
   syncShareCardStyleForCurrentUser,
@@ -73,16 +77,18 @@ import {
   recordProductTrustConfirmation,
   type ProductTrustConfirmation,
 } from '../services/productTrustConfirmationStorage';
-import { loadUserProfile } from '../services/userProfileService';
 import {
   loadCommonProductByBarcode,
 } from '../services/commonProductStorage';
 import {
-  loadScanHistory,
   subscribeScanHistoryChanges,
   type ScanHistoryEntry,
 } from '../services/scanHistoryStorage';
 import { getPremiumSession, subscribePremiumSession } from '../store';
+import {
+  markPerformanceTrace,
+  measurePerformanceTrace,
+} from '../services/performanceTrace';
 import { getRestrictionDefinition } from '../constants/restrictions';
 import {
   SHARE_CARD_STYLE_DEFINITIONS,
@@ -357,6 +363,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     useState<ProductTrustConfirmation | null>(null);
   const [isSubmittingTrustConfirmation, setIsSubmittingTrustConfirmation] =
     useState(false);
+  const [isSecondaryStageReady, setIsSecondaryStageReady] = useState(false);
   const displayProductName = useMemo(
     () => formatProductName(product?.name),
     [product?.name]
@@ -504,6 +511,21 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   }, [displayProductName, navigation]);
 
   useEffect(() => {
+    markPerformanceTrace('result-open', { barcode });
+    setIsSecondaryStageReady(false);
+
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        setIsSecondaryStageReady(true);
+      });
+    });
+
+    return () => {
+      interactionHandle.cancel();
+    };
+  }, [barcode]);
+
+  useEffect(() => {
     if (route.params.profileId) {
       setSelectedProfileId(route.params.profileId);
       setHasResolvedProfile(true);
@@ -513,7 +535,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     let isMounted = true;
 
     const restoreProfile = async () => {
-      const effectiveProfile = await loadEffectiveShoppingProfile();
+      const effectiveProfile = await loadSessionEffectiveShoppingProfile('cache-first');
 
       if (isMounted) {
         setSelectedProfileId(effectiveProfile.dietProfileId);
@@ -529,12 +551,16 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   }, [route.params.profileId]);
 
   useEffect(() => {
+    if (!isSecondaryStageReady) {
+      return;
+    }
+
     let isMounted = true;
 
     const restoreRestrictions = async () => {
       const [profile, effectiveProfile] = await Promise.all([
-        loadUserProfile(),
-        loadEffectiveShoppingProfile(),
+        loadSessionUserProfile('stale-while-revalidate'),
+        loadSessionEffectiveShoppingProfile('stale-while-revalidate'),
       ]);
 
       if (!isMounted) {
@@ -553,14 +579,18 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isSecondaryStageReady]);
 
   useEffect(() => {
+    if (!isSecondaryStageReady) {
+      return;
+    }
+
     let isMounted = true;
 
     const restoreHistoryContext = async () => {
       const [historyEntries, confirmation] = await Promise.all([
-        loadScanHistory(),
+        loadSessionScanHistory('stale-while-revalidate'),
         loadProductTrustConfirmation(barcode),
       ]);
       const matchingHistoryEntry =
@@ -585,13 +615,17 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       isMounted = false;
       unsubscribe();
     };
-  }, [barcode]);
+  }, [barcode, isSecondaryStageReady]);
 
   useEffect(() => {
+    if (!isSecondaryStageReady) {
+      return;
+    }
+
     let isMounted = true;
 
     const restoreShareAccess = async () => {
-      const entitlement = await loadCurrentPremiumEntitlement();
+      const entitlement = await loadSessionPremiumEntitlement('stale-while-revalidate');
       const [quotaSnapshot, syncedShareCardStyleId, savedCollections] = await Promise.all([
         loadFeatureQuotaSnapshot('share-result-card', entitlement),
         syncShareCardStyleForCurrentUser(),
@@ -637,7 +671,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       isMounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [isSecondaryStageReady]);
 
   const handleToggleFavorite = async () => {
     if (!canUseSavedProducts) {
@@ -660,6 +694,10 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   };
 
   useEffect(() => {
+    if (!isSecondaryStageReady) {
+      return;
+    }
+
     let isMounted = true;
 
     const restoreAdminConfig = async () => {
@@ -681,7 +719,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isSecondaryStageReady]);
 
   useEffect(() => {
     setAnalysisResult(null);
@@ -699,6 +737,16 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   }, [product, selectedProfileId]);
 
   useEffect(() => {
+    if (!analysisResult) {
+      return;
+    }
+
+    measurePerformanceTrace('result-open', 'result-analysis-complete', {
+      barcode,
+    });
+  }, [analysisResult, barcode]);
+
+  useEffect(() => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, []);
 
@@ -711,12 +759,22 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
 
     const persistHistoryEntry = async () => {
       try {
-        await saveScanToHistory({
-          barcode,
-          barcodeType,
-          profileId: selectedProfileId,
-          product,
+        const interactionHandle = InteractionManager.runAfterInteractions(() => {
+          void saveScanToHistory({
+            barcode,
+            barcodeType,
+            profileId: selectedProfileId,
+            product,
+          }).catch((error) => {
+            if (__DEV__ && isMounted) {
+              console.warn('Failed to save scan history entry', error);
+            }
+          });
         });
+
+        return () => {
+          interactionHandle.cancel();
+        };
       } catch (error) {
         if (__DEV__ && isMounted) {
           console.warn('Failed to save scan history entry', error);
@@ -724,10 +782,14 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
       }
     };
 
-    void persistHistoryEntry();
+    let cleanupInteraction: (() => void) | void;
+    void persistHistoryEntry().then((cleanup) => {
+      cleanupInteraction = cleanup;
+    });
 
     return () => {
       isMounted = false;
+      cleanupInteraction?.();
     };
   }, [
     barcode,

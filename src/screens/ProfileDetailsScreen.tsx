@@ -9,7 +9,8 @@ import PrimaryButton from '../components/PrimaryButton';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import { APP_NAME } from '../constants/branding';
 import { AuthServiceError } from '../services/authHelpers';
-import { loadUserProfile, saveUserProfile } from '../services/userProfileService';
+import { loadSessionUserProfile } from '../services/sessionDataService';
+import { saveUserProfile } from '../services/userProfileService';
 import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -33,7 +34,7 @@ export default function ProfileDetailsScreen({
   useEffect(() => {
     let isMounted = true;
 
-    void loadUserProfile().then((profile) => {
+    void loadSessionUserProfile('stale-while-revalidate').then((profile) => {
       if (isMounted && profile) {
         setEmail(profile.email);
         setName(profile.name);

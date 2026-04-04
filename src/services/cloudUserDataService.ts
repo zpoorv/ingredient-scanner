@@ -37,7 +37,7 @@ export async function saveRemoteUserProfile(profile: UserProfile) {
   try {
     await setDoc(getUserDocRef(profile.uid), profile, { merge: true });
   } catch {
-    // Firestore sync is optional. Local profile storage still remains the source of truth.
+    // Firestore sync is best-effort. Premium and admin access are verified separately.
   }
 }
 

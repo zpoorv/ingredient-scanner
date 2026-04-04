@@ -18,6 +18,11 @@ import type {
 import { getFirebaseAuth } from './firebaseAuth';
 import { AuthServiceError } from './authHelpers';
 import {
+  invalidateSessionResourceCache,
+  primeSessionResourceCache,
+  SESSION_CACHE_KEYS,
+} from './sessionResourceCache';
+import {
   clearStoredUserProfile,
   loadStoredUserProfile,
   saveStoredUserProfile,
@@ -336,6 +341,8 @@ export async function loadUserProfile() {
   };
 
   await saveStoredUserProfile(resolvedProfile);
+  primeSessionResourceCache(SESSION_CACHE_KEYS.userProfile, resolvedProfile);
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.effectiveShoppingProfile);
   return resolvedProfile;
 }
 
@@ -354,6 +361,8 @@ export async function syncCurrentUserProfileToFirestore() {
   };
 
   await saveStoredUserProfile(syncedProfile);
+  primeSessionResourceCache(SESSION_CACHE_KEYS.userProfile, syncedProfile);
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.effectiveShoppingProfile);
 
   if (!remoteProfile || JSON.stringify(remoteProfile) !== JSON.stringify(syncedProfile)) {
     await saveRemoteUserProfile(syncedProfile);
@@ -435,6 +444,8 @@ async function saveUserProfilePatch(
   }
 
   await saveStoredUserProfile(nextProfile);
+  primeSessionResourceCache(SESSION_CACHE_KEYS.userProfile, nextProfile);
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.effectiveShoppingProfile);
   await saveRemoteUserProfile(nextProfile);
 
   const auth = getFirebaseAuth();
@@ -497,4 +508,6 @@ export async function saveCurrentUserPreferences(
 
 export async function clearUserProfile(uid: string) {
   await clearStoredUserProfile(uid);
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.userProfile);
+  invalidateSessionResourceCache(SESSION_CACHE_KEYS.effectiveShoppingProfile);
 }

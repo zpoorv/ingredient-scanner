@@ -1,5 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  InteractionManager,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,10 +66,12 @@ import {
   saveHouseholdProfile,
   setActiveHouseholdProfile,
 } from '../services/householdProfilesService';
-import { loadCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
+import {
+  loadSessionPremiumEntitlement,
+  loadSessionUserProfile,
+} from '../services/sessionDataService';
 import { saveShareCardStyleId, syncShareCardStyleForCurrentUser } from '../services/shareCardPreferenceStorage';
 import {
-  loadUserProfile,
   saveCurrentUserPreferences,
 } from '../services/userProfileService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
@@ -198,21 +208,12 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         }
 
         try {
-          const [
-            profile,
-            savedDietProfileId,
-            savedShareCardStyleId,
-            entitlement,
-            notificationPermissionState,
-            householdProfileState,
-          ] =
+          const [profile, savedDietProfileId, savedShareCardStyleId, entitlement] =
             await Promise.all([
-              loadUserProfile(),
+              loadSessionUserProfile('stale-while-revalidate'),
               syncDietProfileForCurrentUser(),
               syncShareCardStyleForCurrentUser(),
-              loadCurrentPremiumEntitlement(),
-              getHistoryNotificationPermissionState(),
-              loadHouseholdProfileState(),
+              loadSessionPremiumEntitlement('stale-while-revalidate'),
             ]);
 
           if (!isMounted) {
@@ -230,17 +231,15 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           setHistoryNotificationCadence(
             profile?.historyNotificationCadence ?? 'weekly'
           );
-          setHistoryNotificationPermissionState(notificationPermissionState);
           setDraftHistoryNotificationCadence(
             profile?.historyNotificationCadence ?? 'weekly'
           );
           setHistoryNotificationsEnabled(
             profile?.historyNotificationsEnabled ?? false
           );
-          setHouseholdProfiles(householdProfileState.householdProfiles);
-          setActiveHouseholdProfileId(householdProfileState.activeHouseholdProfileId);
           setProfileEmail(profile?.email ?? '');
           setProfileName(profile?.name ?? '');
+          setPremiumEntitlement(entitlement);
           setPremiumLabel(entitlement.isPremium ? 'Premium' : 'Basic');
           setRestrictionIds(profile?.restrictionIds ?? []);
           setRestrictionSeverity(profile?.restrictionSeverity ?? 'strict');
@@ -253,6 +252,25 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           );
           setShareCardStyleId(savedShareCardStyleId);
           setHasLoadedOnce(true);
+
+          const interactionHandle = InteractionManager.runAfterInteractions(() => {
+            void Promise.all([
+              getHistoryNotificationPermissionState(),
+              loadHouseholdProfileState(),
+            ]).then(([notificationPermissionState, householdProfileState]) => {
+              if (!isMounted) {
+                return;
+              }
+
+              setHistoryNotificationPermissionState(notificationPermissionState);
+              setHouseholdProfiles(householdProfileState.householdProfiles);
+              setActiveHouseholdProfileId(householdProfileState.activeHouseholdProfileId);
+            });
+          });
+
+          return () => {
+            interactionHandle.cancel();
+          };
         } finally {
           if (isMounted) {
             setIsLoadingSettings(false);
@@ -260,10 +278,14 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         }
       };
 
-      void loadSettings();
+      let cleanupDeferredLoad: (() => void) | void;
+      void loadSettings().then((cleanup) => {
+        cleanupDeferredLoad = cleanup;
+      });
 
       return () => {
         isMounted = false;
+        cleanupDeferredLoad?.();
         unsubscribePremium();
       };
     }, [appLookId, hasLoadedOnce])
