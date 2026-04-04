@@ -5,8 +5,7 @@ export type InqouraSubscriptionPackageId =
   | 'six_month';
 
 export const REVENUECAT_ANDROID_API_KEY =
-  process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY ||
-  'goog_EfVuJZSnhECfuJyahBvKFQxlmkh';
+  process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || '';
 export const REVENUECAT_IOS_API_KEY =
   process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || '';
 export const REVENUECAT_ENTITLEMENT_ID =

@@ -6,6 +6,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
@@ -21,6 +25,158 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn()
         && (request.auth.token.admin == true || hasAdminRoleDocument());
+    }
+
+    function isShortString(value, maxLen) {
+      return value is string && value.size() > 0 && value.size() <= maxLen;
+    }
+
+    function isNullableString(value, maxLen) {
+      return value == null || (value is string && value.size() <= maxLen);
+    }
+
+    function isNullableInt(value, minValue, maxValue) {
+      return value == null || (value is int && value >= minValue && value <= maxValue);
+    }
+
+    function isScanHistoryWrite(entry, uid) {
+      return isOwner(uid)
+        && entry.keys().hasAll([
+          'barcode',
+          'firstScannedAt',
+          'gradeLabel',
+          'id',
+          'name',
+          'product',
+          'profileId',
+          'riskLevel',
+          'riskSummary',
+          'scanCount',
+          'scannedAt',
+          'score',
+          'productTimeline'
+        ])
+        && entry.keys().hasOnly([
+          'barcode',
+          'barcodeType',
+          'firstScannedAt',
+          'gradeLabel',
+          'id',
+          'name',
+          'product',
+          'profileId',
+          'riskLevel',
+          'riskSummary',
+          'scanCount',
+          'scannedAt',
+          'score',
+          'productTimeline'
+        ])
+        && isShortString(entry.barcode, 80)
+        && isNullableString(entry.barcodeType, 32)
+        && isShortString(entry.firstScannedAt, 64)
+        && isNullableString(entry.gradeLabel, 4)
+        && isShortString(entry.id, 80)
+        && isShortString(entry.name, 180)
+        && isShortString(entry.profileId, 40)
+        && entry.product is map
+        && (entry.riskLevel == 'safe' || entry.riskLevel == 'caution' || entry.riskLevel == 'high-risk')
+        && isShortString(entry.riskSummary, 240)
+        && entry.scanCount is int
+        && entry.scanCount >= 1
+        && entry.scanCount <= 5000
+        && isShortString(entry.scannedAt, 64)
+        && isNullableInt(entry.score, 0, 100)
+        && entry.productTimeline is list
+        && entry.productTimeline.size() <= 12;
+    }
+
+    function isCorrectionReportCreate(report) {
+      return isVerifiedUser()
+        && report.keys().hasAll([
+          'barcode',
+          'confidence',
+          'createdAt',
+          'foodStatus',
+          'priorityScore',
+          'productName',
+          'reason',
+          'reporterEmail',
+          'reporterName',
+          'reporterUid',
+          'resultSource',
+          'status',
+          'summary',
+          'topConcern'
+        ])
+        && report.keys().hasOnly([
+          'barcode',
+          'confirmationCount',
+          'confidence',
+          'createdAt',
+          'foodStatus',
+          'priorityScore',
+          'productName',
+          'reason',
+          'repeatBuyWeight',
+          'reportType',
+          'reporterEmail',
+          'reporterName',
+          'reporterUid',
+          'resultSource',
+          'status',
+          'summary',
+          'timelineSeverity',
+          'topConcern',
+          'trustConfirmationType'
+        ])
+        && report.reporterUid == request.auth.uid
+        && report.reporterEmail == request.auth.token.email
+        && isNullableString(report.reporterName, 120)
+        && isShortString(report.barcode, 80)
+        && isShortString(report.createdAt, 64)
+        && isShortString(report.productName, 180)
+        && isShortString(report.summary, 240)
+        && isNullableString(report.topConcern, 120)
+        && (report.confidence == 'high' || report.confidence == 'medium' || report.confidence == 'low')
+        && (
+          report.foodStatus == 'food' ||
+          report.foodStatus == 'likely-food' ||
+          report.foodStatus == 'unclear' ||
+          report.foodStatus == 'non-food'
+        )
+        && (
+          report.reason == 'wrong-score' ||
+          report.reason == 'wrong-product-details' ||
+          report.reason == 'bad-ingredient-read' ||
+          report.reason == 'wrong-alternatives' ||
+          report.reason == 'other'
+        )
+        && (report.resultSource == 'barcode' || report.resultSource == 'ingredient-ocr')
+        && report.status == 'open'
+        && report.priorityScore is int
+        && report.priorityScore >= 0
+        && report.priorityScore <= 200
+        && isNullableInt(report.confirmationCount, 0, 5000)
+        && isNullableInt(report.repeatBuyWeight, 0, 5000)
+        && (
+          !report.keys().hasAny(['reportType']) ||
+          report.reportType == 'issue-report' ||
+          report.reportType == 'trust-confirmation'
+        )
+        && (
+          !report.keys().hasAny(['timelineSeverity']) ||
+          report.timelineSeverity == null ||
+          report.timelineSeverity == 'low' ||
+          report.timelineSeverity == 'medium' ||
+          report.timelineSeverity == 'high'
+        )
+        && (
+          !report.keys().hasAny(['trustConfirmationType']) ||
+          report.trustConfirmationType == null ||
+          report.trustConfirmationType == 'looks-different' ||
+          report.trustConfirmationType == 'matches-pack'
+        );
     }
 
     function isOwnerProfileCreate(uid) {
@@ -48,7 +204,8 @@ service cloud.firestore {
       allow delete: if isOwner(uid) || isAdmin();
 
       match /scanHistory/{scanId} {
-        allow read, create, update, delete: if isOwner(uid) || isAdmin();
+        allow read, delete: if isOwner(uid) || isAdmin();
+        allow create, update: if isScanHistoryWrite(request.resource.data, uid) || isAdmin();
       }
     }
 
@@ -65,12 +222,12 @@ service cloud.firestore {
 
     // Feedback stays admin-readable and can later back a support dashboard.
     match /feedback/{feedbackId} {
-      allow create: if isSignedIn();
+      allow create: if isVerifiedUser();
       allow read, update, delete: if isAdmin();
     }
 
     match /correctionReports/{reportId} {
-      allow create: if isSignedIn();
+      allow create: if isCorrectionReportCreate(request.resource.data);
       allow read, update, delete: if isAdmin();
     }
   }

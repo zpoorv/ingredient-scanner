@@ -6,12 +6,20 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function hasAdminRoleDocument() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.email == request.auth.token.email;
+    }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn() && (request.auth.token.admin == true || hasAdminRoleDocument());
     }
 
     function isImageUpload() {
