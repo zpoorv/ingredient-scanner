@@ -237,6 +237,10 @@ function getSourceCertainty(
     return 'catalog';
   }
 
+  if (product.sources.some((source) => source.id === 'search_index')) {
+    return 'catalog';
+  }
+
   return 'ocr-only';
 }
 
@@ -317,6 +321,8 @@ function getConfidenceAssessment(
   if (usedSourceId === 'product_override') {
     score += 3;
   } else if (usedSourceId === 'open_food_facts') {
+    score += 2;
+  } else if (usedSourceId === 'search_index') {
     score += 2;
   } else if (usedSourceId === 'ingredient_ocr') {
     score += 1;

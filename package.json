@@ -10,6 +10,7 @@
     "android:apk:release": "cd android && NODE_ENV=production ./gradlew assembleRelease",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "search:index": "node scripts/build_search_indices.mjs",
     "lint": "expo lint"
   },
   "dependencies": {
@@ -58,8 +59,10 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "algoliasearch": "^5.50.1",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "firebase-admin": "^13.7.0",
     "typescript": "~5.9.2"
   },
   "overrides": {

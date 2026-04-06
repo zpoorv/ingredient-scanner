@@ -67,6 +67,7 @@ import {
 import {
   hasPremiumFeatureAccess,
 } from '../services/premiumEntitlementService';
+import { resolveProductByBarcode } from '../services/productLookup';
 import { saveScanToHistory } from '../services/scanHistoryStorage';
 import {
   loadSessionEffectiveShoppingProfile,
@@ -321,7 +322,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     barcode,
     barcodeType,
     persistToHistory,
-    product,
+    product: initialProduct,
+    productSnapshotSource,
+    revalidateOnOpen,
     resultSource = 'barcode',
   } = route.params;
   const shareCardRef = useRef<ViewShot | null>(null);
@@ -352,6 +355,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const [favoriteProductCodes, setFavoriteProductCodes] = useState<string[]>([]);
   const [comparisonProductCodes, setComparisonProductCodes] = useState<string[]>([]);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+  const [product, setProduct] = useState(initialProduct);
   const [shareCardStyleId, setShareCardStyleId] =
     useState<ShareCardStyleId>('classic');
   const [draftShareCardStyleId, setDraftShareCardStyleId] =
@@ -521,6 +525,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   useEffect(() => {
     markPerformanceTrace('result-open', { barcode });
     setIsSecondaryStageReady(false);
+    setProduct(initialProduct);
 
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
       requestAnimationFrame(() => {
@@ -531,7 +536,31 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     return () => {
       interactionHandle.cancel();
     };
-  }, [barcode]);
+  }, [barcode, initialProduct]);
+
+  useEffect(() => {
+    if (
+      !revalidateOnOpen ||
+      (productSnapshotSource !== 'search-index' &&
+        productSnapshotSource !== 'search-cache')
+    ) {
+      return;
+    }
+
+    let isMounted = true;
+
+    void resolveProductByBarcode(barcode, barcodeType)
+      .then((nextProduct) => {
+        if (isMounted && nextProduct) {
+          setProduct(nextProduct);
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [barcode, barcodeType, productSnapshotSource, revalidateOnOpen]);
 
   useEffect(() => {
     if (route.params.profileId) {

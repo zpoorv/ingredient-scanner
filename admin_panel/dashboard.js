@@ -44,7 +44,7 @@ setHtml(
           `
         )
         .join('')
-    : `<div class="empty-state">No product overrides saved yet.</div>`
+    : `<div class="empty-state">No products saved yet.</div>`
 );
 
 setHtml(

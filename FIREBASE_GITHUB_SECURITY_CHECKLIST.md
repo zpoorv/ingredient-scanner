@@ -27,7 +27,7 @@ firebase deploy --only hosting
 - A normal signed-in user cannot change their own `role`
 - A normal signed-in user cannot change their own `plan`
 - A normal signed-in user cannot write `adminConfig`
-- A normal signed-in user cannot write `productOverrides`
+- A normal signed-in user cannot update or delete `products`
 - A normal signed-in user can only write their own bounded `scanHistory`
 - A normal signed-in user can only create bounded `correctionReports`
 

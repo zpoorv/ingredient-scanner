@@ -135,7 +135,7 @@ byId('productForm').addEventListener('submit', async (event) => {
 
   try {
     await saveOverride(currentBarcode, toOverridePayload({ ...formValue, barcode: currentBarcode }));
-    setStatus('productStatus', 'Override saved to Firestore.', 'success');
+    setStatus('productStatus', 'Product saved to Firestore.', 'success');
   } catch (error) {
     setStatus(
       'productStatus',
@@ -154,7 +154,7 @@ byId('deleteProductButton').addEventListener('click', async () => {
   try {
     await removeOverride(currentBarcode);
     fillProductForm(buildEmptyProductDraft(currentBarcode));
-    setStatus('productStatus', 'Override deleted.', 'success');
+    setStatus('productStatus', 'Product deleted.', 'success');
     byId('productSource').textContent = '';
   } catch (error) {
     setStatus(

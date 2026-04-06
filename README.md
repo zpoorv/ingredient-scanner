@@ -100,6 +100,11 @@ Populate these values:
 - `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` optional
 - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID`
 - `EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID` optional during development
+- `EXPO_PUBLIC_ALGOLIA_APP_ID`
+- `EXPO_PUBLIC_ALGOLIA_SEARCH_API_KEY`
+- `EXPO_PUBLIC_ALGOLIA_PRODUCTS_INDEX_NAME`
+- `EXPO_PUBLIC_ALGOLIA_SUGGESTIONS_INDEX_NAME`
+- `EXPO_PUBLIC_SEARCH_V2_ENABLED` optional, defaults to `true`
 
 ## Running The App
 
@@ -132,6 +137,30 @@ For rough UI checks only:
 ```bash
 npm run web
 ```
+
+### Search Index Sync
+
+The app search now reads product hits from the Firestore `products` collection.
+Scans seed that collection, and admin-added products land there immediately.
+
+The optional search index sync workflow can still build external indices from the
+same Firestore-backed product catalog when you want broader off-device search tooling.
+
+To rebuild the indices locally:
+
+```bash
+npm run search:index
+```
+
+Required sync environment variables:
+
+- `ALGOLIA_APP_ID`
+- `ALGOLIA_ADMIN_API_KEY`
+- `ALGOLIA_PRODUCTS_INDEX_NAME`
+- `ALGOLIA_SUGGESTIONS_INDEX_NAME`
+- `FIREBASE_SERVICE_ACCOUNT_JSON` optional if you want Firestore product overrides merged in
+- `OPEN_FOOD_FACTS_DATASET_URL` optional if you want to override the default OFF JSONL export URL
+- `SEARCH_INDEX_MAX_PRODUCTS` optional, defaults to `250000`
 
 ## Admin Panel
 

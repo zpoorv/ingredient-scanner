@@ -10,7 +10,12 @@ export type OcrParseDiagnostics = {
 };
 
 export type ProductSourceInfo = {
-  id: 'open_food_facts' | 'ingredient_ocr' | 'product_override' | 'offline_cache';
+  id:
+    | 'open_food_facts'
+    | 'ingredient_ocr'
+    | 'product_override'
+    | 'offline_cache'
+    | 'search_index';
   label: string;
   note: string;
   status: ProductSourceStatus;

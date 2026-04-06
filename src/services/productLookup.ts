@@ -1,6 +1,5 @@
 import {
   fetchProductByBarcode,
-  fetchProductsByQuery,
 } from './openFoodFacts';
 import type {
   OpenFoodFactsNutriments,
@@ -21,6 +20,11 @@ import {
   applyProductOverride,
   loadProductOverride,
 } from './productOverrideService';
+import {
+  hasStoredCoreProductFields,
+  saveScannedProductRecord,
+  searchStoredProductRecords,
+} from './productCatalogService';
 import { loadCommonProductByBarcode } from './commonProductStorage';
 import { isLikelyNetworkError } from '../utils/networkErrors';
 
@@ -305,6 +309,15 @@ export async function resolveProductByBarcode(
     return applyProductOverride(persistedCacheValue, productOverride);
   }
 
+  if (productOverride && hasStoredCoreProductFields(productOverride)) {
+    const storedProduct = applyProductOverride(null, productOverride);
+
+    resolvedProductCache.set(cacheKey, storedProduct);
+    void writeBarcodeLookupCache(cacheKey, storedProduct);
+
+    return storedProduct;
+  }
+
   // Keep repeat scans and quick back-and-forth navigation from hitting both
   // providers again for the same barcode during the same app session.
   const lookupPromise = performProductLookup(barcode, barcodeType);
@@ -361,13 +374,15 @@ async function performProductLookup(
     return null;
   }
 
-  return resolveProductFromCatalogProduct(barcode, offProduct);
+  const resolvedProduct = resolveProductFromCatalogProduct(barcode, offProduct);
+  void saveScannedProductRecord(barcode, resolvedProduct);
+  return resolvedProduct;
 }
 
 export async function searchResolvedProducts(query: string) {
-  const products = await fetchProductsByQuery(query);
+  const products = await searchStoredProductRecords(query);
 
-  return products.map((product) =>
-    resolveProductFromCatalogProduct(product.code?.trim() || query, product)
-  );
+  return products
+    .map((product) => applyProductOverride(null, product))
+    .filter((product): product is ResolvedProduct => Boolean(product));
 }

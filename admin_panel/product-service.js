@@ -90,6 +90,42 @@ function normalizeListSource(value) {
   return [];
 }
 
+function normalizeSearchValue(value) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function addKeywordVariants(keywords, value) {
+  const normalizedValue = normalizeSearchValue(value);
+
+  if (!normalizedValue) {
+    return;
+  }
+
+  keywords.add(normalizedValue);
+
+  for (let index = 2; index <= Math.min(normalizedValue.length, 32); index += 1) {
+    keywords.add(normalizedValue.slice(0, index));
+  }
+
+  normalizedValue
+    .split(' ')
+    .filter(Boolean)
+    .forEach((part) => {
+      for (let index = 2; index <= Math.min(part.length, 20); index += 1) {
+        keywords.add(part.slice(0, index));
+      }
+    });
+}
+
+function buildSearchKeywords(value, extraValues = []) {
+  const keywords = new Set();
+
+  addKeywordVariants(keywords, value);
+  extraValues.forEach((item) => addKeywordVariants(keywords, item));
+
+  return [...keywords].slice(0, 80);
+}
+
 function buildDraft(barcode, offProduct, override) {
   const nutrition = { ...offNutrition(offProduct), ...(override?.nutrition || {}) };
 
@@ -131,6 +167,9 @@ function buildDraft(barcode, offProduct, override) {
 }
 
 export function toOverridePayload(formValue) {
+  const name = formValue.name.trim();
+  const updatedAt = new Date().toISOString();
+
   return {
     additiveTags: parseCommaList(formValue.additiveTags),
     adminPriorityScore: nullableNumber(formValue.adminPriorityScore),
@@ -142,13 +181,18 @@ export function toOverridePayload(formValue) {
     barcode: formValue.barcode,
     brand: formValue.brand.trim() || null,
     categories: parseCommaList(formValue.categories),
+    code: formValue.barcode,
+    createdAt: updatedAt,
+    ecoScore: null,
     healthierAlternatives: parseAlternativeLines(formValue.healthierAlternatives),
     imageUrl: formValue.imageUrl.trim() || null,
     ingredientsText: formValue.ingredientsText.trim() || null,
     labels: parseCommaList(formValue.labels),
-    name: formValue.name.trim() || null,
+    name: name || null,
     nameReason: formValue.nameReason.trim() || null,
+    novaGroup: null,
     notes: formValue.notes.trim() || null,
+    nutriScore: null,
     nutrition: {
       calories100g: nullableNumber(formValue.calories100g),
       fiber100g: nullableNumber(formValue.fiber100g),
@@ -157,11 +201,15 @@ export function toOverridePayload(formValue) {
       saturatedFat100g: nullableNumber(formValue.saturatedFat100g),
       sugar100g: nullableNumber(formValue.sugar100g),
     },
+    productNameSearch: normalizeSearchValue(name),
+    product_name: name || null,
     quantity: formValue.quantity.trim() || null,
     reviewBadgeCopy: formValue.reviewBadgeCopy.trim() || null,
     reviewStatus: formValue.reviewStatus.trim() || null,
+    searchKeywords: buildSearchKeywords(name, [formValue.brand, formValue.barcode]),
     sourceNote: formValue.sourceNote.trim() || null,
-    updatedAt: new Date().toISOString(),
+    sourceType: 'admin',
+    updatedAt,
   };
 }
 

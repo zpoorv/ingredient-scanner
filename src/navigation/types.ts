@@ -47,6 +47,8 @@ export type RootStackParamList = {
     persistToHistory?: boolean;
     profileId?: DietProfileId;
     product: ResolvedProduct;
+    productSnapshotSource?: 'search-cache' | 'search-index';
+    revalidateOnOpen?: boolean;
     resultSource?: ScanResultSource;
   };
 };

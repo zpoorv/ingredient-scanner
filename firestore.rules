@@ -39,6 +39,100 @@ service cloud.firestore {
       return value == null || (value is int && value >= minValue && value <= maxValue);
     }
 
+    function isNullableNumber(value, minValue, maxValue) {
+      return value == null || (value is number && value >= minValue && value <= maxValue);
+    }
+
+    function isNullableStringList(value, maxItems) {
+      return value == null || (value is list && value.size() <= maxItems);
+    }
+
+    function isClientScannedProductCreate(product, barcode) {
+      return product.keys().hasAll([
+          'additiveTags',
+          'allergens',
+          'barcode',
+          'categories',
+          'code',
+          'createdAt',
+          'labels',
+          'name',
+          'nutrition',
+          'productNameSearch',
+          'product_name',
+          'searchKeywords',
+          'sourceType',
+          'updatedAt'
+        ])
+        && product.keys().hasOnly([
+          'additiveTags',
+          'allergens',
+          'barcode',
+          'brand',
+          'categories',
+          'code',
+          'createdAt',
+          'ecoScore',
+          'imageUrl',
+          'ingredientsText',
+          'labels',
+          'name',
+          'novaGroup',
+          'nutrition',
+          'nutriScore',
+          'productNameSearch',
+          'product_name',
+          'quantity',
+          'searchKeywords',
+          'sourceType',
+          'updatedAt'
+        ])
+        && product.sourceType == 'scan'
+        && product.barcode == barcode
+        && isShortString(product.barcode, 80)
+        && isShortString(product.code, 80)
+        && isShortString(product.createdAt, 64)
+        && isShortString(product.updatedAt, 64)
+        && isShortString(product.name, 180)
+        && isShortString(product.product_name, 180)
+        && isShortString(product.productNameSearch, 180)
+        && isNullableString(product.brand, 160)
+        && isNullableString(product.ecoScore, 32)
+        && isNullableString(product.imageUrl, 500)
+        && isNullableString(product.ingredientsText, 6000)
+        && isNullableString(product.nutriScore, 32)
+        && isNullableString(product.quantity, 120)
+        && isNullableInt(product.novaGroup, 1, 4)
+        && isNullableStringList(product.additiveTags, 40)
+        && isNullableStringList(product.allergens, 40)
+        && isNullableStringList(product.categories, 40)
+        && isNullableStringList(product.labels, 40)
+        && isNullableStringList(product.searchKeywords, 80)
+        && product.nutrition is map
+        && product.nutrition.keys().hasOnly([
+          'calories100g',
+          'carbohydrates100g',
+          'fat100g',
+          'fiber100g',
+          'potassium100g',
+          'protein100g',
+          'salt100g',
+          'saturatedFat100g',
+          'sodium100g',
+          'sugar100g'
+        ])
+        && isNullableNumber(product.nutrition.calories100g, 0, 5000)
+        && isNullableNumber(product.nutrition.carbohydrates100g, 0, 1000)
+        && isNullableNumber(product.nutrition.fat100g, 0, 1000)
+        && isNullableNumber(product.nutrition.fiber100g, 0, 1000)
+        && isNullableNumber(product.nutrition.potassium100g, 0, 1000)
+        && isNullableNumber(product.nutrition.protein100g, 0, 1000)
+        && isNullableNumber(product.nutrition.salt100g, 0, 1000)
+        && isNullableNumber(product.nutrition.saturatedFat100g, 0, 1000)
+        && isNullableNumber(product.nutrition.sodium100g, 0, 1000)
+        && isNullableNumber(product.nutrition.sugar100g, 0, 1000);
+    }
+
     function isScanHistoryWrite(entry, uid) {
       return isOwner(uid)
         && entry.keys().hasAll([
@@ -209,9 +303,23 @@ service cloud.firestore {
       }
     }
 
-    // Admin-authored product overrides can replace or enrich Open Food Facts data.
-    match /productOverrides/{barcode} {
+    // Shared product records power search. Admins can fully manage them, while scans can seed
+    // a tightly constrained record for future Firestore-backed lookups.
+    match /products/{barcode} {
       allow read: if true;
+      allow create: if isAdmin() || isClientScannedProductCreate(request.resource.data, barcode);
+      allow update: if isAdmin()
+        || (
+          resource.data.sourceType == 'scan'
+          && request.resource.data.sourceType == 'scan'
+          && isClientScannedProductCreate(request.resource.data, barcode)
+        );
+      allow delete: if isAdmin();
+    }
+
+    // Legacy collection kept admin-only for backwards compatibility.
+    match /productOverrides/{barcode} {
+      allow read: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 

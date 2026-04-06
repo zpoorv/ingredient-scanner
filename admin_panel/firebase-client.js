@@ -67,23 +67,23 @@ export async function saveCorrectionReportStatus(reportId, patch) {
 }
 
 export async function loadProductOverride(barcode) {
-  const snapshot = await getDoc(doc(db, 'productOverrides', barcode));
+  const snapshot = await getDoc(doc(db, 'products', barcode));
   return snapshot.exists() ? snapshot.data() : null;
 }
 
 export async function loadProductOverrides() {
-  const snapshot = await getDocs(collection(db, 'productOverrides'));
+  const snapshot = await getDocs(collection(db, 'products'));
   return snapshot.docs
     .map((item) => item.data())
     .sort((left, right) => (right.updatedAt || '').localeCompare(left.updatedAt || ''));
 }
 
 export async function saveProductOverride(barcode, payload) {
-  await setDoc(doc(db, 'productOverrides', barcode), payload, { merge: false });
+  await setDoc(doc(db, 'products', barcode), payload, { merge: false });
 }
 
 export async function deleteProductOverride(barcode) {
-  await deleteDoc(doc(db, 'productOverrides', barcode));
+  await deleteDoc(doc(db, 'products', barcode));
 }
 
 export async function loadAdminAppConfig() {
