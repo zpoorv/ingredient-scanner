@@ -24,7 +24,7 @@ const ITEMS: BottomMenuItem[] = [
   { icon: 'search-outline', label: 'Search', route: 'Search' },
   { icon: 'scan-outline', label: 'Scan', route: 'Scanner' },
   { icon: 'time-outline', label: 'History', route: 'History' },
-  { icon: 'settings-outline', label: 'Settings', route: 'Settings' },
+  { icon: 'trophy-outline', label: 'Progress', route: 'Progress' },
 ];
 
 export default function BottomMenuBar({
@@ -84,7 +84,9 @@ export default function BottomMenuBar({
                       ? isCenter
                         ? colors.surface
                         : colors.primary
-                      : colors.textMuted
+                      : isCenter
+                        ? colors.surface
+                        : colors.textMuted
                   }
                   name={item.icon}
                   size={isCenter ? 24 : 22}
@@ -115,36 +117,44 @@ const createStyles = (
     bar: {
       alignItems: 'flex-end',
       backgroundColor: colors.surface,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
       borderColor: colors.border,
-      borderRadius: 28,
+      borderRadius: 30,
       borderWidth: 1,
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingHorizontal: 14,
-      paddingTop: 12,
+      paddingHorizontal: 16,
+      paddingTop: 14,
       shadowColor: '#000',
       shadowOffset: { height: 10, width: 0 },
-      shadowOpacity: 0.1,
-      shadowRadius: 24,
+      shadowOpacity: 0.08,
+      shadowRadius: 18,
     },
     centerItem: {
-      marginTop: -16,
+      marginTop: -22,
     },
     iconWrap: {
       alignItems: 'center',
-      borderRadius: 18,
-      height: 40,
+      borderRadius: 20,
+      height: 44,
       justifyContent: 'center',
-      width: 40,
+      width: 44,
     },
     iconWrapActive: {
       backgroundColor: colors.primaryMuted,
     },
     iconWrapCenter: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.text,
       borderRadius: 999,
-      height: 56,
-      width: 56,
+      borderWidth: 4,
+      borderColor: colors.surface,
+      height: 62,
+      shadowColor: '#000',
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      width: 62,
     },
     iconWrapCenterActive: {
       backgroundColor: colors.primary,
@@ -153,8 +163,8 @@ const createStyles = (
       alignItems: 'center',
       flex: 1,
       gap: 6,
-      minHeight: 76,
-      paddingBottom: 12,
+      minHeight: 82,
+      paddingBottom: 14,
     },
     itemPressed: {
       opacity: 0.88,
@@ -173,7 +183,7 @@ const createStyles = (
     },
     wrap: {
       backgroundColor: 'transparent',
-      paddingHorizontal: 16,
+      paddingHorizontal: 18,
       paddingTop: 10,
     },
   });

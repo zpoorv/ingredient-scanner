@@ -1,26 +1,21 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 
-import { useAppTheme } from '../components/AppThemeProvider';
-import NoInternetScreen from '../components/NoInternetScreen';
+import PopupSheetLayout from '../components/PopupSheetLayout';
 import PrimaryButton from '../components/PrimaryButton';
-import ScreenReveal from '../components/ScreenReveal';
-import ScreenLoadingView from '../components/ScreenLoadingView';
 import SubscriptionOptionCard from '../components/SubscriptionOptionCard';
-import TrustPromiseCard from '../components/TrustPromiseCard';
+import { useAppTheme } from '../components/AppThemeProvider';
 import {
-  PREMIUM_BONUS_FEATURES,
   PREMIUM_FEATURE_COPY,
-  PREMIUM_FREE_PLAN_FEATURES,
   PREMIUM_PRIMARY_VALUE_FEATURES,
   PREMIUM_PRICE_PREVIEW_COPY,
 } from '../constants/premium';
-import type { PremiumEntitlement } from '../models/premium';
-import type { RootStackParamList } from '../navigation/types';
+import {
+  createDefaultPremiumEntitlement,
+  type PremiumEntitlement,
+  type PremiumFeatureId,
+} from '../models/premium';
 import type { RevenueCatPackageOption } from '../services/revenueCatService';
 import {
   getRevenueCatErrorMessage,
@@ -40,9 +35,12 @@ import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 
-type PremiumScreenProps = NativeStackScreenProps<RootStackParamList, 'Premium'>;
+type PremiumSheetProps = {
+  featureId?: PremiumFeatureId;
+  onClose: () => void;
+};
 
-export default function PremiumScreen({ route }: PremiumScreenProps) {
+export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -56,14 +54,48 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
   const shouldShowLoadingScreen = useDelayedVisibility(
     isLoadingPremium && !hasLoadedOnce
   );
-  const highlightedFeature = route.params?.featureId
-    ? PREMIUM_FEATURE_COPY[route.params.featureId]
-    : null;
+  const highlightedFeature = featureId ? PREMIUM_FEATURE_COPY[featureId] : null;
   const revenueCatAvailable = isRevenueCatAvailable();
   const billingState = getRevenueCatPremiumState(customerInfo);
   const activeProductLabel =
     entitlement.billingProductIdentifier || billingState.productIdentifier || 'No active plan';
   const hasBillingAccess = revenueCatAvailable && packageOptions.length > 0;
+  const billingPlaceholderCopy = useMemo(() => {
+    if (!revenueCatAvailable) {
+      return {
+        subtitle:
+          'Billing is not configured in this build yet. Add the RevenueCat Android key and rebuild the app.',
+        title: 'Billing setup needed',
+      };
+    }
+
+    if (!currentOffering) {
+      return {
+        subtitle:
+          'Plans are not available on this device yet. Open the Play test build for this account and try again.',
+        title: 'Plans not available yet',
+      };
+    }
+
+    return {
+      subtitle: 'We could not load plans on this device right now. Try again in a moment.',
+      title: 'Plans will appear here soon',
+    };
+  }, [currentOffering, revenueCatAvailable]);
+  const sheetTitle = shouldShowLoadingScreen
+    ? 'Premium'
+    : entitlement.isPremium
+      ? 'Premium active'
+      : 'Go Premium';
+  const sheetSubtitle = shouldShowLoadingScreen
+    ? 'Checking your access and available plans.'
+    : isOfflineStateVisible
+      ? 'Reconnect to refresh plans and verify your subscription.'
+      : highlightedFeature?.shortLabel
+        ? `${highlightedFeature.shortLabel} highlighted`
+        : entitlement.isPremium
+          ? 'Premium is active on this account.'
+          : 'Pick a plan when you want deeper guidance and unlimited OCR.';
 
   const loadPremiumState = useCallback(async () => {
     const latestCustomerInfo = await loadRevenueCatCustomerInfo();
@@ -75,10 +107,11 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
       latestOffering,
       latestCustomerInfo
     );
+    const nextEntitlement = latestEntitlement ?? createDefaultPremiumEntitlement();
 
     setCustomerInfo(latestCustomerInfo);
     setCurrentOffering(latestOffering);
-    setEntitlement(latestEntitlement);
+    setEntitlement(nextEntitlement);
     setPackageOptions(nextPackageOptions);
     setHasLoadedOnce(true);
     setIsOfflineStateVisible(false);
@@ -101,7 +134,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
 
         Alert.alert(
           'Premium unavailable',
-          getRevenueCatErrorMessage(error, 'We could not load premium billing right now.')
+          getRevenueCatErrorMessage(error, 'We could not load premium right now.')
         );
       } finally {
         setIsLoadingPremium(false);
@@ -110,35 +143,21 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
     [hasLoadedOnce, loadPremiumState]
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      let isMounted = true;
-      const unsubscribe = subscribePremiumSession((nextEntitlement) => {
-        if (isMounted) {
-          setEntitlement(nextEntitlement);
-        }
-      });
+  useEffect(() => {
+    let isMounted = true;
+    const unsubscribe = subscribePremiumSession((nextEntitlement) => {
+      if (isMounted) {
+        setEntitlement(nextEntitlement ?? createDefaultPremiumEntitlement());
+      }
+    });
 
-      const restorePremiumState = async () => {
-        if (!hasLoadedOnce) {
-          setIsLoadingPremium(true);
-        }
+    void refreshPremiumState({ showLoadingScreen: !hasLoadedOnce });
 
-        await refreshPremiumState({ showLoadingScreen: !hasLoadedOnce });
-
-        if (!isMounted) {
-          return;
-        }
-      };
-
-      void restorePremiumState();
-
-      return () => {
-        isMounted = false;
-        unsubscribe();
-      };
-    }, [hasLoadedOnce, refreshPremiumState])
-  );
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [hasLoadedOnce, refreshPremiumState]);
 
   const handlePurchasePackage = async (selectedPackage: RevenueCatPackageOption) => {
     setPendingActionId(selectedPackage.id);
@@ -151,10 +170,7 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
       if (!isRevenueCatPurchaseCancelled(error)) {
         Alert.alert(
           'Purchase failed',
-          getRevenueCatErrorMessage(
-            error,
-            'We could not start that subscription right now.'
-          )
+          getRevenueCatErrorMessage(error, 'We could not start that subscription right now.')
         );
       }
     } finally {
@@ -162,220 +178,178 @@ export default function PremiumScreen({ route }: PremiumScreenProps) {
     }
   };
 
-  const handlePresentPaywall = async () => {
-    setPendingActionId('paywall');
-
-    try {
-      const paywallResult = await presentRevenueCatPaywall(currentOffering);
-      await loadPremiumState();
-
-      if (paywallResult.paywallResult === 'PURCHASED') {
-        Alert.alert('Premium unlocked', 'Inqoura Premium is active on this account.');
-      } else if (paywallResult.paywallResult === 'RESTORED') {
-        Alert.alert('Premium restored', 'Your previous subscription was restored.');
-      } else if (paywallResult.paywallResult === 'ERROR') {
-        Alert.alert('Paywall failed', 'The RevenueCat paywall could not finish.');
-      }
-    } catch (error) {
-      Alert.alert(
-        'Paywall unavailable',
-        getRevenueCatErrorMessage(error, 'We could not open premium checkout right now.')
-      );
-    } finally {
-      setPendingActionId(null);
-    }
-  };
-
-  const handleRestorePress = async () => {
-    setPendingActionId('restore');
-
-    try {
-      const restoredCustomerInfo = await restoreRevenueCatPurchases();
-      await loadPremiumState();
-      Alert.alert(
-        'Restore complete',
-        getRevenueCatPremiumState(restoredCustomerInfo).isActive
-          ? 'Your Inqoura Premium access is active again.'
-          : 'No active Inqoura Premium subscription was found on this store account.'
-      );
-    } catch (error) {
-      Alert.alert(
-        'Restore failed',
-        getRevenueCatErrorMessage(error, 'We could not restore purchases right now.')
-      );
-    } finally {
-      setPendingActionId(null);
-    }
-  };
-
-  const handleOpenCustomerCenter = async () => {
-    setPendingActionId('customer-center');
-
-    try {
-      await presentRevenueCatCustomerCenter();
-      await loadPremiumState();
-    } catch (error) {
-      Alert.alert(
-        'Customer Center unavailable',
-        getRevenueCatErrorMessage(
-          error,
-          'We could not open subscription management right now.'
-        )
-      );
-    } finally {
-      setPendingActionId(null);
-    }
-  };
-
-  if (shouldShowLoadingScreen) {
-    return (
-      <ScreenLoadingView
-        subtitle="Checking your subscription status, offerings, and premium tools..."
-        title="Loading premium"
-      />
-    );
-  }
-
-  if (isOfflineStateVisible) {
-    return (
-      <NoInternetScreen
-        onRetry={() => {
-          void refreshPremiumState();
-        }}
-        subtitle="Premium plans need internet to check your subscription and load the latest offers."
-        title="Premium needs a connection"
-      />
-    );
-  }
-
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenReveal style={styles.flow}>
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Inqoura Premium</Text>
-          <Text style={styles.title}>
-            {entitlement.isPremium
-              ? 'Premium is active on this account'
-              : 'Upgrade for deeper guidance'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {highlightedFeature?.description ||
-              `Free helps you scan. Premium helps you spot what matters faster, compare better, and shop with more confidence over time. ${PREMIUM_PRICE_PREVIEW_COPY}`}
-          </Text>
-          <View style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusBadge,
-                entitlement.isPremium ? styles.statusBadgeActive : styles.statusBadgeInactive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  entitlement.isPremium
-                    ? styles.statusBadgeTextActive
-                    : styles.statusBadgeTextInactive,
-                ]}
-              >
-                {entitlement.isPremium ? 'Premium active' : 'Free plan'}
+    <PopupSheetLayout onClose={onClose} subtitle={sheetSubtitle} title={sheetTitle}>
+      {shouldShowLoadingScreen ? (
+        <View style={styles.stateCard}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <View style={styles.stateCopy}>
+            <Text style={styles.stateTitle}>Loading premium</Text>
+            <Text style={styles.stateText}>
+              Checking your subscription status and available plans.
+            </Text>
+          </View>
+        </View>
+      ) : isOfflineStateVisible ? (
+        <View style={styles.flow}>
+          <View style={styles.stateCard}>
+            <View style={styles.stateCopy}>
+              <Text style={styles.stateTitle}>Premium needs a connection</Text>
+              <Text style={styles.stateText}>
+                Premium plans need internet to verify your subscription and load offers.
               </Text>
             </View>
-            <View style={styles.planPill}>
-              <Text style={styles.planPillText}>{activeProductLabel}</Text>
-            </View>
           </View>
+          <PrimaryButton label="Try Again" onPress={() => void refreshPremiumState()} />
         </View>
-
-        <TrustPromiseCard />
-
-        <View style={styles.featureCard}>
-          <Text style={styles.sectionTitle}>What free already includes</Text>
-          {PREMIUM_FREE_PLAN_FEATURES.map((item) => (
-            <View key={item} style={styles.featureRow}>
-              <View style={styles.featureDot} />
-              <Text style={styles.featureText}>{item}</Text>
+      ) : (
+        <View style={styles.flow}>
+          <View style={styles.heroCard}>
+            <View style={styles.statusRow}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  entitlement.isPremium ? styles.statusBadgeActive : styles.statusBadgeInactive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    entitlement.isPremium
+                      ? styles.statusBadgeTextActive
+                      : styles.statusBadgeTextInactive,
+                  ]}
+                >
+                  {entitlement.isPremium ? 'Premium active' : 'Free plan'}
+                </Text>
+              </View>
+              <View style={styles.planPill}>
+                <Text style={styles.planPillText}>{activeProductLabel}</Text>
+              </View>
             </View>
-          ))}
-        </View>
+            <Text style={styles.subtitle}>
+              {highlightedFeature?.description ||
+                `Deeper guidance, smarter history, better trips, and unlimited OCR. ${PREMIUM_PRICE_PREVIEW_COPY}`}
+            </Text>
+          </View>
 
-        <View style={styles.featureCard}>
-          <Text style={styles.sectionTitle}>What premium adds</Text>
-          {PREMIUM_PRIMARY_VALUE_FEATURES.map((item) => (
-            <View key={item} style={styles.featureRow}>
-              <View style={styles.featureDot} />
-              <Text style={styles.featureText}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        {packageOptions.length > 0 ? (
-          <View style={styles.subscriptionSection}>
-            <Text style={styles.sectionTitle}>Choose a plan</Text>
-            {packageOptions.map((option) => (
-              <SubscriptionOptionCard
-                key={option.id}
-                badge={option.id === 'yearly' ? 'Best value' : undefined}
-                buttonLabel={`Subscribe ${option.title}`}
-                description={option.description}
-                disabled={Boolean(pendingActionId)}
-                isCurrent={option.productIdentifier === activeProductLabel}
-                onPress={() => void handlePurchasePackage(option)}
-                periodLabel={option.periodLabel}
-                priceLabel={option.priceLabel}
-                title={option.title}
-              />
+          <View style={styles.featureCard}>
+            <Text style={styles.sectionTitle}>Why upgrade</Text>
+            {PREMIUM_PRIMARY_VALUE_FEATURES.slice(0, 4).map((item) => (
+              <View key={item} style={styles.featureRow}>
+                <View style={styles.featureDot} />
+                <Text style={styles.featureText}>{item}</Text>
+              </View>
             ))}
           </View>
-        ) : (
-          <View style={styles.billingCard}>
-            <Text style={styles.sectionTitle}>Plans will appear here soon</Text>
-            <Text style={styles.billingWarning}>
-              We could not load subscription options on this device yet. Try again in a moment.
-            </Text>
-          </View>
-        )}
 
-        <View style={styles.noteCard}>
-          <Text style={styles.noteTitle}>Also included</Text>
-          {PREMIUM_BONUS_FEATURES.map((item) => (
-            <Text key={item} style={styles.noteText}>
-              • {item}
-            </Text>
-          ))}
-        </View>
+          {packageOptions.length > 0 ? (
+            <View style={styles.subscriptionSection}>
+              <Text style={styles.sectionTitle}>Plans</Text>
+              {packageOptions.map((option) => (
+                <SubscriptionOptionCard
+                  key={option.id}
+                  badge={option.id === 'yearly' ? 'Best value' : undefined}
+                  buttonLabel={`Choose ${option.title}`}
+                  description={option.description}
+                  disabled={Boolean(pendingActionId)}
+                  isCurrent={option.productIdentifier === activeProductLabel}
+                  onPress={() => void handlePurchasePackage(option)}
+                  periodLabel={option.periodLabel}
+                  priceLabel={option.priceLabel}
+                  title={option.title}
+                />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.billingCard}>
+              <Text style={styles.sectionTitle}>{billingPlaceholderCopy.title}</Text>
+              <Text style={styles.billingWarning}>{billingPlaceholderCopy.subtitle}</Text>
+            </View>
+          )}
 
-        {highlightedFeature ? (
-          <View style={styles.highlightCard}>
-            <Text style={styles.highlightLabel}>Selected feature</Text>
-            <Text style={styles.highlightTitle}>{highlightedFeature.title}</Text>
-            <Text style={styles.highlightText}>{highlightedFeature.description}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.buttonStack}>
-          <PrimaryButton
-            disabled={!hasBillingAccess || Boolean(pendingActionId)}
-            label={entitlement.isPremium ? 'View Plans' : 'See Plans'}
-            onPress={() => void handlePresentPaywall()}
-          />
-          <PrimaryButton
-            disabled={!revenueCatAvailable || Boolean(pendingActionId)}
-            label="Restore"
-            onPress={() => void handleRestorePress()}
-          />
-          {(entitlement.isPremium || billingState.managementUrl) && revenueCatAvailable ? (
-            <PrimaryButton
-              disabled={Boolean(pendingActionId)}
-              label="Manage Subscription"
-              onPress={() => void handleOpenCustomerCenter()}
-            />
+          {highlightedFeature ? (
+            <View style={styles.highlightCard}>
+              <Text style={styles.highlightLabel}>Selected feature</Text>
+              <Text style={styles.highlightTitle}>{highlightedFeature.title}</Text>
+              <Text style={styles.highlightText}>{highlightedFeature.description}</Text>
+            </View>
           ) : null}
+
+          <View style={styles.buttonStack}>
+            <PrimaryButton
+              disabled={!hasBillingAccess || Boolean(pendingActionId)}
+              label={entitlement.isPremium ? 'View Plans' : 'See Plans'}
+              onPress={() => {
+                setPendingActionId('paywall');
+                void presentRevenueCatPaywall(currentOffering)
+                  .then(loadPremiumState)
+                  .catch((error) => {
+                    Alert.alert(
+                      'Paywall unavailable',
+                      getRevenueCatErrorMessage(
+                        error,
+                        'We could not open premium checkout right now.'
+                      )
+                    );
+                  })
+                  .finally(() => setPendingActionId(null));
+              }}
+            />
+            <PrimaryButton
+              disabled={!revenueCatAvailable || Boolean(pendingActionId)}
+              label="Restore"
+              onPress={() => {
+                setPendingActionId('restore');
+                void restoreRevenueCatPurchases()
+                  .then(async (restoredCustomerInfo) => {
+                    await loadPremiumState();
+                    Alert.alert(
+                      'Restore complete',
+                      getRevenueCatPremiumState(restoredCustomerInfo).isActive
+                        ? 'Your premium access is active again.'
+                        : 'No active premium subscription was found on this store account.'
+                    );
+                  })
+                  .catch((error) => {
+                    Alert.alert(
+                      'Restore failed',
+                      getRevenueCatErrorMessage(error, 'We could not restore purchases right now.')
+                    );
+                  })
+                  .finally(() => setPendingActionId(null));
+              }}
+            />
+            {(entitlement.isPremium || billingState.managementUrl) && revenueCatAvailable ? (
+              <PrimaryButton
+                disabled={Boolean(pendingActionId)}
+                label="Manage Subscription"
+                onPress={() => {
+                  setPendingActionId('customer-center');
+                  void presentRevenueCatCustomerCenter()
+                    .then(loadPremiumState)
+                    .catch((error) => {
+                      Alert.alert(
+                        'Customer Center unavailable',
+                        getRevenueCatErrorMessage(
+                          error,
+                          'We could not open subscription management right now.'
+                        )
+                      );
+                    })
+                    .finally(() => setPendingActionId(null));
+                }}
+              />
+            ) : null}
+          </View>
         </View>
-        </ScreenReveal>
-      </ScrollView>
-    </SafeAreaView>
+      )}
+    </PopupSheetLayout>
   );
+}
+
+export default function PremiumScreen() {
+  return null;
 }
 
 const createStyles = (
@@ -389,37 +363,24 @@ const createStyles = (
       borderRadius: 24,
       borderWidth: 1,
       gap: 8,
-      padding: 20,
+      padding: 18,
     },
     billingWarning: {
       color: colors.textMuted,
       fontFamily: typography.bodyFontFamily,
       fontSize: 14,
       lineHeight: 21,
-      marginTop: 4,
     },
     buttonStack: {
-      gap: 12,
-    },
-    content: {
-      paddingBottom: 164,
-      padding: 24,
-    },
-    eyebrow: {
-      color: colors.primary,
-      fontFamily: typography.accentFontFamily,
-      fontSize: 12,
-      fontWeight: '800',
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
+      gap: 10,
     },
     featureCard: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
       borderRadius: 24,
       borderWidth: 1,
-      gap: 14,
-      padding: 20,
+      gap: 12,
+      padding: 18,
     },
     featureDot: {
       backgroundColor: colors.primary,
@@ -436,11 +397,11 @@ const createStyles = (
       color: colors.text,
       flex: 1,
       fontFamily: typography.bodyFontFamily,
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 14,
+      lineHeight: 21,
     },
     flow: {
-      gap: 18,
+      gap: 14,
     },
     sectionTitle: {
       color: colors.text,
@@ -451,10 +412,10 @@ const createStyles = (
     heroCard: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderRadius: 28,
+      borderRadius: 24,
       borderWidth: 1,
       gap: 10,
-      padding: 22,
+      padding: 18,
     },
     highlightCard: {
       backgroundColor: colors.primaryMuted,
@@ -462,7 +423,7 @@ const createStyles = (
       borderRadius: 22,
       borderWidth: 1,
       gap: 8,
-      padding: 18,
+      padding: 16,
     },
     highlightLabel: {
       color: colors.primary,
@@ -480,32 +441,8 @@ const createStyles = (
     highlightTitle: {
       color: colors.text,
       fontFamily: typography.headingFontFamily,
-      fontSize: 19,
+      fontSize: 18,
       fontWeight: '800',
-    },
-    noteCard: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 22,
-      borderWidth: 1,
-      gap: 8,
-      padding: 18,
-    },
-    noteText: {
-      color: colors.textMuted,
-      fontFamily: typography.bodyFontFamily,
-      fontSize: 14,
-      lineHeight: 20,
-    },
-    noteTitle: {
-      color: colors.text,
-      fontFamily: typography.headingFontFamily,
-      fontSize: 16,
-      fontWeight: '800',
-    },
-    safeArea: {
-      backgroundColor: colors.background,
-      flex: 1,
     },
     planPill: {
       backgroundColor: colors.primaryMuted,
@@ -519,6 +456,32 @@ const createStyles = (
       fontSize: 12,
       fontWeight: '800',
     },
+    stateCard: {
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 14,
+      padding: 18,
+    },
+    stateCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    stateText: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    stateTitle: {
+      color: colors.text,
+      fontFamily: typography.headingFontFamily,
+      fontSize: 18,
+      fontWeight: '800',
+    },
     statusBadge: {
       alignSelf: 'flex-start',
       borderRadius: 999,
@@ -529,7 +492,7 @@ const createStyles = (
       backgroundColor: colors.primaryMuted,
     },
     statusBadgeInactive: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.background,
     },
     statusBadgeText: {
       fontFamily: typography.accentFontFamily,
@@ -550,19 +513,12 @@ const createStyles = (
       gap: 10,
     },
     subscriptionSection: {
-      gap: 14,
+      gap: 12,
     },
     subtitle: {
       color: colors.textMuted,
       fontFamily: typography.bodyFontFamily,
-      fontSize: 15,
-      lineHeight: 22,
-    },
-    title: {
-      color: colors.text,
-      fontFamily: typography.headingFontFamily,
-      fontSize: 30,
-      fontWeight: '800',
-      lineHeight: 36,
+      fontSize: 14,
+      lineHeight: 21,
     },
   });

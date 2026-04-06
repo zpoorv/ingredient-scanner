@@ -186,6 +186,21 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <View style={styles.screen}>
         <ScreenReveal style={styles.container}>
+          <View style={styles.heroCard}>
+            <Text style={styles.heroLabel}>Shelf search</Text>
+            <Text style={styles.heroTitle}>Find a better option fast</Text>
+            <Text style={styles.heroSubtitle}>
+              Search by product or brand, then open the clearest match.
+            </Text>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>
+                {rankedResults.length > 0
+                  ? `${rankedResults.length} result${rankedResults.length === 1 ? '' : 's'} ready`
+                  : 'Ready when you are'}
+              </Text>
+            </View>
+          </View>
+
           <TextInput
             autoCapitalize="none"
             autoCorrect={false}
@@ -241,12 +256,14 @@ const createStyles = (
   StyleSheet.create({
     container: {
       flex: 1,
-      gap: 14,
+      gap: 16,
       padding: 24,
     },
     emptyState: {
       alignItems: 'center',
       backgroundColor: colors.surface,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
       borderColor: colors.border,
       borderRadius: 24,
       borderWidth: 1,
@@ -267,6 +284,48 @@ const createStyles = (
       fontSize: 18,
       fontWeight: '700',
     },
+    heroCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 28,
+      gap: 10,
+      padding: 22,
+    },
+    heroLabel: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    heroPill: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primaryMuted,
+      borderRadius: 999,
+      marginTop: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    heroPillText: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    heroSubtitle: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 15,
+      lineHeight: 21,
+    },
+    heroTitle: {
+      color: colors.text,
+      fontFamily: typography.displayFontFamily,
+      fontSize: 30,
+      fontWeight: '800',
+      lineHeight: 34,
+    },
     listContent: {
       gap: 12,
       paddingBottom: 132,
@@ -284,12 +343,12 @@ const createStyles = (
     searchInput: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderRadius: 18,
+      borderRadius: 22,
       borderWidth: 1,
       color: colors.text,
       fontFamily: typography.bodyFontFamily,
-      fontSize: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+      fontSize: 17,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
     },
   });

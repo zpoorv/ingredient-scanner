@@ -4,7 +4,7 @@ import {
   type BarcodeType,
 } from 'expo-camera';
 import { memo, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTheme } from './AppThemeProvider';
 
@@ -28,6 +28,8 @@ type BarcodeScannerPanelProps = {
   isFocused: boolean;
   onCameraMountError?: (message: string) => void;
   onBarcodeScanned: (result: BarcodeScanningResult) => void;
+  overlayActionLabel?: string;
+  onOverlayActionPress?: () => void;
   overlayLabel: string;
 };
 
@@ -39,6 +41,8 @@ function BarcodeScannerPanel({
   isFocused,
   onCameraMountError,
   onBarcodeScanned,
+  overlayActionLabel,
+  onOverlayActionPress,
   overlayLabel,
 }: BarcodeScannerPanelProps) {
   const { colors } = useAppTheme();
@@ -64,7 +68,7 @@ function BarcodeScannerPanel({
           <View style={styles.cameraPlaceholder} />
         )}
 
-        <View pointerEvents="none" style={styles.overlay}>
+        <View style={styles.overlay}>
           <View style={styles.overlayTopRow}>
             <View style={styles.overlayPill}>
               <Text style={styles.overlayPillText}>{overlayLabel}</Text>
@@ -78,7 +82,14 @@ function BarcodeScannerPanel({
             <View style={[styles.corner, styles.cornerBottomRight]} />
           </View>
 
-          <Text style={styles.helperText}>{helperText}</Text>
+          <View style={styles.overlayBottom}>
+            <Text style={styles.helperText}>{helperText}</Text>
+            {overlayActionLabel && onOverlayActionPress ? (
+              <Pressable onPress={onOverlayActionPress} style={styles.overlayAction}>
+                <Text style={styles.overlayActionText}>{overlayActionLabel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       </View>
     </View>
@@ -172,6 +183,23 @@ const createStyles = (
     overlayTopRow: {
       alignItems: 'flex-start',
       width: '100%',
+    },
+    overlayBottom: {
+      alignItems: 'center',
+      gap: 12,
+      width: '100%',
+    },
+    overlayAction: {
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderRadius: 999,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+    },
+    overlayActionText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '800',
+      textTransform: 'uppercase',
     },
     scanFrame: {
       borderColor: 'rgba(255, 255, 255, 0.32)',

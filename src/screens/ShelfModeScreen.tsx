@@ -1,12 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../components/AppThemeProvider';
+import MicroCelebrationBanner from '../components/MicroCelebrationBanner';
 import PrimaryButton from '../components/PrimaryButton';
 import type { ComparisonSessionEntry } from '../models/comparisonSession';
+import type { GamificationCelebration } from '../models/gamification';
 import type { PremiumEntitlement } from '../models/premium';
 import type { RootStackParamList } from '../navigation/types';
 import {
@@ -15,6 +17,7 @@ import {
   loadComparisonSession,
   removeComparisonSessionEntry,
 } from '../services/comparisonSessionStorage';
+import { recordGamificationTripCompletion } from '../services/gamificationService';
 import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { buildShelfComparisonSummary } from '../utils/shelfComparison';
 
@@ -71,6 +74,22 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
   const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement | null>(
     null
   );
+  const [gamificationCelebration, setGamificationCelebration] =
+    useState<GamificationCelebration | null>(null);
+
+  useEffect(() => {
+    if (!gamificationCelebration) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setGamificationCelebration(null);
+    }, 4200);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [gamificationCelebration]);
 
   useFocusEffect(
     useCallback(() => {
@@ -132,6 +151,15 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
 
   const handleFinishTrip = async () => {
     const nextSession = await finishComparisonTrip();
+    const completedTrip = nextSession.recentTrips[0] ?? null;
+
+    if (completedTrip) {
+      const gamificationResult = await recordGamificationTripCompletion({
+        trip: completedTrip,
+      });
+      setGamificationCelebration(gamificationResult.celebration);
+    }
+
     setEntries(nextSession.entries);
     setRecentTripSummaries(
       nextSession.recentTrips.map((trip) => ({
@@ -153,6 +181,8 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
           </Text>
           <Text style={styles.highlight}>{summary.whyThisWins}</Text>
         </View>
+
+        <MicroCelebrationBanner celebration={gamificationCelebration} />
 
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>

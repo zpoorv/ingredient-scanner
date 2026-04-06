@@ -74,6 +74,7 @@ export const PREMIUM_PRIMARY_VALUE_FEATURES = [
   'Deeper result guidance that explains what most affected the score.',
   'Weekly shopping insights and stronger repeat-buy habit tracking.',
   'Healthier swap guidance that tells you what to look for next time.',
+  'Deeper progress history for your weekly momentum, streaks, and calm badge milestones.',
   'Shelf Mode extras that make in-store comparisons faster and clearer.',
   'Ad-free ingredient scans with unlimited daily OCR use.',
 ];
@@ -82,6 +83,7 @@ export const PREMIUM_BONUS_FEATURES = [
   'Five extra share-card styles.',
   'Five extra app looks.',
   'Saved favorites and ready-to-open comparison slots.',
+  'Richer achievement breakdowns and share-ready progress moments.',
 ];
 
 export const PREMIUM_PRICE_PREVIEW_COPY =

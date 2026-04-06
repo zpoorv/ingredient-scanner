@@ -6,22 +6,28 @@ import type { ScanResultSource } from '../types/scanner';
 
 export type RootStackParamList = {
   About: undefined;
+  AccountSettings: undefined;
+  Alerts: undefined;
+  AppearanceSettings: undefined;
   Feedback: undefined;
   Help: undefined;
   Home: undefined;
   History: undefined;
+  HouseholdSettings: undefined;
   Login: LoginScreenParams;
   IngredientOcr:
     | {
         profileId?: DietProfileId;
       }
     | undefined;
+  NotificationSettings: undefined;
   PrivacyPolicy: undefined;
   Premium:
     | {
         featureId?: PremiumFeatureId;
       }
     | undefined;
+  Progress: undefined;
   ProfileDetails: undefined;
   ResetPassword: undefined;
   Search: undefined;
@@ -33,6 +39,8 @@ export type RootStackParamList = {
   ShelfMode: undefined;
   Settings: undefined;
   SignUp: undefined;
+  SupportSettings: undefined;
+  Trips: undefined;
   Result: {
     barcode: string;
     barcodeType?: string | null;

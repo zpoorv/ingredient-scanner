@@ -4,7 +4,8 @@ export type HistoryNotificationKind =
   | 'weekly-recap'
   | 'caution-streak'
   | 'healthy-streak'
-  | 'repeat-low-score';
+  | 'repeat-low-score'
+  | 'weekly-goal';
 
 export type HistoryNotificationPayload = {
   fingerprint?: string;

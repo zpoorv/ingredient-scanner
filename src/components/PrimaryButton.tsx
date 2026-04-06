@@ -42,6 +42,8 @@ const createStyles = (
     button: {
       alignItems: 'center',
       backgroundColor: colors.primary,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
       borderRadius: 999,
       minHeight: 54,
       justifyContent: 'center',

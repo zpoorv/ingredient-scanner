@@ -1,4 +1,5 @@
 import type { ScanHistoryEntry } from '../services/scanHistoryStorage';
+import type { GamificationSummary } from '../models/gamification';
 import type { HistoryNotificationKind } from '../models/historyNotification';
 import type { ProductTimelineEntry } from '../models/productTimeline';
 import { buildRecentTimelineEntries } from './productTimeline';
@@ -34,6 +35,7 @@ export type HistoryNotification = {
 };
 
 export type HistoryOverview = {
+  gamificationSummary: GamificationSummary | null;
   insights: HistoryInsight[];
   notifications: HistoryNotification[];
   recentChanges: ProductTimelineEntry[];
@@ -45,6 +47,7 @@ export type HistoryOverview = {
 
 type BuildHistoryInsightsOptions = {
   currentTimeMs?: number;
+  gamificationSummary?: GamificationSummary | null;
   includePremiumPatterns?: boolean;
 };
 
@@ -349,6 +352,7 @@ export function buildHistoryOverview(
   const replacementCandidates = buildReplacementCandidates(historyEntries);
 
   return {
+    gamificationSummary: options.gamificationSummary ?? null,
     insights: buildHistoryInsights(historyEntries, options),
     notifications: buildHistoryNotifications(
       historyEntries,

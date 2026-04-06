@@ -1,507 +1,193 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  InteractionManager,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useAppTheme } from '../components/AppThemeProvider';
-import DeferredSection from '../components/DeferredSection';
 import DietProfileModal from '../components/DietProfileModal';
-import HistoryInsightsCard from '../components/HistoryInsightsCard';
-import HistoryNotificationsCard from '../components/HistoryNotificationsCard';
-import NativeSponsoredCard from '../components/NativeSponsoredCard';
-import ProductTimelineCard from '../components/ProductTimelineCard';
-import ProductChangeAlertsCard from '../components/ProductChangeAlertsCard';
+import PrimaryButton from '../components/PrimaryButton';
+import QuestActionCard from '../components/QuestActionCard';
+import ScreenLoadingView from '../components/ScreenLoadingView';
 import ScreenReveal from '../components/ScreenReveal';
-import UsualBuysCard, { type UsualBuyCardItem } from '../components/UsualBuysCard';
+import { useAppTheme } from '../components/AppThemeProvider';
+import { APP_NAME } from '../constants/branding';
 import {
   DEFAULT_DIET_PROFILE_ID,
-  DIET_PROFILE_DEFINITIONS,
   type DietProfileId,
 } from '../constants/dietProfiles';
-import type { PremiumEntitlement } from '../models/premium';
-import { openMainRoute } from '../navigation/navigationRef';
-import type { RootStackParamList } from '../navigation/types';
+import { createDefaultPremiumEntitlement } from '../models/premium';
+import type { FeatureQuotaSnapshot } from '../services/featureUsageStorage';
 import {
   loadDietProfileIntroSeen,
   markDietProfileIntroSeen,
   saveDietProfile,
 } from '../services/dietProfileStorage';
-import { loadAdminAppConfig } from '../services/adminAppConfigService';
+import { loadFeatureQuotaSnapshot } from '../services/featureUsageStorage';
 import {
-  loadFeatureQuotaSnapshot,
-  type FeatureQuotaSnapshot,
-} from '../services/featureUsageStorage';
-import { loadUsualBuyProducts } from '../services/commonProductStorage';
-import type { CachePolicy } from '../services/sessionDataService';
-import {
-  loadSessionComparisonSession,
   loadSessionEffectiveShoppingProfile,
   loadSessionPremiumEntitlement,
-  loadSessionProductChangeAlerts,
-  loadSessionScanHistory,
   loadSessionUserProfile,
 } from '../services/sessionDataService';
-import { getCanonicalNowMs } from '../services/timeIntegrityService';
-import {
-  hasShownNativeAdThisSession,
-  markNativeAdShownThisSession,
-} from '../services/adSessionService';
 import { measurePerformanceTrace } from '../services/performanceTrace';
-import { subscribeScanHistoryChanges } from '../services/scanHistoryStorage';
-import { getPremiumSession, subscribeAuthSession, subscribePremiumSession } from '../store';
-import {
-  buildHistoryNotifications,
-  buildHistoryOverview,
-  type HistoryInsight,
-  type HistoryNotification,
-  type HistoryReplacementCandidate,
-} from '../utils/historyPersonalization';
-import type { ProductChangeAlert } from '../models/productChangeAlert';
-import type { ProductTimelineEntry } from '../models/productTimeline';
-import { buildShelfComparisonSummary } from '../utils/shelfComparison';
+import type { RootStackParamList } from '../navigation/types';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
-  const insets = useSafeAreaInsets();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
-  const [selectedProfileId, setSelectedProfileId] = useState<DietProfileId>(
-    DEFAULT_DIET_PROFILE_ID
-  );
-  const [draftProfileId, setDraftProfileId] = useState<DietProfileId>(
-    DEFAULT_DIET_PROFILE_ID
-  );
-  const [adminAnnouncement, setAdminAnnouncement] = useState<{
-    body: string | null;
-    title: string | null;
-  } | null>(null);
-  const [historyInsights, setHistoryInsights] = useState<HistoryInsight[]>([]);
-  const [historyNotifications, setHistoryNotifications] = useState<HistoryNotification[]>([]);
-  const [productChangeAlerts, setProductChangeAlerts] = useState<ProductChangeAlert[]>([]);
-  const [recentChanges, setRecentChanges] = useState<ProductTimelineEntry[]>([]);
-  const [replaceFirstCandidate, setReplaceFirstCandidate] =
-    useState<HistoryReplacementCandidate | null>(null);
-  const [favoriteCount, setFavoriteCount] = useState(0);
-  const [comparisonSummary, setComparisonSummary] = useState<string | null>(null);
-  const [recentTripSummary, setRecentTripSummary] = useState<string | null>(null);
-  const [shelfItemCount, setShelfItemCount] = useState(0);
+  const [effectiveProfileId, setEffectiveProfileId] =
+    useState<DietProfileId>(DEFAULT_DIET_PROFILE_ID);
   const [activeShopperName, setActiveShopperName] = useState('You');
   const [isHouseholdProfileActive, setIsHouseholdProfileActive] = useState(false);
-  const [isHistoryEnabled, setIsHistoryEnabled] = useState(true);
-  const [isIngredientOcrEnabled, setIsIngredientOcrEnabled] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFirstLaunchProfileFlow, setIsFirstLaunchProfileFlow] = useState(false);
-  const [ocrQuotaSnapshot, setOcrQuotaSnapshot] = useState<FeatureQuotaSnapshot | null>(
-    null
-  );
-  const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
-  const [premiumEntitlement, setPremiumEntitlement] = useState<PremiumEntitlement>(
-    getPremiumSession()
-  );
-  const [usualBuys, setUsualBuys] = useState<UsualBuyCardItem[]>([]);
-  const [shouldMountHomeNativeAd] = useState(
-    !hasShownNativeAdThisSession('home')
-  );
-  const [hasMeasuredFirstPaint, setHasMeasuredFirstPaint] = useState(false);
+  const [ocrQuotaSnapshot, setOcrQuotaSnapshot] = useState<FeatureQuotaSnapshot | null>(null);
+  const [profileName, setProfileName] = useState(APP_NAME);
+  const [premiumLabel, setPremiumLabel] = useState('Basic');
+  const [draftProfileId, setDraftProfileId] = useState<DietProfileId>(DEFAULT_DIET_PROFILE_ID);
 
-  const selectedProfile =
-    DIET_PROFILE_DEFINITIONS.find((profile) => profile.id === selectedProfileId) ||
-    DIET_PROFILE_DEFINITIONS[0];
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
 
-  useEffect(() => {
-    let isMounted = true;
-    let secondaryInteractionHandle: ReturnType<
-      typeof InteractionManager.runAfterInteractions
-    > | null = null;
-
-    const loadSecondaryHomeData = async (
-      policy: CachePolicy,
-      isPremium: boolean,
-      profileFavoriteProductCodes: string[]
-    ) => {
-      const [
-        config,
-        profile,
-        historyEntries,
-        comparisonSession,
-        changeAlerts,
-        usualBuyProducts,
-      ] = await Promise.all([
-        loadAdminAppConfig(),
-        loadSessionUserProfile(policy),
-        loadSessionScanHistory(policy),
-        loadSessionComparisonSession(policy),
-        loadSessionProductChangeAlerts(policy),
-        loadUsualBuyProducts(3),
-      ]);
-      const currentTimeMs = await getCanonicalNowMs();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setAdminAnnouncement({
-        body: config.homeAnnouncementBody,
-        title: config.homeAnnouncementTitle,
-      });
-      setIsHistoryEnabled(config.enableHistory);
-      setIsIngredientOcrEnabled(config.enableIngredientOcr);
-      setFavoriteCount(profile?.favoriteProductCodes?.length ?? 0);
-      setProductChangeAlerts(changeAlerts);
-      setShelfItemCount(comparisonSession.entries.length);
-      const activeTripSummary =
-        comparisonSession.entries.length > 0
-          ? buildShelfComparisonSummary(comparisonSession.entries).tripRecapLine
-          : null;
-      setComparisonSummary(activeTripSummary);
-      setRecentTripSummary(comparisonSession.recentTrips[0]?.summary.recapLine ?? null);
-      setUsualBuys(
-        usualBuyProducts.map((item) => {
-          const matchingHistoryEntry =
-            historyEntries.find(
-              (entry) =>
-                entry.barcode === item.barcode ||
-                entry.product.code === item.code ||
-                entry.id === item.barcode
-            ) ?? null;
-
-          return {
-            id: item.code || item.barcode,
-            isFavorite: profileFavoriteProductCodes.includes(item.code || item.barcode),
-            name: item.name,
-            score: matchingHistoryEntry?.score ?? null,
-            summary:
-              matchingHistoryEntry?.riskSummary ||
-              item.product.categories[0] ||
-              'Scanned recently',
-            usageCount: item.usageCount,
-          };
-        })
-      );
-      const historyOverview = buildHistoryOverview(historyEntries, {
-        currentTimeMs,
-        includePremiumPatterns: isPremium && (profile?.historyInsightsEnabled ?? true),
-      });
-      setHistoryInsights(historyOverview.insights);
-      setRecentChanges(historyOverview.recentChanges.slice(0, 2));
-      setReplaceFirstCandidate(historyOverview.replaceFirstCandidate);
-      setHistoryNotifications(
-        profile?.historyNotificationsEnabled
-          ? buildHistoryNotifications(
-              historyEntries,
-              profile.historyNotificationCadence ?? 'weekly',
-              currentTimeMs
-            )
-          : []
-      );
-    };
-
-    const refreshHomeState = async (policy: CachePolicy = 'cache-first') => {
-      const [entitlement, profile, effectiveShoppingProfile, comparisonSession] =
-        await Promise.all([
-          loadSessionPremiumEntitlement(policy),
-          loadSessionUserProfile(policy),
-          loadSessionEffectiveShoppingProfile(policy),
-          loadSessionComparisonSession(policy),
-        ]);
-      const quotaSnapshot = await loadFeatureQuotaSnapshot('ingredient-ocr', entitlement);
-
-      if (!isMounted) {
-        return;
-      }
-
-      setPremiumEntitlement(entitlement);
-      setOcrQuotaSnapshot(quotaSnapshot);
-      setFavoriteCount(profile?.favoriteProductCodes?.length ?? 0);
-      setSelectedProfileId(effectiveShoppingProfile.dietProfileId);
-      setActiveShopperName(effectiveShoppingProfile.name);
-      setIsHouseholdProfileActive(effectiveShoppingProfile.usesHouseholdProfile);
-      setShelfItemCount(comparisonSession.entries.length);
-      setComparisonSummary(
-        comparisonSession.entries.length > 0
-          ? buildShelfComparisonSummary(comparisonSession.entries).tripRecapLine
-          : null
-      );
-      setRecentTripSummary(comparisonSession.recentTrips[0]?.summary.recapLine ?? null);
-
-      secondaryInteractionHandle?.cancel();
-      secondaryInteractionHandle = InteractionManager.runAfterInteractions(() => {
-        void loadSecondaryHomeData(
-          policy,
-          entitlement.isPremium,
-          profile?.favoriteProductCodes ?? []
-        );
-      });
-    };
-
-    const unsubscribe = subscribeAuthSession((session) => {
-      void refreshHomeState('stale-while-revalidate');
-    });
-    const unsubscribePremium = subscribePremiumSession((entitlement) => {
-      setPremiumEntitlement(entitlement);
-      void refreshHomeState('stale-while-revalidate');
-    });
-    const unsubscribeHistory = subscribeScanHistoryChanges(() => {
-      void refreshHomeState('stale-while-revalidate');
-    });
-
-    void refreshHomeState();
-
-    return () => {
-      isMounted = false;
-      secondaryInteractionHandle?.cancel();
-      unsubscribe();
-      unsubscribePremium();
-      unsubscribeHistory();
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const restoreProfile = async () => {
-      const [effectiveShoppingProfile, hasSeenIntro] = await Promise.all([
-        loadSessionEffectiveShoppingProfile('cache-first'),
+      void Promise.all([
+        loadSessionPremiumEntitlement('cache-first'),
+        loadSessionUserProfile('stale-while-revalidate'),
+        loadSessionEffectiveShoppingProfile('stale-while-revalidate'),
         loadDietProfileIntroSeen(),
-      ]);
+      ])
+        .then(async ([entitlement, profile, effectiveProfile, hasSeenDietIntro]) => {
+          if (!isMounted) {
+            return;
+          }
 
-      if (isMounted) {
-        setSelectedProfileId(effectiveShoppingProfile.dietProfileId);
-        setDraftProfileId(effectiveShoppingProfile.dietProfileId);
-        setActiveShopperName(effectiveShoppingProfile.name);
-        setIsHouseholdProfileActive(effectiveShoppingProfile.usesHouseholdProfile);
-        setIsFirstLaunchProfileFlow(!hasSeenIntro);
-        setIsProfileModalVisible(!hasSeenIntro);
-      }
-    };
+          const nextEntitlement = entitlement ?? createDefaultPremiumEntitlement();
+          const quotaSnapshot = await loadFeatureQuotaSnapshot('ingredient-ocr', nextEntitlement);
 
-    void restoreProfile();
+          if (!isMounted) {
+            return;
+          }
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+          setActiveShopperName(effectiveProfile.name);
+          setDraftProfileId(profile?.dietProfileId ?? DEFAULT_DIET_PROFILE_ID);
+          setEffectiveProfileId(effectiveProfile.dietProfileId);
+          setIsFirstLaunchProfileFlow(!hasSeenDietIntro);
+          setIsHouseholdProfileActive(effectiveProfile.usesHouseholdProfile);
+          setOcrQuotaSnapshot(quotaSnapshot);
+          setPremiumLabel(nextEntitlement.isPremium ? 'Premium' : 'Basic');
+          setProfileName(profile?.name?.trim() || profile?.email || APP_NAME);
+          measurePerformanceTrace('app-start', 'home-first-paint');
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        });
 
-  useEffect(() => {
-    if (hasMeasuredFirstPaint) {
-      return;
-    }
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
 
-    const frameHandle = requestAnimationFrame(() => {
-      measurePerformanceTrace('app-start', 'home-first-paint');
-      setHasMeasuredFirstPaint(true);
-    });
+  if (isLoading) {
+    return (
+      <ScreenLoadingView
+        subtitle="Preparing your shopper dashboard and the fastest way back into scanning..."
+        title={`Loading ${APP_NAME}`}
+      />
+    );
+  }
 
-    return () => {
-      cancelAnimationFrame(frameHandle);
-    };
-  }, [hasMeasuredFirstPaint]);
-
-  const handleApplyProfile = async () => {
-    setSelectedProfileId(draftProfileId);
-    setIsProfileModalVisible(false);
-    setIsFirstLaunchProfileFlow(false);
-    await saveDietProfile(draftProfileId);
-    await markDietProfileIntroSeen();
-  };
-
-  const handleHomeAdLoaded = useCallback(() => {
-    markNativeAdShownThisSession('home');
-  }, []);
-  const shouldShowHomeNativeAd =
-    !premiumEntitlement.isPremium && shouldMountHomeNativeAd;
-  const shouldInsertHomeAdAfterInsights =
-    shouldShowHomeNativeAd && isHistoryEnabled && historyInsights.length > 0;
-  const shouldInsertHomeAdAfterNotifications =
-    shouldShowHomeNativeAd &&
-    !shouldInsertHomeAdAfterInsights &&
-    isHistoryEnabled &&
-    historyNotifications.length > 0;
-  const shouldInsertHomeAdAfterAlerts =
-    shouldShowHomeNativeAd &&
-    !shouldInsertHomeAdAfterInsights &&
-    !shouldInsertHomeAdAfterNotifications &&
-    productChangeAlerts.length > 0;
-  const shouldInsertHomeAdAfterUsualBuys =
-    shouldShowHomeNativeAd &&
-    !shouldInsertHomeAdAfterInsights &&
-    !shouldInsertHomeAdAfterNotifications &&
-    !shouldInsertHomeAdAfterAlerts;
+  const ocrLabel = ocrQuotaSnapshot?.isUnlimited
+    ? 'Unlimited OCR'
+    : ocrQuotaSnapshot && ocrQuotaSnapshot.remaining !== null
+      ? `${ocrQuotaSnapshot.remaining} OCR left today`
+      : 'OCR ready';
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.backgroundGlow} />
-
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom + 122, 148) },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <ScreenReveal style={styles.content}>
-            <View style={styles.heroBlock}>
-              <Text style={styles.title}>Scan smarter</Text>
-              <Text style={styles.subtitle}>Barcode or ingredients. Clear answer in seconds.</Text>
-            </View>
-
-            <View style={styles.profileSummaryCard}>
-              <Text style={styles.profileSummaryLabel}>Shopping For</Text>
-              <Text style={styles.profileSummaryTitle}>{activeShopperName}</Text>
-              <Text style={styles.profileSummaryText}>
-                {isHouseholdProfileActive
-                  ? `${selectedProfile.label} household profile is active.`
-                  : `${selectedProfile.label} is active.`}
-              </Text>
-            </View>
-
-            <View style={styles.profileSummaryCard}>
-              <Text style={styles.profileSummaryLabel}>Diet Profile</Text>
-              <Text style={styles.profileSummaryTitle}>{selectedProfile.label}</Text>
-            </View>
-            <View style={styles.statRow}>
-              {isIngredientOcrEnabled && ocrQuotaSnapshot ? (
-                <View style={styles.statCard}>
-                  <Text style={styles.profileSummaryLabel}>Ingredient Scans</Text>
-                  <Text style={styles.statTitle}>
-                    {ocrQuotaSnapshot.isUnlimited
-                      ? 'Unlimited'
-                      : `${ocrQuotaSnapshot.remaining} left`}
-                  </Text>
-                </View>
-              ) : null}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScreenReveal style={styles.screen}>
+          <View style={styles.content}>
+          <View style={styles.heroCard}>
+            <Text style={styles.eyebrow}>Dashboard</Text>
+            <Text style={styles.heroTitle}>{profileName}</Text>
+            <Text style={styles.heroBody}>
+              {isHouseholdProfileActive
+                ? `Shopping for ${activeShopperName} right now.`
+                : `Shopping as ${activeShopperName}.`}
+            </Text>
+            <View style={styles.heroMetaRow}>
               <Pressable
-                onPress={() => navigation.navigate('Premium')}
-                style={[styles.statCard, styles.statCardPressable]}
+                onPress={() => navigation.navigate('HouseholdSettings')}
+                style={styles.metaPill}
               >
-                <Text style={styles.profileSummaryLabel}>Plan</Text>
-                <Text style={styles.statTitle}>
-                  {premiumEntitlement.isPremium ? 'Premium' : 'Basic'}
-                </Text>
+                <Text style={styles.metaPillText}>{activeShopperName}</Text>
               </Pressable>
+              <View style={styles.metaPill}>
+                <Text style={styles.metaPillText}>{premiumLabel}</Text>
+              </View>
+              <View style={styles.metaPill}>
+                <Text style={styles.metaPillText}>{ocrLabel}</Text>
+              </View>
             </View>
+          </View>
 
-            {replaceFirstCandidate ? (
-              <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>Replace first</Text>
-                <Text style={styles.profileSummaryTitle}>{replaceFirstCandidate.name}</Text>
-                <Text style={styles.profileSummaryText}>{replaceFirstCandidate.reason}</Text>
-              </View>
-            ) : null}
+          <View style={styles.scanCard}>
+            <Text style={styles.scanLabel}>Ready to scan</Text>
+            <Text style={styles.scanTitle}>Start with one product</Text>
+            <Text style={styles.scanBody}>
+              Scan lives on its own page now, so Home stays fast and focused.
+            </Text>
+            <PrimaryButton
+              label="Open scanner"
+              onPress={() => navigation.navigate('Scanner', { profileId: effectiveProfileId })}
+            />
+          </View>
 
-            {comparisonSummary ? (
-              <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>Trip in progress</Text>
-                <Text style={styles.profileSummaryTitle}>Keep this trip moving</Text>
-                <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
-              </View>
-            ) : recentTripSummary ? (
-              <View style={styles.profileSummaryCard}>
-                <Text style={styles.profileSummaryLabel}>Last trip</Text>
-                <Text style={styles.profileSummaryTitle}>Recent recap</Text>
-                <Text style={styles.profileSummaryText}>{recentTripSummary}</Text>
-              </View>
-            ) : null}
+          <QuestActionCard
+            badge="Progress"
+            icon="trophy-outline"
+            onPress={() => navigation.navigate('Progress')}
+            subtitle="See your weekly momentum, streak, goal, and recent badges."
+            title="Open progress"
+          />
+          <QuestActionCard
+            badge="Alerts"
+            icon="alert-circle-outline"
+            onPress={() => navigation.navigate('Alerts')}
+            subtitle="Check changed products, watch-outs, and replace-first nudges."
+            title="Review alerts"
+          />
+          <QuestActionCard
+            badge="Trips"
+            icon="bag-handle-outline"
+            onPress={() => navigation.navigate('Trips')}
+            subtitle="Continue Shelf Mode and review recent comparison trip recaps."
+            title="Open trips"
+          />
+          <QuestActionCard
+            badge="Search"
+            icon="search-outline"
+            onPress={() => navigation.navigate('Search')}
+            subtitle="Search products directly without digging through Home cards."
+            title="Search products"
+          />
+          </View>
+        </ScreenReveal>
+      </ScrollView>
 
-            <DeferredSection>
-              <>
-                {adminAnnouncement?.title || adminAnnouncement?.body ? (
-                  <View style={styles.announcementCard}>
-                    <Text style={styles.announcementLabel}>Announcement</Text>
-                    {adminAnnouncement.title ? (
-                      <Text style={styles.announcementTitle}>
-                        {adminAnnouncement.title}
-                      </Text>
-                    ) : null}
-                    {adminAnnouncement.body ? (
-                      <Text style={styles.announcementText}>
-                        {adminAnnouncement.body}
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                <UsualBuysCard
-                  items={usualBuys}
-                  onOpenHistory={() => openMainRoute('History')}
-                  onOpenSearch={() => openMainRoute('Search')}
-                />
-                {shouldInsertHomeAdAfterUsualBuys ? (
-                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-                ) : null}
-
-                {isHistoryEnabled && historyInsights.length > 0 ? (
-                  <HistoryInsightsCard colors={colors} insights={historyInsights} />
-                ) : null}
-                {shouldInsertHomeAdAfterInsights ? (
-                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-                ) : null}
-
-                {isHistoryEnabled && historyNotifications.length > 0 ? (
-                  <HistoryNotificationsCard notifications={historyNotifications} />
-                ) : null}
-                {shouldInsertHomeAdAfterNotifications ? (
-                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-                ) : null}
-
-                {productChangeAlerts.length > 0 ? (
-                  <ProductChangeAlertsCard
-                    alerts={productChangeAlerts}
-                    onOpenAlert={() => openMainRoute('History')}
-                  />
-                ) : null}
-                {recentChanges.length > 0 ? (
-                  <ProductTimelineCard entries={recentChanges} title="Recent changes" />
-                ) : null}
-                {shouldInsertHomeAdAfterAlerts ? (
-                  <NativeSponsoredCard onLoaded={handleHomeAdLoaded} surface="home" />
-                ) : null}
-
-                {premiumEntitlement.isPremium &&
-                (favoriteCount > 0 || comparisonSummary) ? (
-                  <View style={styles.profileSummaryCard}>
-                    <Text style={styles.profileSummaryLabel}>Saved products</Text>
-                    <Text style={styles.profileSummaryTitle}>
-                      {favoriteCount > 0
-                        ? `${favoriteCount} favorite${favoriteCount === 1 ? '' : 's'} saved`
-                        : 'Comparison ready'}
-                    </Text>
-                    {comparisonSummary ? (
-                      <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                {shelfItemCount > 0 ? (
-                  <View style={styles.profileSummaryCard}>
-                    <Text style={styles.profileSummaryLabel}>Shelf Mode</Text>
-                    <Text style={styles.profileSummaryTitle}>
-                      {shelfItemCount} product{shelfItemCount === 1 ? '' : 's'} ready to compare
-                    </Text>
-                    {comparisonSummary ? (
-                      <Text style={styles.profileSummaryText}>{comparisonSummary}</Text>
-                    ) : null}
-                  </View>
-                ) : null}
-              </>
-            </DeferredSection>
-          </ScreenReveal>
-        </ScrollView>
-      </View>
       <DietProfileModal
         isFirstLaunch={isFirstLaunchProfileFlow}
-        onApply={() => void handleApplyProfile()}
+        onApply={() => {
+          setIsFirstLaunchProfileFlow(false);
+          void Promise.all([saveDietProfile(draftProfileId), markDietProfileIntroSeen()]);
+        }}
         onSelect={setDraftProfileId}
         selectedProfileId={draftProfileId}
-        visible={isProfileModalVisible}
+        visible={isFirstLaunchProfileFlow}
       />
     </SafeAreaView>
   );
@@ -512,125 +198,91 @@ const createStyles = (
   typography: ReturnType<typeof useAppTheme>['typography']
 ) =>
   StyleSheet.create({
-  announcementCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 8,
-    padding: 18,
-  },
-  announcementLabel: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  announcementText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyFontFamily,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  announcementTitle: {
-    color: colors.text,
-    fontFamily: typography.headingFontFamily,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  backgroundGlow: {
-    backgroundColor: colors.primaryMuted,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    height: 240,
-    left: -24,
-    opacity: 0.55,
-    position: 'absolute',
-    right: -24,
-    top: -32,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  content: {
-    gap: 24,
-  },
-  heroBlock: {
-    gap: 14,
-    paddingTop: 12,
-  },
-  profileSummaryCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 8,
-    padding: 18,
-  },
-  profileSummaryLabel: {
-    color: colors.primary,
-    fontFamily: typography.accentFontFamily,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  profileSummaryText: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyFontFamily,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  profileSummaryTitle: {
-    color: colors.text,
-    fontFamily: typography.headingFontFamily,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  statCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 24,
-    borderWidth: 1,
-    flex: 1,
-    gap: 8,
-    padding: 18,
-  },
-  statCardPressable: {
-    justifyContent: 'center',
-  },
-  statRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statTitle: {
-    color: colors.text,
-    fontFamily: typography.headingFontFamily,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  safeArea: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontFamily: typography.bodyFontFamily,
-    fontSize: 17,
-    lineHeight: 25,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: typography.displayFontFamily,
-    fontSize: 36,
-    fontWeight: '800',
-    lineHeight: 42,
-  },
-});
+    content: {
+      gap: 16,
+      padding: 24,
+    },
+    eyebrow: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    heroBody: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    heroCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 28,
+      borderWidth: 1,
+      gap: 8,
+      padding: 22,
+    },
+    heroMetaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      paddingTop: 6,
+    },
+    heroTitle: {
+      color: colors.text,
+      fontFamily: typography.displayFontFamily,
+      fontSize: 30,
+      fontWeight: '800',
+      lineHeight: 36,
+    },
+    metaPill: {
+      backgroundColor: colors.primaryMuted,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    metaPillText: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    safeArea: {
+      backgroundColor: colors.background,
+      flex: 1,
+    },
+    scrollContent: {
+      paddingBottom: 132,
+    },
+    scanBody: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 14,
+      lineHeight: 21,
+    },
+    scanCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 26,
+      borderWidth: 1,
+      gap: 10,
+      padding: 20,
+    },
+    scanLabel: {
+      color: colors.primary,
+      fontFamily: typography.accentFontFamily,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+    },
+    scanTitle: {
+      color: colors.text,
+      fontFamily: typography.headingFontFamily,
+      fontSize: 22,
+      fontWeight: '800',
+    },
+    screen: {
+      flex: 1,
+    },
+  });

@@ -1,8 +1,10 @@
 import type { ComparisonSession } from '../models/comparisonSession';
+import type { GamificationProfile } from '../models/gamification';
 import type { PremiumEntitlement } from '../models/premium';
 import type { ProductChangeAlert } from '../models/productChangeAlert';
 import type { UserProfile } from '../models/userProfile';
 import { loadComparisonSession } from './comparisonSessionStorage';
+import { loadCurrentGamificationProfile } from './gamificationService';
 import type { EffectiveShoppingProfile } from './householdProfilesService';
 import { loadEffectiveShoppingProfile } from './householdProfilesService';
 import { loadCurrentPremiumEntitlement } from './premiumEntitlementService';
@@ -21,6 +23,7 @@ import { loadUserProfile } from './userProfileService';
 const SESSION_TTLS = {
   comparisonSession: 30_000,
   effectiveShoppingProfile: 30_000,
+  gamificationProfile: 45_000,
   premiumEntitlement: 45_000,
   productChangeAlerts: 30_000,
   scanHistory: 45_000,
@@ -55,6 +58,16 @@ export function loadSessionPremiumEntitlement(
     () => loadCurrentPremiumEntitlement(),
     { policy, ttlMs: SESSION_TTLS.premiumEntitlement }
   );
+}
+
+export function loadSessionGamificationProfile(
+  policy: CachePolicy = 'cache-first',
+  historyEntries?: ScanHistoryEntry[]
+): Promise<GamificationProfile> {
+  return loadCurrentGamificationProfile({
+    historyEntries,
+    policy,
+  });
 }
 
 export function loadSessionProductChangeAlerts(

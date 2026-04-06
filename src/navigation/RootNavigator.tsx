@@ -17,11 +17,12 @@ import {
 import HistoryScreen from '../screens/HistoryScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
+import { PremiumSheet } from '../screens/PremiumScreen';
 import ResultScreen from '../screens/ResultScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import SearchScreen from '../screens/SearchScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+import SettingsScreen, { SettingsSheet } from '../screens/SettingsScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import { hydrateAuthSession } from '../services/authService';
 import { AuthServiceError } from '../services/authHelpers';
@@ -52,8 +53,19 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const loadPremiumScreen = () => import('../screens/PremiumScreen');
 const loadProfileDetailsScreen = () => import('../screens/ProfileDetailsScreen');
+const loadProgressScreen = () => import('../screens/ProgressScreen');
+const loadAlertsScreen = () => import('../screens/AlertsScreen');
+const loadTripsScreen = () => import('../screens/TripsScreen');
 const loadShelfModeScreen = () => import('../screens/ShelfModeScreen');
 const loadIngredientOcrScreen = () => import('../screens/IngredientOcrScreen');
+const loadAccountSettingsScreen = () => import('../screens/AccountSettingsScreen');
+const loadNotificationSettingsScreen = () =>
+  import('../screens/NotificationSettingsScreen');
+const loadAppearanceSettingsScreen = () =>
+  import('../screens/AppearanceSettingsScreen');
+const loadHouseholdSettingsScreen = () =>
+  import('../screens/HouseholdSettingsScreen');
+const loadSupportSettingsScreen = () => import('../screens/SupportSettingsScreen');
 const loadHelpScreen = () => import('../screens/HelpScreen');
 const loadPrivacyPolicyScreen = () => import('../screens/PrivacyPolicyScreen');
 const loadAboutScreen = () => import('../screens/AboutScreen');
@@ -61,8 +73,16 @@ const loadFeedbackScreen = () => import('../screens/FeedbackScreen');
 
 const PremiumScreen = lazy(loadPremiumScreen);
 const ProfileDetailsScreen = lazy(loadProfileDetailsScreen);
+const ProgressScreen = lazy(loadProgressScreen);
+const AlertsScreen = lazy(loadAlertsScreen);
+const TripsScreen = lazy(loadTripsScreen);
 const ShelfModeScreen = lazy(loadShelfModeScreen);
 const IngredientOcrScreen = lazy(loadIngredientOcrScreen);
+const AccountSettingsScreen = lazy(loadAccountSettingsScreen);
+const NotificationSettingsScreen = lazy(loadNotificationSettingsScreen);
+const AppearanceSettingsScreen = lazy(loadAppearanceSettingsScreen);
+const HouseholdSettingsScreen = lazy(loadHouseholdSettingsScreen);
+const SupportSettingsScreen = lazy(loadSupportSettingsScreen);
 const HelpScreen = lazy(loadHelpScreen);
 const PrivacyPolicyScreen = lazy(loadPrivacyPolicyScreen);
 const AboutScreen = lazy(loadAboutScreen);
@@ -72,24 +92,24 @@ const BOTTOM_BAR_ROUTES = new Set<keyof RootStackParamList>([
   'Home',
   'Search',
   'History',
-  'Settings',
+  'Progress',
   'Scanner',
-  'Premium',
-  'Result',
 ]);
 const HIDE_BACK_ARROW_ROUTES = new Set<keyof RootStackParamList>([
   'Home',
   'Search',
   'History',
-  'Settings',
-  'Premium',
-  'Result',
+  'Progress',
 ]);
-const PREMIUM_ICON_ROUTES = new Set<keyof RootStackParamList>([
+const HEADER_ACTION_ROUTES = new Set<keyof RootStackParamList>([
   'Home',
   'Search',
   'History',
-  'Settings',
+  'Progress',
+  'Progress',
+  'Alerts',
+  'Trips',
+  'Scanner',
   'Result',
 ]);
 
@@ -244,6 +264,14 @@ export default function RootNavigator() {
     rootNavigationRef.navigate('Premium');
   }, [currentRouteName]);
 
+  const handleOpenSettings = useCallback(() => {
+    if (!rootNavigationRef.isReady() || currentRouteName === 'Settings') {
+      return;
+    }
+
+    rootNavigationRef.navigate('Settings');
+  }, [currentRouteName]);
+
   const handleBottomRoutePress = useCallback(
     async (route: MainNavigationRoute | 'Scanner') => {
       if (route === 'Scanner') {
@@ -267,7 +295,7 @@ export default function RootNavigator() {
     currentRouteName === 'Home' ||
     currentRouteName === 'Search' ||
     currentRouteName === 'History' ||
-    currentRouteName === 'Settings' ||
+    currentRouteName === 'Progress' ||
     currentRouteName === 'Scanner'
       ? currentRouteName
       : undefined;
@@ -275,6 +303,10 @@ export default function RootNavigator() {
     isAuthenticated &&
     currentRouteName !== null &&
     BOTTOM_BAR_ROUTES.has(currentRouteName);
+  const overlayFeatureId =
+    currentRouteName === 'Premium'
+      ? (rootNavigationRef.getCurrentRoute()?.params as RootStackParamList['Premium'])?.featureId
+      : undefined;
 
   return (
     <Suspense fallback={<AuthBootstrapScreen />}>
@@ -303,19 +335,32 @@ export default function RootNavigator() {
               contentStyle: { backgroundColor: colors.background },
               headerBackVisible: !HIDE_BACK_ARROW_ROUTES.has(route.name),
               headerLeft: HIDE_BACK_ARROW_ROUTES.has(route.name) ? () => null : undefined,
-              headerRight: PREMIUM_ICON_ROUTES.has(route.name)
+              headerRight: HEADER_ACTION_ROUTES.has(route.name)
                 ? () => (
-                    <Pressable
-                      accessibilityLabel="Open premium"
-                      accessibilityRole="button"
-                      onPress={handleOpenPremium}
-                      style={({ pressed }) => [
-                        styles.headerButton,
-                        pressed && styles.headerButtonPressed,
-                      ]}
-                    >
-                      <Ionicons color={colors.primary} name="sparkles-outline" size={20} />
-                    </Pressable>
+                    <View style={styles.headerActions}>
+                      <Pressable
+                        accessibilityLabel="Open settings"
+                        accessibilityRole="button"
+                        onPress={handleOpenSettings}
+                        style={({ pressed }) => [
+                          styles.headerButton,
+                          pressed && styles.headerButtonPressed,
+                        ]}
+                      >
+                        <Ionicons color={colors.text} name="settings-outline" size={20} />
+                      </Pressable>
+                      <Pressable
+                        accessibilityLabel="Open premium"
+                        accessibilityRole="button"
+                        onPress={handleOpenPremium}
+                        style={({ pressed }) => [
+                          styles.headerButton,
+                          pressed && styles.headerButtonPressed,
+                        ]}
+                      >
+                        <Ionicons color={colors.primary} name="sparkles-outline" size={20} />
+                      </Pressable>
+                    </View>
                   )
                 : undefined,
               headerShadowVisible: false,
@@ -344,12 +389,62 @@ export default function RootNavigator() {
                 <Stack.Screen
                   name="Settings"
                   component={SettingsScreen}
-                  options={{ title: 'Settings' }}
+                  options={{
+                    animation: 'slide_from_bottom',
+                    contentStyle: { backgroundColor: 'transparent' },
+                    headerShown: false,
+                    presentation: 'containedTransparentModal',
+                  }}
+                />
+                <Stack.Screen
+                  name="Progress"
+                  component={ProgressScreen}
+                  options={{ title: 'Progress' }}
+                />
+                <Stack.Screen
+                  name="Alerts"
+                  component={AlertsScreen}
+                  options={{ title: 'Alerts' }}
+                />
+                <Stack.Screen
+                  name="Trips"
+                  component={TripsScreen}
+                  options={{ title: 'Trips' }}
                 />
                 <Stack.Screen
                   name="Premium"
                   component={PremiumScreen}
-                  options={{ title: 'Premium' }}
+                  options={{
+                    animation: 'slide_from_bottom',
+                    contentStyle: { backgroundColor: 'transparent' },
+                    headerShown: false,
+                    presentation: 'containedTransparentModal',
+                  }}
+                />
+                <Stack.Screen
+                  name="AccountSettings"
+                  component={AccountSettingsScreen}
+                  options={{ title: 'Account' }}
+                />
+                <Stack.Screen
+                  name="NotificationSettings"
+                  component={NotificationSettingsScreen}
+                  options={{ title: 'Notifications' }}
+                />
+                <Stack.Screen
+                  name="AppearanceSettings"
+                  component={AppearanceSettingsScreen}
+                  options={{ title: 'Appearance' }}
+                />
+                <Stack.Screen
+                  name="HouseholdSettings"
+                  component={HouseholdSettingsScreen}
+                  options={{ title: 'Household' }}
+                />
+                <Stack.Screen
+                  name="SupportSettings"
+                  component={SupportSettingsScreen}
+                  options={{ title: 'Support' }}
                 />
                 <Stack.Screen
                   name="ProfileDetails"
@@ -438,6 +533,24 @@ export default function RootNavigator() {
               />
             </View>
           ) : null}
+
+          {currentRouteName === 'Settings' ? (
+            <View pointerEvents="box-none" style={styles.modalOverlay}>
+              <SettingsSheet
+                onClose={() => rootNavigationRef.goBack()}
+                onNavigate={(route) => rootNavigationRef.navigate(route)}
+              />
+            </View>
+          ) : null}
+
+          {currentRouteName === 'Premium' ? (
+            <View pointerEvents="box-none" style={styles.modalOverlay}>
+              <PremiumSheet
+                featureId={overlayFeatureId}
+                onClose={() => rootNavigationRef.goBack()}
+              />
+            </View>
+          ) : null}
         </View>
       </NavigationContainer>
     </Suspense>
@@ -461,6 +574,10 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
       position: 'absolute',
       right: 0,
     },
+    headerActions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
     headerButton: {
       alignItems: 'center',
       backgroundColor: colors.primaryMuted,
@@ -471,6 +588,11 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
     },
     headerButtonPressed: {
       opacity: 0.82,
+    },
+    modalOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      elevation: 30,
+      zIndex: 20,
     },
     root: {
       backgroundColor: colors.background,

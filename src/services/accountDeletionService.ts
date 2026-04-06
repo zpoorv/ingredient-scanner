@@ -11,6 +11,7 @@ import {
 } from './dietProfileStorage';
 import { clearFeatureUsageForUser } from './featureUsageStorage';
 import { getFirebaseAuth } from './firebaseAuth';
+import { clearGamificationForUser } from './gamificationService';
 import { clearProductChangeAlertsForUser } from './productChangeAlertService';
 import { clearScanHistoryForUser } from './scanHistoryStorage';
 import { clearShareCardStyleForUser } from './shareCardPreferenceStorage';
@@ -58,6 +59,7 @@ export async function deleteCurrentAccount() {
     clearDietProfileForUser(sessionUser.id),
     clearDietProfileIntroSeen(),
     clearFeatureUsageForUser(sessionUser.id),
+    clearGamificationForUser(sessionUser.id),
     clearProductChangeAlertsForUser(sessionUser.id),
     clearScanHistoryForUser(sessionUser.id),
     clearShareCardStyleForUser(sessionUser.id),

@@ -5,6 +5,7 @@ export type CachePolicy = 'cache-first' | 'force-refresh' | 'stale-while-revalid
 export const SESSION_CACHE_KEYS = {
   comparisonSession: 'comparison-session',
   effectiveShoppingProfile: 'effective-shopping-profile',
+  gamificationProfile: 'gamification-profile',
   premiumEntitlement: 'premium-entitlement',
   productChangeAlerts: 'product-change-alerts',
   scanHistory: 'scan-history',

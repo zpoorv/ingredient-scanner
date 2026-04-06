@@ -5,7 +5,7 @@ import type { RootStackParamList } from './types';
 
 export const rootNavigationRef = createNavigationContainerRef<RootStackParamList>();
 
-export type MainNavigationRoute = 'History' | 'Home' | 'Search' | 'Settings';
+export type MainNavigationRoute = 'History' | 'Home' | 'Progress' | 'Search' | 'Settings';
 
 let pendingHistoryNavigation = false;
 

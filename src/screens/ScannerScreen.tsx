@@ -17,14 +17,12 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAppTheme } from '../components/AppThemeProvider';
 import BarcodeScannerPanel from '../components/BarcodeScannerPanel';
-import ManualBarcodeEntry from '../components/ManualBarcodeEntry';
 import PrimaryButton from '../components/PrimaryButton';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
 import {
   ProductLookupError,
   resolveProductByBarcode,
 } from '../services/productLookup';
-import { loadAdminAppConfig } from '../services/adminAppConfigService';
 import type { RootStackParamList } from '../navigation/types';
 import type {
   LastScanResult,
@@ -61,11 +59,11 @@ function getHelperText(scannerState: ScannerState, scanQuality: ScanQuality) {
   }
 
   if (scannerState === 'empty') {
-    return 'Type it instead';
+    return 'Try another angle';
   }
 
   if (scannerState === 'error') {
-    return 'Scan again';
+    return 'Tap try again';
   }
 
   if (scanQuality === 'retry') {
@@ -73,7 +71,7 @@ function getHelperText(scannerState: ScannerState, scanQuality: ScanQuality) {
   }
 
   if (scanQuality === 'poor') {
-    return 'Type it instead';
+    return 'Reduce glare';
   }
 
   return 'Hold steady';
@@ -83,8 +81,7 @@ function getStatusContent(
   scannerState: ScannerState,
   lastScan: LastScanResult | null,
   errorMessage: string | null,
-  scanQuality: ScanQuality,
-  showManualFallbackHint: boolean
+  scanQuality: ScanQuality
 ) {
   if (scannerState === 'loading') {
     return {
@@ -100,9 +97,9 @@ function getStatusContent(
     return {
       body: lastScan
         ? `No match for ${lastScan.barcode}.`
-        : 'No match found.',
+        : 'No match found yet.',
       eyebrow: 'No Match',
-      title: 'Product not found',
+      title: 'Try another scan',
     };
   }
 
@@ -113,14 +110,6 @@ function getStatusContent(
         'Could not load this product.',
       eyebrow: 'Error',
       title: 'Try again',
-    };
-  }
-
-  if (showManualFallbackHint) {
-    return {
-      body: 'If the camera misses it, type the barcode number below.',
-      eyebrow: 'Manual Entry',
-      title: 'Need a faster route?',
     };
   }
 
@@ -156,13 +145,9 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
   const [isLookupInFlight, setIsLookupInFlight] = useState(false);
   const [lastScan, setLastScan] = useState<LastScanResult | null>(null);
-  const [manualBarcodeInput, setManualBarcodeInput] = useState('');
-  const [manualEntryError, setManualEntryError] = useState<string | null>(null);
   const [readyStartedAt, setReadyStartedAt] = useState(Date.now());
   const [scanQuality, setScanQuality] = useState<ScanQuality>('good');
   const [scannerState, setScannerState] = useState<ScannerState>('ready');
-  const [isManualBarcodeEntryEnabled, setIsManualBarcodeEntryEnabled] =
-    useState(true);
   const activeLookupRef = useRef(false);
   const recentScanRef = useRef<{ barcode: string; scannedAt: number } | null>(null);
   const insets = useSafeAreaInsets();
@@ -180,7 +165,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
     setCameraResetKey((value) => value + 1);
     setIsLookupInFlight(false);
     setLastScan(null);
-    setManualEntryError(null);
     setReadyStartedAt(Date.now());
     setScanQuality('good');
     setScannerState('ready');
@@ -211,24 +195,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   }, [isAppActive, isFocused, readyStartedAt, scannerState]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const restoreAdminConfig = async () => {
-      const config = await loadAdminAppConfig();
-
-      if (isMounted) {
-        setIsManualBarcodeEntryEnabled(config.enableManualBarcodeEntry);
-      }
-    };
-
-    void restoreAdminConfig();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!isFocused) {
       setIsAppActive(false);
       return;
@@ -253,7 +219,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   ) => {
     activeLookupRef.current = true;
     setErrorMessage(null);
-    setManualEntryError(null);
     setIsLookupInFlight(true);
     setLastScan({ barcode, barcodeType: barcodeType ?? null });
     setReadyStartedAt(Date.now());
@@ -336,7 +301,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
 
   const handleResetScanner = () => {
     setErrorMessage(null);
-    setManualEntryError(null);
     setCameraResetKey((value) => value + 1);
     setLastScan(null);
     setReadyStartedAt(Date.now());
@@ -344,25 +308,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
     setScannerState('ready');
     activeLookupRef.current = false;
     recentScanRef.current = null;
-  };
-
-  const handleManualLookup = () => {
-    if (activeLookupRef.current) {
-      return;
-    }
-
-    const barcode = normalizeBarcode(manualBarcodeInput);
-
-    if (!barcode || !/\d{6,}/.test(barcode)) {
-      setManualEntryError('Enter a valid barcode number with at least 6 digits.');
-      return;
-    }
-
-    recentScanRef.current = {
-      barcode,
-      scannedAt: Date.now(),
-    };
-    void lookupProduct(barcode, null);
   };
 
   const handlePermissionRequest = async () => {
@@ -385,16 +330,11 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   }
 
   const hasPermission = cameraPermission.granted;
-  const showManualFallbackHint =
-    scannerState === 'ready' &&
-    scanQuality === 'poor' &&
-    isManualBarcodeEntryEnabled;
   const statusContent = getStatusContent(
     scannerState,
     lastScan,
     errorMessage,
-    scanQuality,
-    showManualFallbackHint
+    scanQuality
   );
   const scannerHeight =
     windowHeight < 700 ? 330 : windowHeight < 780 ? 360 : 400;
@@ -425,7 +365,19 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
                 isFocused={isFocused && isAppActive}
                 onCameraMountError={handleCameraMountError}
                 onBarcodeScanned={handleBarcodeScanned}
+                onOverlayActionPress={
+                  scannerState === 'error' || scannerState === 'empty'
+                    ? handleResetScanner
+                    : undefined
+                }
                 overlayLabel={getOverlayLabel(scannerState, scanQuality)}
+                overlayActionLabel={
+                  scannerState === 'error'
+                    ? 'Try again'
+                    : scannerState === 'empty'
+                      ? 'Scan again'
+                      : undefined
+                }
               />
             ) : (
               <View style={styles.permissionCard}>
@@ -436,21 +388,6 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
                 />
               </View>
             )}
-
-            {isManualBarcodeEntryEnabled ? (
-              <ManualBarcodeEntry
-                disabled={isLookupInFlight}
-                errorMessage={manualEntryError}
-                onChangeText={(value) => {
-                  setManualBarcodeInput(value);
-                  if (manualEntryError) {
-                    setManualEntryError(null);
-                  }
-                }}
-                onSubmit={handleManualLookup}
-                value={manualBarcodeInput}
-              />
-            ) : null}
           </View>
 
           <View style={styles.statusCard}>
@@ -466,9 +403,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
             ) : null}
 
             {scannerState === 'error' ? (
-              <>
-                <PrimaryButton label="Scan Again" onPress={handleResetScanner} />
-              </>
+              <Text style={styles.inlineHint}>The retry button now appears on the camera.</Text>
             ) : null}
 
             {scannerState === 'empty' ? (
@@ -477,6 +412,19 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
                 onPress={handleResetScanner}
               />
             ) : null}
+          </View>
+
+          <View style={styles.ocrCard}>
+            <Text style={styles.ocrLabel}>Need ingredient OCR?</Text>
+            <Text style={styles.ocrText}>
+              Barcode scan stays clean here. Ingredient photo OCR now sits at the bottom when you need it.
+            </Text>
+            <PrimaryButton
+              label="Scan Ingredients"
+              onPress={() =>
+                navigation.navigate('IngredientOcr', { profileId: selectedProfileId })
+              }
+            />
           </View>
         </ScrollView>
       </View>
@@ -548,6 +496,32 @@ const createStyles = (
       fontFamily: typography.headingFontFamily,
       fontSize: 22,
       fontWeight: '800',
+    },
+    inlineHint: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    ocrCard: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      gap: 10,
+      padding: 18,
+    },
+    ocrLabel: {
+      color: colors.text,
+      fontFamily: typography.headingFontFamily,
+      fontSize: 18,
+      fontWeight: '800',
+    },
+    ocrText: {
+      color: colors.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 14,
+      lineHeight: 21,
     },
     safeArea: {
       backgroundColor: colors.background,

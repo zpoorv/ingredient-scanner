@@ -14,6 +14,11 @@ import type {
 import { getAuthSession } from '../store';
 import { buildHistoryNotifications } from '../utils/historyPersonalization';
 import type { ScanHistoryEntry } from './scanHistoryStorage';
+import {
+  buildGamificationNotifications,
+  loadCurrentGamificationProfile,
+  toGamificationSummary,
+} from './gamificationService';
 import { loadScanHistory } from './scanHistoryStorage';
 import { getCanonicalIsoNow, getCanonicalNowMs } from './timeIntegrityService';
 import { loadUserProfile } from './userProfileService';
@@ -178,14 +183,46 @@ function buildSmartNotification(
   };
 }
 
-function buildScheduledNotification(
+async function buildScheduledNotification(
   historyEntries: ScanHistoryEntry[],
   cadence: HistoryNotificationCadence,
   currentTimeMs: number
 ) {
-  return cadence === 'smart'
+  const historyNotification =
+    cadence === 'smart'
     ? buildSmartNotification(historyEntries, currentTimeMs)
     : buildWeeklyNotification(historyEntries, currentTimeMs);
+
+  if (historyNotification || historyEntries.length === 0) {
+    return historyNotification;
+  }
+
+  return loadCurrentGamificationProfile({
+    historyEntries,
+    policy: 'stale-while-revalidate',
+  }).then((profile) => {
+    const strongestSignal = buildGamificationNotifications(
+      toGamificationSummary(profile)
+    )[0];
+
+    if (!strongestSignal) {
+      return null;
+    }
+
+    const scheduledAt =
+      cadence === 'smart'
+        ? getNextSmartNudgeTime(currentTimeMs)
+        : getNextSundayEvening(currentTimeMs);
+
+    return {
+      body: strongestSignal.body,
+      fingerprint: `gamification:${cadence}:${strongestSignal.id}:${scheduledAt.toISOString()}`,
+      kind: strongestSignal.kind,
+      scheduledAt,
+      sourceId: strongestSignal.id,
+      title: strongestSignal.title,
+    } satisfies ScheduledHistoryNotification;
+  });
 }
 
 async function cancelScheduledNotification(notificationId: string | null) {
@@ -223,7 +260,8 @@ function isHistoryNotificationPayload(
     (candidate.kind === 'weekly-recap' ||
       candidate.kind === 'caution-streak' ||
       candidate.kind === 'healthy-streak' ||
-      candidate.kind === 'repeat-low-score')
+      candidate.kind === 'repeat-low-score' ||
+      candidate.kind === 'weekly-goal')
   );
 }
 
@@ -315,7 +353,7 @@ export async function syncHistoryNotificationsForCurrentUser() {
   const currentTimeMs = await getCanonicalNowMs();
   const scopeId = getHistoryNotificationScopeId(sessionUser.id);
   const currentState = await loadScheduleState(scopeId);
-  const nextNotification = buildScheduledNotification(
+  const nextNotification = await buildScheduledNotification(
     historyEntries,
     profile.historyNotificationCadence,
     currentTimeMs

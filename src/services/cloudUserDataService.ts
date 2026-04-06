@@ -10,6 +10,7 @@ import {
 
 import type { ScanHistoryEntry } from './scanHistoryStorage';
 import { getFirebaseAppInstance } from './firebaseApp';
+import type { GamificationProfile } from '../models/gamification';
 import type { UserProfile } from '../models/userProfile';
 
 function getDb() {
@@ -38,6 +39,39 @@ export async function saveRemoteUserProfile(profile: UserProfile) {
     await setDoc(getUserDocRef(profile.uid), profile, { merge: true });
   } catch {
     // Firestore sync is best-effort. Premium and admin access are verified separately.
+  }
+}
+
+export async function loadRemoteGamificationProfile(uid: string) {
+  try {
+    const snapshot = await getDoc(getUserDocRef(uid));
+
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    const data = snapshot.data() as UserProfile & {
+      gamificationProfile?: GamificationProfile | null;
+    };
+
+    return data.gamificationProfile ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveRemoteGamificationProfile(
+  uid: string,
+  gamificationProfile: GamificationProfile
+) {
+  try {
+    await setDoc(
+      getUserDocRef(uid),
+      { gamificationProfile },
+      { merge: true }
+    );
+  } catch {
+    // Best-effort sync only. Local progress remains the source of experience.
   }
 }
 

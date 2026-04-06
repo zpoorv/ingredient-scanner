@@ -22,6 +22,7 @@ import { useAppTheme } from '../components/AppThemeProvider';
 import EnvironmentalImpactCard from '../components/EnvironmentalImpactCard';
 import HouseholdFitCard from '../components/HouseholdFitCard';
 import IngredientExplanationModal from '../components/IngredientExplanationModal';
+import MicroCelebrationBanner from '../components/MicroCelebrationBanner';
 import PremiumGuidanceCard from '../components/PremiumGuidanceCard';
 import ProductTimelineCard from '../components/ProductTimelineCard';
 import ProductRestrictionCard from '../components/ProductRestrictionCard';
@@ -58,6 +59,11 @@ import {
   loadFeatureQuotaSnapshot,
   type FeatureQuotaSnapshot,
 } from '../services/featureUsageStorage';
+import type { GamificationCelebration } from '../models/gamification';
+import {
+  recordGamificationForSavedScan,
+  recordGamificationTrustHelper,
+} from '../services/gamificationService';
 import {
   hasPremiumFeatureAccess,
 } from '../services/premiumEntitlementService';
@@ -364,6 +370,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const [isSubmittingTrustConfirmation, setIsSubmittingTrustConfirmation] =
     useState(false);
   const [isSecondaryStageReady, setIsSecondaryStageReady] = useState(false);
+  const [gamificationCelebration, setGamificationCelebration] =
+    useState<GamificationCelebration | null>(null);
   const displayProductName = useMemo(
     () => formatProductName(product?.name),
     [product?.name]
@@ -751,50 +759,60 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   }, []);
 
   useEffect(() => {
+    if (!gamificationCelebration) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setGamificationCelebration(null);
+    }, 4200);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [gamificationCelebration]);
+
+  useEffect(() => {
     if (persistToHistory === false || !hasResolvedProfile) {
       return;
     }
 
     let isMounted = true;
-
-    const persistHistoryEntry = async () => {
-      try {
-        const interactionHandle = InteractionManager.runAfterInteractions(() => {
-          void saveScanToHistory({
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      void (async () => {
+        try {
+          const nextEntry = await saveScanToHistory({
             barcode,
             barcodeType,
             profileId: selectedProfileId,
             product,
-          }).catch((error) => {
-            if (__DEV__ && isMounted) {
-              console.warn('Failed to save scan history entry', error);
-            }
           });
-        });
+          const gamificationResult = await recordGamificationForSavedScan({
+            householdFitVerdict: householdFit?.verdict ?? null,
+            newEntry: nextEntry,
+          });
 
-        return () => {
-          interactionHandle.cancel();
-        };
-      } catch (error) {
-        if (__DEV__ && isMounted) {
-          console.warn('Failed to save scan history entry', error);
+          if (isMounted) {
+            setHistoryEntry(nextEntry);
+            setGamificationCelebration(gamificationResult.celebration);
+          }
+        } catch (error) {
+          if (__DEV__ && isMounted) {
+            console.warn('Failed to save scan history entry', error);
+          }
         }
-      }
-    };
-
-    let cleanupInteraction: (() => void) | void;
-    void persistHistoryEntry().then((cleanup) => {
-      cleanupInteraction = cleanup;
+      })();
     });
 
     return () => {
       isMounted = false;
-      cleanupInteraction?.();
+      interactionHandle.cancel();
     };
   }, [
     barcode,
     barcodeType,
     hasResolvedProfile,
+    householdFit?.verdict,
     persistToHistory,
     product,
     selectedProfileId,
@@ -1043,15 +1061,22 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         barcode,
         trustConfirmationType
       );
+      const confirmationCount =
+        trustConfirmationType === 'looks-different'
+          ? nextConfirmation.differentCount
+          : nextConfirmation.matchCount;
+      const gamificationResult = await recordGamificationTrustHelper({
+        barcode,
+        confirmationCount,
+        trustConfirmationType,
+      });
 
       setTrustConfirmation(nextConfirmation);
+      setGamificationCelebration(gamificationResult.celebration);
 
       await submitTrustConfirmation({
         barcode,
-        confirmationCount:
-          trustConfirmationType === 'looks-different'
-            ? nextConfirmation.differentCount
-            : nextConfirmation.matchCount,
+        confirmationCount,
         confidence: analysisResult.confidence,
         foodStatus: analysisResult.foodStatus,
         productName: displayProductName,
@@ -1112,6 +1137,8 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             </View>
           </View>
         ) : null}
+
+        <MicroCelebrationBanner celebration={gamificationCelebration} />
 
         <View style={styles.scoreHeroCard}>
           <View style={styles.scoreHeroHeaderRow}>
