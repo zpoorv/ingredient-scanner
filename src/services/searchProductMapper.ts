@@ -29,6 +29,7 @@ export function mapSearchDocumentToResolvedProduct(
     origins: [],
     packagingDetails: [],
     quantity: document.quantity,
+    recipe: null,
     sources: [
       {
         id: 'search_index',

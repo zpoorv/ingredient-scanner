@@ -430,6 +430,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
     [product]
   );
   const productIdentifier = product.code || barcode;
+  const recipeText = product.recipe?.trim() || null;
   const timelinePreview = useMemo(
     () => historyEntry?.productTimeline.slice(0, 2) ?? [],
     [historyEntry?.productTimeline]
@@ -1568,6 +1569,13 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             </Text>
           ) : null}
         </View>
+
+        {recipeText ? (
+          <View style={styles.infoCard}>
+            <Text style={styles.label}>Recipe</Text>
+            <Text style={styles.bodyText}>{recipeText}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.infoCard}>
           <Text style={styles.label}>Nutrition</Text>

@@ -38,6 +38,10 @@ export class ProductLookupError extends Error {
   }
 }
 
+function isStoredScanRecord(record: { sourceType?: string | null } | null | undefined) {
+  return record?.sourceType === 'scan';
+}
+
 const resolvedProductCache = new Map<string, ResolvedProduct | null>();
 const pendingProductLookups = new Map<string, Promise<ResolvedProduct | null>>();
 
@@ -281,6 +285,7 @@ export function resolveProductFromCatalogProduct(
     origins: resolveOrigins(offProduct),
     packagingDetails: resolvePackagingDetails(offProduct),
     quantity: offProduct?.quantity?.trim() || null,
+    recipe: null,
     sources: buildSourceInfo(offProduct, null),
   };
 }
@@ -290,27 +295,34 @@ export async function resolveProductByBarcode(
   barcodeType?: string | null
 ): Promise<ResolvedProduct | null> {
   const cacheKey = `${barcodeType || 'unknown'}:${barcode}`;
-  const productOverride = await loadProductOverride(barcode);
+  const storedProductRecord = await loadProductOverride(barcode);
 
   if (resolvedProductCache.has(cacheKey)) {
-    return applyProductOverride(resolvedProductCache.get(cacheKey) ?? null, productOverride);
+    return applyProductOverride(resolvedProductCache.get(cacheKey) ?? null, storedProductRecord);
   }
 
   const pendingLookup = pendingProductLookups.get(cacheKey);
 
   if (pendingLookup) {
-    return applyProductOverride(await pendingLookup, productOverride);
+    return applyProductOverride(await pendingLookup, storedProductRecord);
   }
 
   const persistedCacheValue = await readBarcodeLookupCache(cacheKey);
 
   if (persistedCacheValue !== undefined) {
     resolvedProductCache.set(cacheKey, persistedCacheValue);
-    return applyProductOverride(persistedCacheValue, productOverride);
+    return applyProductOverride(persistedCacheValue, storedProductRecord);
   }
 
-  if (productOverride && hasStoredCoreProductFields(productOverride)) {
-    const storedProduct = applyProductOverride(null, productOverride);
+  // Scan-seeded records already came from Open Food Facts, so they can act as a
+  // fast local copy. Admin-managed records stay field-level overrides and should
+  // still merge on top of a fresh Open Food Facts lookup when available.
+  if (
+    storedProductRecord &&
+    isStoredScanRecord(storedProductRecord) &&
+    hasStoredCoreProductFields(storedProductRecord)
+  ) {
+    const storedProduct = applyProductOverride(null, storedProductRecord);
 
     resolvedProductCache.set(cacheKey, storedProduct);
     void writeBarcodeLookupCache(cacheKey, storedProduct);
@@ -320,7 +332,7 @@ export async function resolveProductByBarcode(
 
   // Keep repeat scans and quick back-and-forth navigation from hitting both
   // providers again for the same barcode during the same app session.
-  const lookupPromise = performProductLookup(barcode, barcodeType);
+  const lookupPromise = performProductLookup(barcode, barcodeType, storedProductRecord);
 
   pendingProductLookups.set(cacheKey, lookupPromise);
 
@@ -330,7 +342,7 @@ export async function resolveProductByBarcode(
     resolvedProductCache.set(cacheKey, resolvedProduct);
     void writeBarcodeLookupCache(cacheKey, resolvedProduct);
 
-    return applyProductOverride(resolvedProduct, productOverride);
+    return applyProductOverride(resolvedProduct, storedProductRecord);
   } finally {
     pendingProductLookups.delete(cacheKey);
   }
@@ -338,7 +350,8 @@ export async function resolveProductByBarcode(
 
 async function performProductLookup(
   barcode: string,
-  barcodeType?: string | null
+  barcodeType?: string | null,
+  storedProductRecord: Awaited<ReturnType<typeof loadProductOverride>> = null
 ): Promise<ResolvedProduct | null> {
   const commonFallback = await loadCommonProductByBarcode(barcode);
   let offProduct: OpenFoodFactsProduct | null = null;
@@ -351,6 +364,10 @@ async function performProductLookup(
   }
 
   if (!offProduct) {
+    if (storedProductRecord && hasStoredCoreProductFields(storedProductRecord)) {
+      return applyProductOverride(null, storedProductRecord);
+    }
+
     if (commonFallback) {
       return withOfflineFallbackSource(
         commonFallback.product,

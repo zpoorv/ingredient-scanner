@@ -15,6 +15,7 @@ import {
   type MainNavigationRoute,
 } from './navigationRef';
 import HistoryScreen from '../screens/HistoryScreen';
+import FeaturedProductsScreen from '../screens/FeaturedProductsScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import { PremiumSheet } from '../screens/PremiumScreen';
@@ -89,28 +90,29 @@ const AboutScreen = lazy(loadAboutScreen);
 const FeedbackScreen = lazy(loadFeedbackScreen);
 
 const BOTTOM_BAR_ROUTES = new Set<keyof RootStackParamList>([
+  'FeaturedProducts',
   'Home',
   'Search',
   'History',
-  'Progress',
   'Scanner',
 ]);
 const HIDE_BACK_ARROW_ROUTES = new Set<keyof RootStackParamList>([
+  'FeaturedProducts',
   'Home',
   'Search',
   'History',
-  'Progress',
 ]);
 const HEADER_ACTION_ROUTES = new Set<keyof RootStackParamList>([
+  'FeaturedProducts',
   'Home',
   'Search',
   'History',
-  'Progress',
   'Progress',
   'Alerts',
   'Trips',
   'Scanner',
   'Result',
+  'ProfileDetails',
 ]);
 
 export default function RootNavigator() {
@@ -264,6 +266,14 @@ export default function RootNavigator() {
     rootNavigationRef.navigate('Premium');
   }, [currentRouteName]);
 
+  const handleOpenProfile = useCallback(() => {
+    if (!rootNavigationRef.isReady() || currentRouteName === 'ProfileDetails') {
+      return;
+    }
+
+    rootNavigationRef.navigate('ProfileDetails');
+  }, [currentRouteName]);
+
   const handleOpenSettings = useCallback(() => {
     if (!rootNavigationRef.isReady() || currentRouteName === 'Settings') {
       return;
@@ -293,9 +303,9 @@ export default function RootNavigator() {
 
   const activeBottomRoute =
     currentRouteName === 'Home' ||
+    currentRouteName === 'FeaturedProducts' ||
     currentRouteName === 'Search' ||
     currentRouteName === 'History' ||
-    currentRouteName === 'Progress' ||
     currentRouteName === 'Scanner'
       ? currentRouteName
       : undefined;
@@ -338,6 +348,17 @@ export default function RootNavigator() {
               headerRight: HEADER_ACTION_ROUTES.has(route.name)
                 ? () => (
                     <View style={styles.headerActions}>
+                      <Pressable
+                        accessibilityLabel="Open profile"
+                        accessibilityRole="button"
+                        onPress={handleOpenProfile}
+                        style={({ pressed }) => [
+                          styles.headerButton,
+                          pressed && styles.headerButtonPressed,
+                        ]}
+                      >
+                        <Ionicons color={colors.text} name="person-circle-outline" size={20} />
+                      </Pressable>
                       <Pressable
                         accessibilityLabel="Open settings"
                         accessibilityRole="button"
@@ -387,6 +408,11 @@ export default function RootNavigator() {
                   options={{ title: APP_NAME }}
                 />
                 <Stack.Screen
+                  name="FeaturedProducts"
+                  component={FeaturedProductsScreen}
+                  options={{ title: 'Featured' }}
+                />
+                <Stack.Screen
                   name="Settings"
                   component={SettingsScreen}
                   options={{
@@ -395,11 +421,6 @@ export default function RootNavigator() {
                     headerShown: false,
                     presentation: 'containedTransparentModal',
                   }}
-                />
-                <Stack.Screen
-                  name="Progress"
-                  component={ProgressScreen}
-                  options={{ title: 'Progress' }}
                 />
                 <Stack.Screen
                   name="Alerts"
@@ -450,6 +471,11 @@ export default function RootNavigator() {
                   name="ProfileDetails"
                   component={ProfileDetailsScreen}
                   options={{ title: 'Profile' }}
+                />
+                <Stack.Screen
+                  name="Progress"
+                  component={ProgressScreen}
+                  options={{ title: 'Achievements' }}
                 />
                 <Stack.Screen
                   name="History"
@@ -576,7 +602,7 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
     },
     headerActions: {
       flexDirection: 'row',
-      gap: 10,
+      gap: 8,
     },
     headerButton: {
       alignItems: 'center',

@@ -15,6 +15,8 @@ import { startRevenueCatRuntime } from './services/revenueCatRuntime';
 import { getAuthSession, subscribeAuthSession } from './store';
 
 LogBox.ignoreLogs([
+  'Could not reach Cloud Firestore backend',
+  'Fetching auth token failed: Firebase: Error (auth/network-request-failed)',
   '[RevenueCat] 😿‼️ Error fetching offerings',
   '[RevenueCat] 😿‼️ PurchasesError(code=NetworkError',
 ]);

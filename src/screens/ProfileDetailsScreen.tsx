@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import AchievementBadgeStrip from '../components/AchievementBadgeStrip';
 import AuthTextField from '../components/AuthTextField';
 import { useAppTheme } from '../components/AppThemeProvider';
 import PrimaryButton from '../components/PrimaryButton';
+import QuestActionCard from '../components/QuestActionCard';
 import ScreenLoadingView from '../components/ScreenLoadingView';
-import { APP_NAME } from '../constants/branding';
 import { AuthServiceError } from '../services/authHelpers';
-import { loadSessionUserProfile } from '../services/sessionDataService';
+import { toGamificationSummary } from '../services/gamificationService';
+import {
+  loadSessionGamificationProfile,
+  loadSessionUserProfile,
+} from '../services/sessionDataService';
 import { saveUserProfile } from '../services/userProfileService';
 import { useDelayedVisibility } from '../utils/useDelayedVisibility';
 import type { RootStackParamList } from '../navigation/types';
@@ -29,26 +35,44 @@ export default function ProfileDetailsScreen({
   const [name, setName] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [progressSummary, setProgressSummary] = useState<ReturnType<
+    typeof toGamificationSummary
+  > | null>(null);
   const shouldShowLoadingScreen = useDelayedVisibility(isLoadingProfile);
 
-  useEffect(() => {
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
 
-    void loadSessionUserProfile('stale-while-revalidate').then((profile) => {
-      if (isMounted && profile) {
-        setEmail(profile.email);
-        setName(profile.name);
-      }
+      setIsLoadingProfile(true);
 
-      if (isMounted) {
-        setIsLoadingProfile(false);
-      }
-    });
+      void Promise.all([
+        loadSessionUserProfile('stale-while-revalidate'),
+        loadSessionGamificationProfile('cache-first'),
+      ])
+        .then(([profile, gamificationProfile]) => {
+          if (!isMounted) {
+            return;
+          }
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+          if (profile) {
+            setEmail(profile.email);
+            setName(profile.name);
+          }
+
+          setProgressSummary(toGamificationSummary(gamificationProfile));
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoadingProfile(false);
+          }
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
 
   if (shouldShowLoadingScreen) {
     return (
@@ -90,11 +114,27 @@ export default function ProfileDetailsScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Profile</Text>
-          <Text style={styles.title}>Update your {APP_NAME} details</Text>
+          <Text style={styles.title}>Your profile and achievements</Text>
           <Text style={styles.subtitle}>
-            Email comes from your sign-in account. Your name can be updated anytime.
+            Keep your account details here and jump into achievements whenever you want.
           </Text>
         </View>
+
+        <QuestActionCard
+          badge="Achievements"
+          icon="trophy-outline"
+          onPress={() => navigation.navigate('Progress')}
+          subtitle={
+            progressSummary
+              ? `${progressSummary.streakCount} week streak • ${progressSummary.momentum.points}/${progressSummary.momentum.goal} momentum`
+              : 'Open your weekly momentum, streaks, and badges.'
+          }
+          title="Achievements"
+        />
+
+        {progressSummary ? (
+          <AchievementBadgeStrip badges={progressSummary.recentUnlockedAchievements} />
+        ) : null}
 
         <View style={styles.card}>
           <AuthTextField
@@ -116,7 +156,7 @@ export default function ProfileDetailsScreen({
             label={isSaving ? 'Saving...' : 'Save Profile'}
             onPress={() => void handleSave()}
           />
-          <PrimaryButton label="Back to Settings" onPress={() => navigation.goBack()} />
+          <PrimaryButton label="Open Settings" onPress={() => navigation.navigate('Settings')} />
         </View>
       </ScrollView>
     </SafeAreaView>

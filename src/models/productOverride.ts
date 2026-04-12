@@ -22,8 +22,11 @@ export type ProductOverrideRecord = {
   code?: string | null;
   createdAt?: string | null;
   ecoScore?: string | null;
+  featuredNote?: string | null;
+  featuredRank?: number | null;
   imageUrl?: string | null;
   ingredientsText?: string | null;
+  isFeatured?: boolean | null;
   labels?: string[] | null;
   name?: string | null;
   nameReason?: string | null;
@@ -32,6 +35,7 @@ export type ProductOverrideRecord = {
   nutriScore?: string | null;
   product_name?: string | null;
   productNameSearch?: string | null;
+  recipe?: string | null;
   reviewBadgeCopy?: string | null;
   reviewStatus?: 'draft' | 'improved' | 'reviewed' | null;
   searchKeywords?: string[] | null;

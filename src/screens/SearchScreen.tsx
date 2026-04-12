@@ -41,6 +41,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [query, setQuery] = useState('');
   const [experience, setExperience] = useState<SearchExperience | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeProfileId, setActiveProfileId] = useState<DietProfileId | undefined>(undefined);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -99,6 +100,18 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
       }
 
       setExperience(nextExperience);
+      setSearchError(null);
+    } catch {
+      if (latestRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setSearchError('Search is using saved results only. Check internet and try again.');
+      setExperience({
+        query: nextQuery.trim(),
+        sections: [],
+        usedRemoteSearch: false,
+      });
     } finally {
       if (latestRequestIdRef.current === requestId) {
         setIsLoading(false);
@@ -291,12 +304,17 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>
-                {isLoading ? 'Finding strong matches...' : 'No products found'}
+                {isLoading
+                  ? 'Finding strong matches...'
+                  : searchError
+                    ? 'Search needs a connection'
+                    : 'No products found'}
               </Text>
               <Text style={styles.emptyText}>
-                {query.trim()
+                {searchError ||
+                (query.trim()
                   ? 'Try a shorter name, a brand, or the barcode number.'
-                  : 'Search by product, brand, or barcode to jump straight into a result.'}
+                  : 'Search by product, brand, or barcode to jump straight into a result.')}
               </Text>
             </View>
           )}

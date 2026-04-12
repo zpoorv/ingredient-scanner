@@ -29,16 +29,20 @@ const productFieldIds = {
   brand: 'productBrand',
   calories100g: 'calories100g',
   categories: 'productCategories',
+  featuredNote: 'productFeaturedNote',
+  featuredRank: 'productFeaturedRank',
   fiber100g: 'fiber100g',
   healthierAlternatives: 'productAlternatives',
   imageUrl: 'productImageUrl',
   ingredientsText: 'productIngredients',
+  isFeatured: 'productIsFeatured',
   labels: 'productLabels',
   name: 'productName',
   nameReason: 'productNameReason',
   notes: 'productNotes',
   protein100g: 'protein100g',
   quantity: 'productQuantity',
+  recipe: 'productRecipe',
   reviewBadgeCopy: 'productReviewBadgeCopy',
   reviewStatus: 'productReviewStatus',
   salt100g: 'salt100g',
@@ -50,7 +54,7 @@ const productFieldIds = {
 function setPreview(draft) {
   byId('previewName').textContent = draft.name || 'Untitled product';
   byId('previewBrand').textContent = draft.brand || 'Brand not set';
-  byId('previewScore').textContent = draft.adminScore ? `Admin score ${draft.adminScore}` : 'No admin score override';
+  byId('previewScore').textContent = draft.adminScore ? `Admin score ${draft.adminScore}` : 'No admin score set';
   byId('previewAlternatives').textContent = draft.healthierAlternatives
     ? `${draft.healthierAlternatives.split('\n').filter(Boolean).length} healthier alternative link(s) saved`
     : 'No healthier alternatives saved yet.';
@@ -70,9 +74,30 @@ function setPreview(draft) {
 
 const initialBarcode = new URLSearchParams(window.location.search).get('barcode') || '';
 
+function readFormField(id) {
+  const element = byId(id);
+
+  if (element.type === 'checkbox') {
+    return element.checked;
+  }
+
+  return element.value;
+}
+
+function writeFormField(id, value) {
+  const element = byId(id);
+
+  if (element.type === 'checkbox') {
+    element.checked = Boolean(value);
+    return;
+  }
+
+  element.value = inputValue(value);
+}
+
 function fillProductForm(draft) {
   Object.entries(productFieldIds).forEach(([field, id]) => {
-    byId(id).value = inputValue(draft[field]);
+    writeFormField(id, draft[field]);
   });
   setPreview(draft);
 }
@@ -100,7 +125,7 @@ async function handleLoadProduct() {
     fillProductForm(draft);
     byId('productSource').textContent =
       `${offProduct ? 'Open Food Facts match found.' : 'No Open Food Facts match.'} ` +
-      `${hasOverride ? 'Existing override loaded.' : 'Starting from live or blank data.'}`;
+      `${hasOverride ? 'Existing Firestore product record loaded.' : 'Starting from live or blank data.'}`;
     setStatus('productStatus', 'Product ready to edit.', 'success');
   } catch (error) {
     setStatus(
@@ -116,7 +141,7 @@ byId('clearProductFormButton').addEventListener('click', clearProductForm);
 
 byId('productForm').addEventListener('input', () => {
   const draft = Object.fromEntries(
-    Object.entries(productFieldIds).map(([field, id]) => [field, byId(id).value])
+    Object.entries(productFieldIds).map(([field, id]) => [field, readFormField(id)])
   );
   setPreview(draft);
 });
@@ -130,16 +155,21 @@ byId('productForm').addEventListener('submit', async (event) => {
   }
 
   const formValue = Object.fromEntries(
-    Object.entries(productFieldIds).map(([field, id]) => [field, byId(id).value])
+    Object.entries(productFieldIds).map(([field, id]) => [field, readFormField(id)])
   );
+
+  if (!String(formValue.name || '').trim()) {
+    setStatus('productStatus', 'Product name is required before saving.', 'warning');
+    return;
+  }
 
   try {
     await saveOverride(currentBarcode, toOverridePayload({ ...formValue, barcode: currentBarcode }));
-    setStatus('productStatus', 'Product saved to Firestore.', 'success');
+    setStatus('productStatus', 'Product record saved to Firestore.', 'success');
   } catch (error) {
     setStatus(
       'productStatus',
-      error instanceof Error ? error.message : 'Override save failed.',
+      error instanceof Error ? error.message : 'Product record save failed.',
       'danger'
     );
   }

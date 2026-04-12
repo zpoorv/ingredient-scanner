@@ -150,6 +150,40 @@ export async function searchStoredProductRecords(queryText: string, resultLimit 
   }
 }
 
+export async function loadFeaturedProductRecords(resultLimit = 24) {
+  try {
+    const snapshot = await getDocs(
+      query(
+        getProductsCollectionRef(),
+        where('isFeatured', '==', true),
+        limit(resultLimit)
+      )
+    );
+
+    return snapshot.docs
+      .map(
+        (item) =>
+          ({
+            barcode: item.id,
+            ...item.data(),
+          }) as ProductOverrideRecord
+      )
+      .filter(hasStoredCoreProductFields)
+      .sort((left, right) => {
+        const leftRank = left.featuredRank ?? Number.MAX_SAFE_INTEGER;
+        const rightRank = right.featuredRank ?? Number.MAX_SAFE_INTEGER;
+
+        if (leftRank !== rightRank) {
+          return leftRank - rightRank;
+        }
+
+        return (right.updatedAt || '').localeCompare(left.updatedAt || '');
+      });
+  } catch {
+    return [];
+  }
+}
+
 function buildScannedProductPayload(
   barcode: string,
   product: ResolvedProduct

@@ -35,9 +35,9 @@
         <header class="page-header">
           <div>
             <p class="eyebrow">Products</p>
-            <h2 id="pageTitle">Product overrides</h2>
+            <h2 id="pageTitle">Product records</h2>
             <p id="pageDescription" class="muted">
-              Fetch from Open Food Facts first, then fill gaps or override any field that needs a cleaner result.
+              Products live in one shared Firestore collection. Load Open Food Facts first, then fill only the fields you want Inqoura to override.
             </p>
           </div>
           <div class="page-actions">
@@ -73,7 +73,7 @@
               <div class="stack-tight">
                 <strong id="previewName">No product loaded</strong>
                 <span id="previewBrand" class="muted">Brand will appear here</span>
-                <span id="previewScore" class="badge">No admin score override</span>
+                <span id="previewScore" class="badge">No admin score set</span>
                 <span id="previewAlternatives" class="muted">No healthier alternatives saved yet.</span>
               </div>
             </div>
@@ -215,6 +215,24 @@
                 <textarea id="productAdminVerdict" placeholder="Strong choice / occasional use / not ideal for frequent use"></textarea>
               </label>
               <label class="field">
+                <span>Recipe</span>
+                <textarea id="productRecipe" placeholder="Optional serving suggestion, preparation idea, or recipe note shown on the product page"></textarea>
+              </label>
+              <div class="form-grid two-up">
+                <label class="field checkbox-field">
+                  <span>Featured product</span>
+                  <input id="productIsFeatured" type="checkbox" />
+                </label>
+                <label class="field">
+                  <span>Featured rank</span>
+                  <input id="productFeaturedRank" placeholder="Lower appears first" />
+                </label>
+              </div>
+              <label class="field">
+                <span>Featured note</span>
+                <textarea id="productFeaturedNote" placeholder="Short note shown on the Featured tab"></textarea>
+              </label>
+              <label class="field">
                 <span>Healthier alternatives</span>
                 <textarea id="productAlternatives" placeholder="One per line: Label | Description | URL"></textarea>
               </label>
@@ -225,8 +243,8 @@
             </section>
 
             <div class="sticky-actions">
-              <button id="saveProductButton" type="submit">Save Override</button>
-              <button id="deleteProductButton" type="button" class="danger-button">Delete Override</button>
+              <button id="saveProductButton" type="submit">Save Product Record</button>
+              <button id="deleteProductButton" type="button" class="danger-button">Delete Product Record</button>
             </div>
           </form>
         </section>

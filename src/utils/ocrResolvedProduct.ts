@@ -68,6 +68,7 @@ export function buildResolvedProductFromOcr({
     origins: [],
     packagingDetails: [],
     quantity: null,
+    recipe: null,
     sources: [
       {
         id: 'ingredient_ocr',

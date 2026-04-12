@@ -72,6 +72,7 @@ export type ResolvedProduct = {
   origins: string[];
   packagingDetails: string[];
   quantity: string | null;
+  recipe: string | null;
   sources: ProductSourceInfo[];
 };
 

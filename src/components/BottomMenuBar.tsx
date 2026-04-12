@@ -24,7 +24,7 @@ const ITEMS: BottomMenuItem[] = [
   { icon: 'search-outline', label: 'Search', route: 'Search' },
   { icon: 'scan-outline', label: 'Scan', route: 'Scanner' },
   { icon: 'time-outline', label: 'History', route: 'History' },
-  { icon: 'trophy-outline', label: 'Progress', route: 'Progress' },
+  { icon: 'star-outline', label: 'Featured', route: 'FeaturedProducts' },
 ];
 
 export default function BottomMenuBar({

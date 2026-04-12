@@ -172,6 +172,7 @@ export function applyProductOverride(
       origins: [],
       packagingDetails: [],
       quantity: override.quantity?.trim() || null,
+      recipe: override.recipe?.trim() || null,
       sources: [overrideSource],
     };
   }
@@ -235,6 +236,7 @@ export function applyProductOverride(
     nutrition: mergeNutrition(product, override),
     nutriScore: override.nutriScore?.trim() || product.nutriScore,
     quantity: override.quantity?.trim() || product.quantity,
+    recipe: override.recipe?.trim() || product.recipe || null,
     sources: nextSources,
   };
 }
