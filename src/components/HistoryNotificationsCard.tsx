@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { HistoryNotification } from '../utils/historyPersonalization';
 
@@ -10,6 +11,7 @@ type HistoryNotificationsCardProps = {
 export default function HistoryNotificationsCard({
   notifications,
 }: HistoryNotificationsCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
@@ -19,11 +21,11 @@ export default function HistoryNotificationsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Shopping Nudges</Text>
+      <Text style={styles.label}>{t('Shopping Nudges')}</Text>
       {notifications.map((notification) => (
         <View key={notification.id} style={styles.item}>
-          <Text style={styles.title}>{notification.title}</Text>
-          <Text style={styles.body}>{notification.body}</Text>
+          <Text style={styles.title}>{t(notification.title)}</Text>
+          <Text style={styles.body}>{t(notification.body)}</Text>
         </View>
       ))}
     </View>

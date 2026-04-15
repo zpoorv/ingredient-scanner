@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import { SUPPORT_EMAIL } from '../constants/branding';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
@@ -14,6 +15,7 @@ const HELP_ITEMS = [
 ];
 
 export default function HelpScreen() {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [supportEmail, setSupportEmail] = useState(SUPPORT_EMAIL);
@@ -43,13 +45,13 @@ export default function HelpScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>Help</Text>
-        <Text style={styles.title}>Help</Text>
+        <Text style={styles.eyebrow}>{t('Help')}</Text>
+        <Text style={styles.title}>{t('Help')}</Text>
         <View style={styles.card}>
           {HELP_ITEMS.map((item) => (
             <View key={item} style={styles.item}>
               <View style={styles.dot} />
-              <Text style={styles.itemText}>{item}</Text>
+              <Text style={styles.itemText}>{t(item)}</Text>
             </View>
           ))}
           <View style={styles.item}>

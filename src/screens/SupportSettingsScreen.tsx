@@ -1,6 +1,7 @@
 import { Alert } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import FeaturePageLayout from '../components/FeaturePageLayout';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
@@ -16,20 +17,21 @@ type SupportSettingsScreenProps = NativeStackScreenProps<
 export default function SupportSettingsScreen({
   navigation,
 }: SupportSettingsScreenProps) {
+  const { t } = useI18n();
   const handleOpenAdInspector = async () => {
     try {
       const didOpen = await openMobileAdsInspector();
 
       if (!didOpen) {
         Alert.alert(
-          'Ad Inspector unavailable',
-          'Ad Inspector is only available on Android and iOS builds.'
+          t('Ad Inspector unavailable'),
+          t('Ad Inspector is only available on Android and iOS builds.')
         );
       }
     } catch (error) {
       Alert.alert(
-        'Ad Inspector unavailable',
-        error instanceof AuthServiceError ? error.message : describeAdMobError(error)
+        t('Ad Inspector unavailable'),
+        error instanceof AuthServiceError ? t(error.message) : t(describeAdMobError(error))
       );
     }
   };

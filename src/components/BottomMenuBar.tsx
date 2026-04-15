@@ -3,8 +3,14 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
+import TutorialTarget from './TutorialTarget';
 import type { MainNavigationRoute } from '../navigation/navigationRef';
+import {
+  advanceGuidedTutorialFromTarget,
+  type GuidedTutorialTargetId,
+} from '../services/guidedTutorialService';
 
 type MainRouteName = MainNavigationRoute | 'Scanner';
 
@@ -17,27 +23,51 @@ type BottomMenuItem = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   route: MainRouteName;
+  tutorialTargetId?: GuidedTutorialTargetId;
 };
 
 const ITEMS: BottomMenuItem[] = [
   { icon: 'home-outline', label: 'Home', route: 'Home' },
-  { icon: 'search-outline', label: 'Search', route: 'Search' },
+  {
+    icon: 'search-outline',
+    label: 'Search',
+    route: 'Search',
+    tutorialTargetId: 'bottom-search-tab',
+  },
   { icon: 'scan-outline', label: 'Scan', route: 'Scanner' },
-  { icon: 'time-outline', label: 'History', route: 'History' },
-  { icon: 'star-outline', label: 'Featured', route: 'FeaturedProducts' },
+  {
+    icon: 'time-outline',
+    label: 'History',
+    route: 'History',
+    tutorialTargetId: 'bottom-history-tab',
+  },
+  {
+    icon: 'star-outline',
+    label: 'Featured',
+    route: 'FeaturedProducts',
+    tutorialTargetId: 'bottom-featured-tab',
+  },
 ];
 
 export default function BottomMenuBar({
   activeRoute,
   onSelectRoute,
 }: BottomMenuBarProps) {
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
-  const handlePress = (route: MainRouteName) => {
+  const handlePress = (
+    route: MainRouteName,
+    tutorialTargetId?: GuidedTutorialTargetId
+  ) => {
     if (route === activeRoute) {
       return;
+    }
+
+    if (tutorialTargetId) {
+      advanceGuidedTutorialFromTarget(tutorialTargetId);
     }
 
     onSelectRoute(route);
@@ -59,49 +89,54 @@ export default function BottomMenuBar({
           const isCenter = item.route === 'Scanner';
 
           return (
-            <Pressable
+            <TutorialTarget
               key={item.route}
-              accessibilityLabel={item.label}
-              accessibilityRole="button"
-              onPress={() => handlePress(item.route)}
-              style={({ pressed }) => [
-                styles.item,
-                isCenter && styles.centerItem,
-                pressed && styles.itemPressed,
-              ]}
+              style={styles.itemWrap}
+              targetId={item.tutorialTargetId}
             >
-              <View
-                style={[
-                  styles.iconWrap,
-                  isActive && styles.iconWrapActive,
-                  isCenter && styles.iconWrapCenter,
-                  isActive && isCenter && styles.iconWrapCenterActive,
+              <Pressable
+                accessibilityLabel={t(item.label)}
+                accessibilityRole="button"
+                onPress={() => handlePress(item.route, item.tutorialTargetId)}
+                style={({ pressed }) => [
+                  styles.item,
+                  isCenter && styles.centerItem,
+                  pressed && styles.itemPressed,
                 ]}
               >
-                <Ionicons
-                  color={
-                    isActive
-                      ? isCenter
-                        ? colors.surface
-                        : colors.primary
-                      : isCenter
-                        ? colors.surface
-                        : colors.textMuted
-                  }
-                  name={item.icon}
-                  size={isCenter ? 24 : 22}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.label,
-                  isActive && styles.labelActive,
-                  isCenter && styles.labelCenter,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </Pressable>
+                <View
+                  style={[
+                    styles.iconWrap,
+                    isActive && styles.iconWrapActive,
+                    isCenter && styles.iconWrapCenter,
+                    isActive && isCenter && styles.iconWrapCenterActive,
+                  ]}
+                >
+                  <Ionicons
+                    color={
+                      isActive
+                        ? isCenter
+                          ? colors.surface
+                          : colors.primary
+                        : isCenter
+                          ? colors.surface
+                          : colors.textMuted
+                    }
+                    name={item.icon}
+                    size={isCenter ? 24 : 22}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.label,
+                    isActive && styles.labelActive,
+                    isCenter && styles.labelCenter,
+                  ]}
+                >
+                  {t(item.label)}
+                </Text>
+              </Pressable>
+            </TutorialTarget>
           );
         })}
       </View>
@@ -168,6 +203,9 @@ const createStyles = (
     },
     itemPressed: {
       opacity: 0.88,
+    },
+    itemWrap: {
+      flex: 1,
     },
     label: {
       color: colors.textMuted,

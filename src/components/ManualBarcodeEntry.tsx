@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import PrimaryButton from './PrimaryButton';
 
@@ -19,12 +20,13 @@ export default function ManualBarcodeEntry({
   onSubmit,
   value,
 }: ManualBarcodeEntryProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Type it instead</Text>
+      <Text style={styles.label}>{t('Type it instead')}</Text>
       <TextInput
         autoCapitalize="none"
         autoCorrect={false}
@@ -33,12 +35,12 @@ export default function ManualBarcodeEntry({
         maxLength={32}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
-        placeholder="Enter barcode digits"
+        placeholder={t('Enter barcode digits')}
         placeholderTextColor={colors.textMuted}
         style={[styles.input, disabled && styles.inputDisabled]}
         value={value}
       />
-      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+      {errorMessage ? <Text style={styles.errorText}>{t(errorMessage)}</Text> : null}
       <PrimaryButton
         disabled={disabled}
         label={disabled ? 'Checking Barcode...' : 'Check Barcode'}

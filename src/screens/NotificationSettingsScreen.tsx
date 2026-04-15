@@ -8,6 +8,7 @@ import OptionPickerModal from '../components/OptionPickerModal';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import { createDefaultPremiumEntitlement } from '../models/premium';
 import type {
@@ -38,6 +39,7 @@ type NotificationSettingsScreenProps = NativeStackScreenProps<
 export default function NotificationSettingsScreen({
   navigation,
 }: NotificationSettingsScreenProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const [historyInsightsEnabled, setHistoryInsightsEnabled] = useState(true);
   const [historyNotificationCadence, setHistoryNotificationCadence] =
@@ -111,10 +113,10 @@ export default function NotificationSettingsScreen({
       } catch (error) {
         setHistoryInsightsEnabled(!nextValue);
         Alert.alert(
-          'History insights update failed',
+          t('History insights update failed'),
           error instanceof AuthServiceError
-            ? error.message
-            : 'We could not save that history insight setting right now.'
+            ? t(error.message)
+            : t('We could not save that history insight setting right now.')
         );
       }
     })();
@@ -140,11 +142,11 @@ export default function NotificationSettingsScreen({
       void saveCurrentUserPreferences({ historyNotificationsEnabled: false }).catch(() => null);
       void cancelCurrentUserHistoryNotifications();
       Alert.alert(
-        'Allow notifications',
-        'Turn on notifications in system settings to receive weekly recaps and shopping nudges.',
+        t('Allow notifications'),
+        t('Turn on notifications in system settings to receive weekly recaps and shopping nudges.'),
         [
-          { style: 'cancel', text: 'Not now' },
-          { text: 'Open settings', onPress: () => void openHistoryNotificationSettings() },
+          { style: 'cancel', text: t('Not now') },
+          { text: t('Open settings'), onPress: () => void openHistoryNotificationSettings() },
         ]
       );
       return;
@@ -158,10 +160,10 @@ export default function NotificationSettingsScreen({
       } catch (error) {
         setHistoryNotificationsEnabled(false);
         Alert.alert(
-          'Notification update failed',
+          t('Notification update failed'),
           error instanceof AuthServiceError
-            ? error.message
-            : 'We could not turn on history notifications right now.'
+            ? t(error.message)
+            : t('We could not turn on history notifications right now.')
         );
       }
     })();
@@ -177,10 +179,10 @@ export default function NotificationSettingsScreen({
       } catch (error) {
         setHistoryNotificationCadence((current) => current);
         Alert.alert(
-          'Notification pace update failed',
+          t('Notification pace update failed'),
           error instanceof AuthServiceError
-            ? error.message
-            : 'We could not save that notification pace right now.'
+            ? t(error.message)
+            : t('We could not save that notification pace right now.')
         );
       }
     })();

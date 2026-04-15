@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import type { ProductChangeAlert } from '../models/productChangeAlert';
 import { useAppTheme } from './AppThemeProvider';
 
@@ -12,6 +13,7 @@ export default function ProductChangeAlertsCard({
   alerts,
   onOpenAlert,
 }: ProductChangeAlertsCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
@@ -21,7 +23,7 @@ export default function ProductChangeAlertsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Changed products</Text>
+      <Text style={styles.label}>{t('Changed products')}</Text>
       {alerts.slice(0, 3).map((alert) => (
         <Pressable
           key={alert.id}
@@ -29,7 +31,7 @@ export default function ProductChangeAlertsCard({
           style={styles.item}
         >
           <Text style={styles.title}>{alert.name}</Text>
-          <Text style={styles.body}>{alert.summary}</Text>
+          <Text style={styles.body}>{t(alert.summary)}</Text>
         </Pressable>
       ))}
     </View>

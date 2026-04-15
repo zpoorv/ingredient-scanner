@@ -11,6 +11,7 @@ import {
 import type { ShareCardStyleDefinition } from '../constants/shareCardStyles';
 import type { ShareCardStyleId } from '../models/shareCardStyle';
 import type { ShareableResultData } from '../utils/shareableResult';
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import PrimaryButton from './PrimaryButton';
 import ShareResultCard from './ShareResultCard';
@@ -44,6 +45,7 @@ export default function ShareCardPickerModal({
   styleDefinitions,
   visible,
 }: ShareCardPickerModalProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -52,8 +54,8 @@ export default function ShareCardPickerModal({
       <View style={styles.overlay}>
         <Pressable onPress={onClose} style={styles.backdrop} />
         <View style={styles.sheet}>
-          <Text style={styles.title}>Choose a share card</Text>
-          <Text style={styles.subtitle}>{dailyLimitText}</Text>
+          <Text style={styles.title}>{t('Choose a share card')}</Text>
+          <Text style={styles.subtitle}>{t(dailyLimitText)}</Text>
 
           <View style={styles.previewCard}>
             <View style={styles.previewFrame}>
@@ -99,7 +101,7 @@ export default function ShareCardPickerModal({
                         isSelected && styles.carouselTitleSelected,
                       ]}
                     >
-                      {definition.label}
+                      {t(definition.label)}
                     </Text>
                     <View
                       style={[
@@ -115,11 +117,11 @@ export default function ShareCardPickerModal({
                             : styles.availableBadgeText,
                         ]}
                       >
-                        {isLocked ? 'Premium' : isSelected ? 'Selected' : 'Included'}
+                        {isLocked ? t('Premium') : isSelected ? t('Selected') : t('Included')}
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.carouselDescription}>{definition.description}</Text>
+                  <Text style={styles.carouselDescription}>{t(definition.description)}</Text>
                 </Pressable>
               );
             })}
@@ -132,7 +134,7 @@ export default function ShareCardPickerModal({
               onPress={onShare}
             />
             {!isPremium ? (
-              <PrimaryButton label="Buy Premium" onPress={onUpgrade} />
+              <PrimaryButton label={t('Buy Premium')} onPress={onUpgrade} />
             ) : null}
           </View>
         </View>

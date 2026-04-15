@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 type AuthTextFieldProps = {
@@ -33,12 +34,13 @@ export default function AuthTextField({
   secureTextEntry = false,
   value,
 }: AuthTextFieldProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>{t(label)}</Text>
       <TextInput
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}
@@ -46,13 +48,13 @@ export default function AuthTextField({
         editable={editable}
         keyboardType={keyboardType}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={t(placeholder)}
         placeholderTextColor={colors.textMuted}
         secureTextEntry={secureTextEntry}
         style={[styles.input, errorMessage && styles.inputError]}
         value={value}
       />
-      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+      {errorMessage ? <Text style={styles.errorText}>{t(errorMessage)}</Text> : null}
     </View>
   );
 }

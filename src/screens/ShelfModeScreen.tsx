@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
+import FeatureTipCard from '../components/FeatureTipCard';
 import MicroCelebrationBanner from '../components/MicroCelebrationBanner';
 import PrimaryButton from '../components/PrimaryButton';
 import type { ComparisonSessionEntry } from '../models/comparisonSession';
@@ -20,6 +22,7 @@ import {
 import { recordGamificationTripCompletion } from '../services/gamificationService';
 import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { buildShelfComparisonSummary } from '../utils/shelfComparison';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type ShelfModeScreenProps = NativeStackScreenProps<RootStackParamList, 'ShelfMode'>;
 
@@ -65,6 +68,7 @@ function formatTripDecision(value: ComparisonSessionEntry['tripDecision']) {
 }
 
 export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [entries, setEntries] = useState<ComparisonSessionEntry[]>([]);
@@ -76,6 +80,7 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
   );
   const [gamificationCelebration, setGamificationCelebration] =
     useState<GamificationCelebration | null>(null);
+  const shelfModeTutorial = useFeatureTutorial('shelf-mode');
 
   useEffect(() => {
     if (!gamificationCelebration) {
@@ -174,56 +179,66 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Trip Mode</Text>
-          <Text style={styles.title}>Keep the best shelf decision in view</Text>
+          <Text style={styles.eyebrow}>{t('Trip Mode')}</Text>
+          <Text style={styles.title}>{t('Keep the best shelf decision in view')}</Text>
           <Text style={styles.body}>
-            Scan a few similar products, keep the strongest fit for your household, and finish the trip with one clear recap.
+            {t(
+              'Scan a few similar products, keep the strongest fit for your household, and finish the trip with one clear recap.'
+            )}
           </Text>
-          <Text style={styles.highlight}>{summary.whyThisWins}</Text>
+          <Text style={styles.highlight}>{t(summary.whyThisWins)}</Text>
         </View>
+
+        <FeatureTipCard
+          body="Use Shelf Mode when comparing similar products. Progress is awarded when a real trip is finished."
+          icon="basket-outline"
+          onDismiss={shelfModeTutorial.dismiss}
+          title="Make one clear shelf decision"
+          visible={shelfModeTutorial.isVisible}
+        />
 
         <MicroCelebrationBanner celebration={gamificationCelebration} />
 
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Compared now</Text>
+            <Text style={styles.summaryLabel}>{t('Compared now')}</Text>
             <Text style={styles.summaryValue}>{entries.length}</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Best regular-use pick</Text>
+            <Text style={styles.summaryLabel}>{t('Best regular-use pick')}</Text>
             <Text style={styles.summaryValue}>
               {summary.rows.find((row) => row.barcode === summary.bestForRegularUseBarcode)?.name ??
-                'Scan more'}
+                t('Scan more')}
             </Text>
           </View>
         </View>
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Best household fit</Text>
+            <Text style={styles.summaryLabel}>{t('Best household fit')}</Text>
             <Text style={styles.summaryValue}>
               {summary.rows.find((row) => row.barcode === summary.bestHouseholdFitBarcode)?.name ??
-                'Need more scans'}
+                t('Need more scans')}
             </Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Best lower-impact option</Text>
+            <Text style={styles.summaryLabel}>{t('Best lower-impact option')}</Text>
             <Text style={styles.summaryValue}>
               {summary.rows.find((row) => row.barcode === summary.bestLowerImpactBarcode)?.name ??
-                'No eco data yet'}
+                t('No eco data yet')}
             </Text>
           </View>
         </View>
 
         {summary.rows.length > 0 ? (
           <View style={styles.tableCard}>
-            <Text style={styles.sectionTitle}>Trip comparison</Text>
+            <Text style={styles.sectionTitle}>{t('Trip comparison')}</Text>
             {summary.rows.map((row) => (
               <View key={row.barcode} style={styles.rowCard}>
                 <View style={styles.rowHeader}>
                   <View style={styles.rowTextBlock}>
                     <Text style={styles.rowTitle}>{row.name}</Text>
                     <Text style={styles.rowMeta}>
-                      {formatVerdict(row.decisionVerdict)} • {row.confidence}
+                      {t(formatVerdict(row.decisionVerdict))} • {t(row.confidence)}
                     </Text>
                   </View>
                   {typeof row.score === 'number' ? (
@@ -231,17 +246,21 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
                   ) : null}
                 </View>
                 <View style={styles.tripBadgeRow}>
-                  <Text style={styles.tripBadge}>{formatTripDecision(row.tripDecision)}</Text>
+                  <Text style={styles.tripBadge}>{t(formatTripDecision(row.tripDecision))}</Text>
                   <Text style={styles.tripDetailText}>
-                    {formatHouseholdFit(row.householdFitVerdict)}
+                    {t(formatHouseholdFit(row.householdFitVerdict))}
                   </Text>
                   {row.ecoScore ? (
-                    <Text style={styles.tripDetailText}>Eco {row.ecoScore.toUpperCase()}</Text>
+                    <Text style={styles.tripDetailText}>
+                      {t('Eco {score}', { score: row.ecoScore.toUpperCase() })}
+                    </Text>
                   ) : null}
                 </View>
-                <Text style={styles.rowBody}>{row.decisionSummary}</Text>
+                <Text style={styles.rowBody}>{t(row.decisionSummary)}</Text>
                 {row.topConcern ? (
-                  <Text style={styles.concernText}>Main issue: {row.topConcern}</Text>
+                  <Text style={styles.concernText}>
+                    {t('Main issue: {topConcern}', { topConcern: row.topConcern })}
+                  </Text>
                 ) : null}
                 <View style={styles.rowActions}>
                   <Pressable
@@ -261,13 +280,13 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
                     }}
                     style={styles.actionChip}
                   >
-                    <Text style={styles.actionChipText}>Open</Text>
+                    <Text style={styles.actionChipText}>{t('Open')}</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => void handleRemoveEntry(row.barcode)}
                     style={styles.actionChip}
                   >
-                    <Text style={styles.actionChipText}>Remove</Text>
+                    <Text style={styles.actionChipText}>{t('Remove')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -275,22 +294,28 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
           </View>
         ) : (
           <View style={styles.emptyCard}>
-            <Text style={styles.sectionTitle}>No active trip yet</Text>
+            <Text style={styles.sectionTitle}>{t('No active trip yet')}</Text>
             <Text style={styles.body}>
-              Open the scanner, scan two or more products from the same shelf, and this trip will fill itself in automatically.
+              {t(
+                'Open the scanner, scan two or more products from the same shelf, and this trip will fill itself in automatically.'
+              )}
             </Text>
           </View>
         )}
 
         {recentTripSummaries.length > 0 ? (
           <View style={styles.tableCard}>
-            <Text style={styles.sectionTitle}>Recent trips</Text>
+            <Text style={styles.sectionTitle}>{t('Recent trips')}</Text>
             {recentTripSummaries.slice(0, 3).map((trip, index) => (
               <View key={trip.id} style={styles.rowCard}>
-                <Text style={styles.rowTitle}>Trip {index + 1}</Text>
-                <Text style={styles.rowBody}>{trip.recapLine}</Text>
+                <Text style={styles.rowTitle}>
+                  {t('Trip {index}', { index: index + 1 })}
+                </Text>
+                <Text style={styles.rowBody}>{t(trip.recapLine)}</Text>
                 <Text style={styles.rowMeta}>
-                  Started {new Date(trip.startedAt).toLocaleDateString()}
+                  {t('Started {date}', {
+                    date: new Date(trip.startedAt).toLocaleDateString(),
+                  })}
                 </Text>
               </View>
             ))}
@@ -299,16 +324,20 @@ export default function ShelfModeScreen({ navigation }: ShelfModeScreenProps) {
 
         {premiumEntitlement?.isPremium ? (
           <View style={styles.premiumCard}>
-            <Text style={styles.sectionTitle}>Premium compare edge</Text>
+            <Text style={styles.sectionTitle}>{t('Premium compare edge')}</Text>
             <Text style={styles.body}>
-              Premium keeps favorites ready, preserves comparison slots, and adds deeper swap guidance on each product result.
+              {t(
+                'Premium keeps favorites ready, preserves comparison slots, and adds deeper swap guidance on each product result.'
+              )}
             </Text>
           </View>
         ) : (
           <View style={styles.premiumCard}>
-            <Text style={styles.sectionTitle}>Want a stronger compare workflow?</Text>
+            <Text style={styles.sectionTitle}>{t('Want a stronger compare workflow?')}</Text>
             <Text style={styles.body}>
-              Premium saves favorites, keeps comparison slots ready, and adds deeper “why this wins” guidance.
+              {t(
+                'Premium saves favorites, keeps comparison slots ready, and adds deeper “why this wins” guidance.'
+              )}
             </Text>
             <PrimaryButton
               label="See Premium"

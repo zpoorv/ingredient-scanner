@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import AuthTextField from '../components/AuthTextField';
 import GoogleSignInButton from '../components/GoogleSignInButton';
@@ -16,6 +17,7 @@ import type { RootStackParamList } from '../navigation/types';
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation, route }: LoginScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [email, setEmail] = useState(route.params?.prefillEmail ?? '');
@@ -47,8 +49,8 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
     } catch (error) {
       setErrorMessage(
         error instanceof AuthServiceError
-          ? error.message
-          : 'We could not log you in right now.'
+          ? t(error.message)
+          : t('We could not log you in right now.')
       );
     } finally {
       setIsSubmitting(false);
@@ -66,8 +68,8 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
     } catch (error) {
       setErrorMessage(
         error instanceof AuthServiceError
-          ? error.message
-          : 'We could not send a sign-in link right now.'
+          ? t(error.message)
+          : t('We could not send a sign-in link right now.')
       );
     } finally {
       setIsSendingLink(false);
@@ -78,8 +80,10 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Welcome Back</Text>
-          <Text style={styles.title}>Log in to {APP_NAME}</Text>
+          <Text style={styles.eyebrow}>{t('Welcome Back')}</Text>
+          <Text style={styles.title}>
+            {t('Log in to {appName}', { appName: APP_NAME })}
+          </Text>
         </View>
 
         <View style={styles.card}>
@@ -87,39 +91,41 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
             autoComplete="email"
             errorMessage={null}
             keyboardType="email-address"
-            label="Email"
+            label={t('Email')}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder={t('you@example.com')}
             value={email}
           />
-          {noticeMessage ? <Text style={styles.noticeText}>{noticeMessage}</Text> : null}
+          {noticeMessage ? <Text style={styles.noticeText}>{t(noticeMessage)}</Text> : null}
           <AuthTextField
             autoComplete="password"
             errorMessage={errorMessage}
-            label="Password"
+            label={t('Password')}
             onChangeText={setPassword}
-            placeholder="Enter your password"
+            placeholder={t('Enter your password')}
             secureTextEntry
             value={password}
           />
           <PrimaryButton
             disabled={isSubmitting}
-            label={isSubmitting ? 'Logging In...' : 'Log In'}
+            label={isSubmitting ? t('Logging In...') : t('Log In')}
             onPress={() => void handleLogin()}
           />
 
           <Pressable onPress={() => navigation.navigate('ResetPassword')} style={styles.link}>
-            <Text style={styles.linkText}>Forgot password?</Text>
+            <Text style={styles.linkText}>{t('Forgot password?')}</Text>
           </Pressable>
           <Pressable disabled={isSendingLink} onPress={() => void handleEmailLink()} style={styles.link}>
             <Text style={styles.linkText}>
-              {isSendingLink ? 'Sending sign-in link...' : 'Email me a sign-in link'}
+              {isSendingLink
+                ? t('Sending sign-in link...')
+                : t('Email me a sign-in link')}
             </Text>
           </Pressable>
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
+            <Text style={styles.dividerText}>{t('or')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -127,9 +133,9 @@ export default function LoginScreen({ navigation, route }: LoginScreenProps) {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Do not have an account yet?</Text>
+          <Text style={styles.footerText}>{t('Do not have an account yet?')}</Text>
           <Pressable onPress={() => navigation.navigate('SignUp')}>
-            <Text style={styles.footerLink}>Create one with email</Text>
+            <Text style={styles.footerLink}>{t('Create one with email')}</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -3,12 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import FeatureTipCard from '../components/FeatureTipCard';
 import FeaturePageLayout from '../components/FeaturePageLayout';
 import HistoryInsightsCard from '../components/HistoryInsightsCard';
 import HistoryNotificationsCard from '../components/HistoryNotificationsCard';
 import ProductChangeAlertsCard from '../components/ProductChangeAlertsCard';
 import ProductTimelineCard from '../components/ProductTimelineCard';
 import ScreenLoadingView from '../components/ScreenLoadingView';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import { createDefaultPremiumEntitlement } from '../models/premium';
 import { toGamificationSummary } from '../services/gamificationService';
@@ -23,10 +25,12 @@ import { getCanonicalNowMs } from '../services/timeIntegrityService';
 import { openMainRoute } from '../navigation/navigationRef';
 import type { RootStackParamList } from '../navigation/types';
 import { buildHistoryOverview } from '../utils/historyPersonalization';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type AlertsScreenProps = NativeStackScreenProps<RootStackParamList, 'Alerts'>;
 
 export default function AlertsScreen({ navigation }: AlertsScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,6 +43,7 @@ export default function AlertsScreen({ navigation }: AlertsScreenProps) {
   const [historyEntries, setHistoryEntries] = useState<Awaited<
     ReturnType<typeof loadSessionScanHistory>
   >>([]);
+  const alertsTutorial = useFeatureTutorial('alerts');
 
   useFocusEffect(
     useCallback(() => {
@@ -113,8 +118,17 @@ export default function AlertsScreen({ navigation }: AlertsScreenProps) {
     <FeaturePageLayout
       eyebrow="Alerts"
       subtitle="Changes, watch-outs, and repeat-buy nudges now have a dedicated page."
+      tutorialTargetId="alerts-hero"
       title="Watch this first"
     >
+      <FeatureTipCard
+        body="Alerts collects product changes, watch-outs, and replace-first nudges away from your scan timeline."
+        icon="alert-circle-outline"
+        onDismiss={alertsTutorial.dismiss}
+        title="Watch what changed"
+        visible={alertsTutorial.isVisible}
+      />
+
       {alertsState ? (
         <>
           <HistoryNotificationsCard notifications={alertsState.notifications.slice(0, 3)} />
@@ -126,12 +140,12 @@ export default function AlertsScreen({ navigation }: AlertsScreenProps) {
           <ProductTimelineCard entries={alertsState.recentChanges.slice(0, 4)} title="Recent changes" />
           {alertsState.replaceFirstCandidate ? (
             <View style={styles.replaceCard}>
-              <Text style={styles.replaceLabel}>Replace first</Text>
+              <Text style={styles.replaceLabel}>{t('Replace first')}</Text>
               <Text style={styles.replaceTitle}>{alertsState.replaceFirstCandidate.name}</Text>
-              <Text style={styles.replaceBody}>{alertsState.replaceFirstCandidate.reason}</Text>
+              <Text style={styles.replaceBody}>{t(alertsState.replaceFirstCandidate.reason)}</Text>
               {alertsState.replacementCandidates.slice(0, 2).map((candidate) => (
                 <Text key={candidate.id} style={styles.replaceHint}>
-                  {candidate.name}: {candidate.reason}
+                  {candidate.name}: {t(candidate.reason)}
                 </Text>
               ))}
             </View>
@@ -139,9 +153,9 @@ export default function AlertsScreen({ navigation }: AlertsScreenProps) {
         </>
       ) : (
         <View style={styles.replaceCard}>
-          <Text style={styles.replaceTitle}>No active watch-outs yet</Text>
+          <Text style={styles.replaceTitle}>{t('No active watch-outs yet')}</Text>
           <Text style={styles.replaceBody}>
-            Product changes and repeat-buy cautions will gather here after a few scans.
+            {t('Product changes and repeat-buy cautions will gather here after a few scans.')}
           </Text>
         </View>
       )}

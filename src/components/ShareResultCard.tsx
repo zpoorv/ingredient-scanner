@@ -1,5 +1,6 @@
 import { ImageBackground, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { APP_NAME } from '../constants/branding';
 import { colors } from '../constants/colors';
 import type { ShareCardStyleId } from '../models/shareCardStyle';
@@ -101,10 +102,12 @@ function ScoreOrb({
 }
 
 function RiskTags({ accent, items }: { accent: string; items: string[] }) {
+  const { t } = useI18n();
+
   if (items.length === 0) {
     return (
       <Text style={styles.emptyText}>
-        No major ingredient flags were highlighted in this quick scan.
+        {t('No major ingredient flags were highlighted in this quick scan.')}
       </Text>
     );
   }
@@ -123,10 +126,14 @@ function RiskTags({ accent, items }: { accent: string; items: string[] }) {
 }
 
 function FooterNote({ footerText }: { footerText?: string | null }) {
+  const { t } = useI18n();
+
   return (
     <Text style={styles.footnote}>
-      {footerText ||
-        'Quick scan summary for social sharing. Review the full product page for context.'}
+      {t(
+        footerText ||
+          'Quick scan summary for social sharing. Review the full product page for context.'
+      )}
     </Text>
   );
 }
@@ -136,6 +143,7 @@ function ClassicCard({
   footerText,
   onImageLoadEnd,
 }: ShareResultCardProps) {
+  const { t } = useI18n();
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
@@ -149,7 +157,7 @@ function ClassicCard({
         </View>
         <View style={[styles.pill, { backgroundColor: scoreTheme.background }]}>
           <Text style={[styles.gradeText, { color: scoreTheme.accent }]}>
-            Grade {data.gradeLabel}
+            {t('Grade {grade}', { grade: data.gradeLabel })}
           </Text>
         </View>
       </View>
@@ -165,7 +173,7 @@ function ClassicCard({
             </Text>
           ) : null}
           <Text style={[styles.verdictLabel, { color: scoreTheme.accent }]}>
-            {scoreTheme.label}
+            {t(scoreTheme.label)}
           </Text>
           <Text numberOfLines={3} style={styles.verdictText}>
             {data.verdict}
@@ -175,7 +183,7 @@ function ClassicCard({
       </View>
 
       <View style={styles.footerPanel}>
-        <Text style={styles.sectionLabel}>Top risky ingredients</Text>
+        <Text style={styles.sectionLabel}>{t('Top risky ingredients')}</Text>
         <RiskTags accent={scoreTheme.accent} items={data.topRiskyIngredients} />
         <FooterNote footerText={footerText} />
       </View>
@@ -188,13 +196,14 @@ function SpotlightCard({
   footerText,
   onImageLoadEnd,
 }: ShareResultCardProps) {
+  const { t } = useI18n();
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
     <View style={[styles.card, styles.spotlightCard, { backgroundColor: scoreTheme.accent }]}>
       <View style={styles.spotlightHeader}>
         <Text style={styles.spotlightBrand}>{APP_NAME}</Text>
-        <Text style={styles.spotlightGrade}>Grade {data.gradeLabel}</Text>
+        <Text style={styles.spotlightGrade}>{t('Grade {grade}', { grade: data.gradeLabel })}</Text>
       </View>
       <View style={styles.spotlightOrbWrap}>
         <ScoreOrb
@@ -210,7 +219,9 @@ function SpotlightCard({
       ) : null}
       <Text style={styles.spotlightVerdict}>{data.verdict}</Text>
       <View style={styles.spotlightPanel}>
-        <Text style={[styles.sectionLabel, { color: scoreTheme.accent }]}>Watch-outs</Text>
+        <Text style={[styles.sectionLabel, { color: scoreTheme.accent }]}>
+          {t('Watch-outs')}
+        </Text>
         <RiskTags accent={scoreTheme.accent} items={data.topRiskyIngredients} />
         <FooterNote footerText={footerText} />
       </View>
@@ -223,6 +234,7 @@ function GlassCard({
   footerText,
   onImageLoadEnd,
 }: ShareResultCardProps) {
+  const { t } = useI18n();
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
@@ -231,7 +243,9 @@ function GlassCard({
       <View style={styles.glassPanel}>
         <View style={styles.header}>
           <Text style={[styles.pillText, { color: scoreTheme.accent }]}>{APP_NAME}</Text>
-          <Text style={[styles.gradeText, { color: scoreTheme.accent }]}>Grade {data.gradeLabel}</Text>
+          <Text style={[styles.gradeText, { color: scoreTheme.accent }]}>
+            {t('Grade {grade}', { grade: data.gradeLabel })}
+          </Text>
         </View>
         <View style={styles.heroRow}>
           <View style={styles.heroTextBlock}>
@@ -247,7 +261,9 @@ function GlassCard({
         </View>
       </View>
       <View style={[styles.glassPanel, styles.glassBottomPanel]}>
-        <Text style={[styles.sectionLabel, { color: scoreTheme.accent }]}>Top risky ingredients</Text>
+        <Text style={[styles.sectionLabel, { color: scoreTheme.accent }]}>
+          {t('Top risky ingredients')}
+        </Text>
         <RiskTags accent={scoreTheme.accent} items={data.topRiskyIngredients} />
         <FooterNote footerText={footerText} />
       </View>
@@ -260,13 +276,14 @@ function PosterCard({
   footerText,
   onImageLoadEnd,
 }: ShareResultCardProps) {
+  const { t } = useI18n();
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
     <View style={[styles.card, styles.posterCard, { backgroundColor: scoreTheme.panel }]}>
       <View style={[styles.posterBand, { backgroundColor: scoreTheme.accent }]}>
         <Text style={styles.posterBandText}>{APP_NAME}</Text>
-        <Text style={styles.posterBandText}>Grade {data.gradeLabel}</Text>
+        <Text style={styles.posterBandText}>{t('Grade {grade}', { grade: data.gradeLabel })}</Text>
       </View>
       <View style={styles.posterBody}>
         <View style={styles.posterOrbColumn}>
@@ -285,7 +302,7 @@ function PosterCard({
             <Text style={styles.companyName}>{data.companyName}</Text>
           ) : null}
           <Text style={[styles.verdictLabel, { color: scoreTheme.accent }]}>
-            {scoreTheme.label}
+            {t(scoreTheme.label)}
           </Text>
           <Text style={styles.verdictText}>{data.verdict}</Text>
         </View>
@@ -303,24 +320,25 @@ function ReceiptCard({
   footerText,
   onImageLoadEnd,
 }: ShareResultCardProps) {
+  const { t } = useI18n();
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
     <View style={[styles.card, styles.receiptCard]}>
-      <Text style={styles.receiptBrand}>{APP_NAME} quick receipt</Text>
+      <Text style={styles.receiptBrand}>{t('{appName} quick receipt', { appName: APP_NAME })}</Text>
       <Text numberOfLines={2} style={styles.receiptName}>
         {data.productName}
       </Text>
       {data.companyName ? <Text style={styles.receiptCompany}>{data.companyName}</Text> : null}
       <View style={styles.receiptDivider} />
       <View style={styles.receiptRow}>
-        <Text style={styles.receiptLabel}>Score</Text>
+        <Text style={styles.receiptLabel}>{t('Score')}</Text>
         <Text style={[styles.receiptValue, { color: scoreTheme.accent }]}>
           {data.score}/100
         </Text>
       </View>
       <View style={styles.receiptRow}>
-        <Text style={styles.receiptLabel}>Grade</Text>
+        <Text style={styles.receiptLabel}>{t('Grade')}</Text>
         <Text style={[styles.receiptValue, { color: scoreTheme.accent }]}>
           {data.gradeLabel}
         </Text>
@@ -337,7 +355,7 @@ function ReceiptCard({
         </View>
       </View>
       <View style={styles.receiptDivider} />
-      <Text style={styles.sectionLabel}>Risk ingredients</Text>
+      <Text style={styles.sectionLabel}>{t('Risk ingredients')}</Text>
       <RiskTags accent={scoreTheme.accent} items={data.topRiskyIngredients} />
       <FooterNote footerText={footerText} />
     </View>
@@ -349,6 +367,7 @@ function RadarCard({
   footerText,
   onImageLoadEnd,
 }: ShareResultCardProps) {
+  const { t } = useI18n();
   const scoreTheme = getShareTheme(data.gradeLabel);
 
   return (
@@ -372,20 +391,22 @@ function RadarCard({
       </View>
       <View style={styles.radarMetricGrid}>
         <View style={styles.radarMetricCard}>
-          <Text style={styles.radarMetricLabel}>Grade</Text>
+          <Text style={styles.radarMetricLabel}>{t('Grade')}</Text>
           <Text style={[styles.radarMetricValue, { color: scoreTheme.accent }]}>
             {data.gradeLabel}
           </Text>
         </View>
         <View style={styles.radarMetricCard}>
-          <Text style={styles.radarMetricLabel}>Verdict</Text>
+          <Text style={styles.radarMetricLabel}>{t('Verdict')}</Text>
           <Text numberOfLines={2} style={styles.radarMetricValueSmall}>
             {data.verdict}
           </Text>
         </View>
       </View>
       <View style={styles.radarList}>
-        <Text style={[styles.sectionLabel, { color: '#BDE5EF' }]}>Priority watch-outs</Text>
+        <Text style={[styles.sectionLabel, { color: '#BDE5EF' }]}>
+          {t('Priority watch-outs')}
+        </Text>
         <RiskTags accent={scoreTheme.accent} items={data.topRiskyIngredients} />
         <FooterNote footerText={footerText} />
       </View>

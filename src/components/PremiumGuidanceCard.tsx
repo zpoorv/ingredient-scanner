@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { ResultAnalysis } from '../utils/resultAnalysis';
 
@@ -10,23 +11,30 @@ type PremiumGuidanceCardProps = {
 export default function PremiumGuidanceCard({
   guidance,
 }: PremiumGuidanceCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Premium Guidance</Text>
-      <Text style={styles.title}>Why this score?</Text>
+      <Text style={styles.label}>{t('Premium Guidance')}</Text>
+      <Text style={styles.title}>{t('Why this score?')}</Text>
 
       <View style={styles.copyBlock}>
-        <Text style={styles.body}>{guidance.whyThisScore}</Text>
-        <Text style={styles.body}>{guidance.useFrequencyGuidance}</Text>
-        <Text style={styles.body}>{guidance.swapGuidance}</Text>
+        <Text style={styles.body}>{t(guidance.whyThisScore)}</Text>
+        <Text style={styles.body}>{t(guidance.useFrequencyGuidance)}</Text>
+        <Text style={styles.body}>{t(guidance.swapGuidance)}</Text>
         {guidance.topConcern ? (
-          <Text style={styles.concern}>Main concern: {guidance.topConcern}</Text>
+          <Text style={styles.concern}>
+            {t('Main concern: {topConcern}', { topConcern: guidance.topConcern })}
+          </Text>
         ) : null}
         {guidance.confidenceAssist ? (
-          <Text style={styles.assist}>OCR assist: {guidance.confidenceAssist}</Text>
+          <Text style={styles.assist}>
+            {t('OCR assist: {confidenceAssist}', {
+              confidenceAssist: guidance.confidenceAssist,
+            })}
+          </Text>
         ) : null}
       </View>
     </View>

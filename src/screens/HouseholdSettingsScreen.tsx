@@ -12,6 +12,7 @@ import RestrictionPickerModal from '../components/RestrictionPickerModal';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import SettingsRow from '../components/SettingsRow';
 import SettingsSection from '../components/SettingsSection';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import {
   DEFAULT_DIET_PROFILE_ID,
@@ -41,6 +42,7 @@ type HouseholdSettingsScreenProps = NativeStackScreenProps<
 export default function HouseholdSettingsScreen({
   navigation,
 }: HouseholdSettingsScreenProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const [dietProfileId, setDietProfileId] = useState<DietProfileId>(DEFAULT_DIET_PROFILE_ID);
   const [draftDietProfileId, setDraftDietProfileId] =
@@ -142,10 +144,10 @@ export default function HouseholdSettingsScreen({
         setIsHouseholdProfilesModalVisible(true);
       } catch (error) {
         Alert.alert(
-          'Household profile update failed',
+          t('Household profile update failed'),
           error instanceof AuthServiceError
-            ? error.message
-            : 'We could not save that household profile right now.'
+            ? t(error.message)
+            : t('We could not save that household profile right now.')
         );
       }
     })();
@@ -205,10 +207,10 @@ export default function HouseholdSettingsScreen({
           setIsDietProfileVisible(false);
           void saveDietProfile(draftDietProfileId).catch((error) => {
             Alert.alert(
-              'Diet profile update failed',
+              t('Diet profile update failed'),
               error instanceof AuthServiceError
-                ? error.message
-                : 'We could not save that diet profile right now.'
+                ? t(error.message)
+                : t('We could not save that diet profile right now.')
             );
           });
         }}
@@ -224,10 +226,10 @@ export default function HouseholdSettingsScreen({
           setIsRestrictionModalVisible(false);
           void saveCurrentUserPreferences({ restrictionIds: nextRestrictionIds }).catch((error) => {
             Alert.alert(
-              'Food filters update failed',
+              t('Food filters update failed'),
               error instanceof AuthServiceError
-                ? error.message
-                : 'We could not save those food filters right now.'
+                ? t(error.message)
+                : t('We could not save those food filters right now.')
             );
           });
         }}
@@ -252,10 +254,10 @@ export default function HouseholdSettingsScreen({
             restrictionSeverity: draftRestrictionSeverity,
           }).catch((error) => {
             Alert.alert(
-              'Filter strictness update failed',
+              t('Filter strictness update failed'),
               error instanceof AuthServiceError
-                ? error.message
-                : 'We could not save that filter strictness right now.'
+                ? t(error.message)
+                : t('We could not save that filter strictness right now.')
             );
           });
         }}
@@ -279,11 +281,11 @@ export default function HouseholdSettingsScreen({
           setIsHouseholdEditorVisible(true);
         }}
         onDelete={(id) => {
-          Alert.alert('Delete household profile?', 'This removes only that saved household setup.', [
-            { style: 'cancel', text: 'Cancel' },
+          Alert.alert(t('Delete household profile?'), t('This removes only that saved household setup.'), [
+            { style: 'cancel', text: t('Cancel') },
             {
               style: 'destructive',
-              text: 'Delete',
+              text: t('Delete'),
               onPress: () => {
                 void deleteHouseholdProfile(id)
                   .then((state) => {
@@ -292,10 +294,10 @@ export default function HouseholdSettingsScreen({
                   })
                   .catch((error) => {
                     Alert.alert(
-                      'Delete failed',
+                      t('Delete failed'),
                       error instanceof AuthServiceError
-                        ? error.message
-                        : 'We could not remove that household profile right now.'
+                        ? t(error.message)
+                        : t('We could not remove that household profile right now.')
                     );
                   });
               },
@@ -316,10 +318,10 @@ export default function HouseholdSettingsScreen({
           setActiveHouseholdProfileId(id);
           void setActiveHouseholdProfile(id).catch((error) => {
             Alert.alert(
-              'Switch failed',
+              t('Switch failed'),
               error instanceof AuthServiceError
-                ? error.message
-                : 'We could not switch the active household profile right now.'
+                ? t(error.message)
+                : t('We could not switch the active household profile right now.')
             );
           });
         }}

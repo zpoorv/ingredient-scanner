@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { HouseholdProfile } from '../models/householdProfile';
 
@@ -25,6 +26,7 @@ export default function HouseholdProfilesModal({
   onUseProfile,
   visible,
 }: HouseholdProfilesModalProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
@@ -32,14 +34,16 @@ export default function HouseholdProfilesModal({
     <Modal animationType="fade" onRequestClose={onRequestClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>Household profiles</Text>
+          <Text style={styles.title}>{t('Household profiles')}</Text>
           <Text style={styles.subtitle}>
-            Switch who you are shopping for without overwriting your own default setup.
+            {t('Switch who you are shopping for without overwriting your own default setup.')}
           </Text>
           <Pressable onPress={() => onUseProfile(null)} style={styles.baseProfileCard}>
-            <Text style={styles.baseProfileTitle}>You</Text>
+            <Text style={styles.baseProfileTitle}>{t('You')}</Text>
             <Text style={styles.baseProfileBody}>
-              {activeHouseholdProfileId ? 'Use your own default profile and filters.' : 'Currently active'}
+              {activeHouseholdProfileId
+                ? t('Use your own default profile and filters.')
+                : t('Currently active')}
             </Text>
           </Pressable>
           <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -50,20 +54,20 @@ export default function HouseholdProfilesModal({
                 <View key={profile.id} style={[styles.card, isActive && styles.cardActive]}>
                   <Text style={styles.cardTitle}>{profile.name}</Text>
                   <Text style={styles.cardBody}>
-                    {profile.dietProfileId.replace(/-/g, ' ')}
+                    {t(profile.dietProfileId.replace(/-/g, ' '))}
                     {profile.restrictionIds.length > 0
-                      ? ` • ${profile.restrictionIds.length} filter${profile.restrictionIds.length === 1 ? '' : 's'}`
+                      ? ` • ${t('{count} filters', { count: profile.restrictionIds.length })}`
                       : ''}
                   </Text>
                   <View style={styles.actions}>
                     <Pressable onPress={() => onUseProfile(profile.id)} style={styles.actionChip}>
-                      <Text style={styles.actionText}>{isActive ? 'Active' : 'Use'}</Text>
+                      <Text style={styles.actionText}>{isActive ? t('Active') : t('Use')}</Text>
                     </Pressable>
                     <Pressable onPress={() => onEdit(profile)} style={styles.actionChip}>
-                      <Text style={styles.actionText}>Edit</Text>
+                      <Text style={styles.actionText}>{t('Edit')}</Text>
                     </Pressable>
                     <Pressable onPress={() => onDelete(profile.id)} style={styles.deleteChip}>
-                      <Text style={styles.deleteText}>Delete</Text>
+                      <Text style={styles.deleteText}>{t('Delete')}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -72,10 +76,10 @@ export default function HouseholdProfilesModal({
           </ScrollView>
           <View style={styles.footer}>
             <Pressable onPress={onAdd} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Add household profile</Text>
+              <Text style={styles.primaryButtonText}>{t('Add household profile')}</Text>
             </Pressable>
             <Pressable onPress={onRequestClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Done</Text>
+              <Text style={styles.closeButtonText}>{t('Done')}</Text>
             </Pressable>
           </View>
         </View>

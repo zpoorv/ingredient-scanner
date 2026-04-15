@@ -3,6 +3,10 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import {
+  getLanguageDisplayLabel,
+  useI18n,
+} from '../components/AppLanguageProvider';
 import FeaturePageLayout from '../components/FeaturePageLayout';
 import OptionPickerModal from '../components/OptionPickerModal';
 import ScreenLoadingView from '../components/ScreenLoadingView';
@@ -33,13 +37,16 @@ type AppearanceSettingsScreenProps = NativeStackScreenProps<
 export default function AppearanceSettingsScreen({
   navigation: _navigation,
 }: AppearanceSettingsScreenProps) {
+  const { languageCode, languageOptions, setLanguageCode, t } = useI18n();
   const { appLookId, appearanceMode, colors, setAppLookId, setAppearanceMode, typography } =
     useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [draftAppLookId, setDraftAppLookId] = useState(appLookId);
+  const [draftLanguageCode, setDraftLanguageCode] = useState(languageCode);
   const [draftShareCardStyleId, setDraftShareCardStyleId] =
     useState<ShareCardStyleId>('classic');
   const [isAppLookModalVisible, setIsAppLookModalVisible] = useState(false);
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
   const [isShareCardStyleModalVisible, setIsShareCardStyleModalVisible] = useState(false);
@@ -56,6 +63,11 @@ export default function AppearanceSettingsScreen({
     disabled: definition.isPremiumOnly && !isPremium,
     id: definition.id,
     label: definition.label,
+  }));
+  const appLanguageOptions = languageOptions.map((language) => ({
+    description: t(`Use ${language.englishLabel} throughout the app.`),
+    id: language.code,
+    label: language.nativeLabel,
   }));
 
   useFocusEffect(
@@ -127,6 +139,14 @@ export default function AppearanceSettingsScreen({
         </View>
         <SettingsRow
           onPress={() => {
+            setDraftLanguageCode(languageCode);
+            setIsLanguageModalVisible(true);
+          }}
+          title="App language"
+          value={getLanguageDisplayLabel(languageCode)}
+        />
+        <SettingsRow
+          onPress={() => {
             setDraftAppLookId(appLookId);
             setIsAppLookModalVisible(true);
           }}
@@ -149,10 +169,10 @@ export default function AppearanceSettingsScreen({
           setIsAppLookModalVisible(false);
           void setAppLookId(draftAppLookId).catch((error) => {
             Alert.alert(
-              'App look update failed',
+              t('App look update failed'),
               error instanceof AuthServiceError
-                ? error.message
-                : 'We could not save that app look right now.'
+                ? t(error.message)
+                : t('We could not save that app look right now.')
             );
           });
         }}
@@ -166,14 +186,34 @@ export default function AppearanceSettingsScreen({
       <OptionPickerModal
         colors={colors}
         onApply={() => {
+          setIsLanguageModalVisible(false);
+          void setLanguageCode(draftLanguageCode).catch((error) => {
+            Alert.alert(
+              t('Language update failed'),
+              error instanceof AuthServiceError
+                ? t(error.message)
+                : t('We could not save that app language right now.')
+            );
+          });
+        }}
+        onRequestClose={() => setIsLanguageModalVisible(false)}
+        onSelect={setDraftLanguageCode}
+        options={appLanguageOptions}
+        selectedId={draftLanguageCode}
+        title={t('Select language')}
+        visible={isLanguageModalVisible}
+      />
+      <OptionPickerModal
+        colors={colors}
+        onApply={() => {
           setShareCardStyleId(draftShareCardStyleId);
           setIsShareCardStyleModalVisible(false);
           void saveShareCardStyleId(draftShareCardStyleId).catch((error) => {
             Alert.alert(
-              'Share-card style update failed',
+              t('Share-card style update failed'),
               error instanceof AuthServiceError
-                ? error.message
-                : 'We could not save that share-card style right now.'
+                ? t(error.message)
+                : t('We could not save that share-card style right now.')
             );
           });
         }}

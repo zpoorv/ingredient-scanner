@@ -1,4 +1,5 @@
 import type { DietProfileId } from '../constants/dietProfiles';
+import type { AppLanguageCode } from '../constants/languages';
 import type { HouseholdProfile } from './householdProfile';
 import type { AppearanceMode, AppLookId } from './preferences';
 import type { RestrictionId, RestrictionSeverity } from './restrictions';
@@ -21,6 +22,7 @@ export type UserProfile = {
   historyNotificationCadence: HistoryNotificationCadence;
   historyNotificationsEnabled: boolean;
   householdProfiles: HouseholdProfile[];
+  languageCode: AppLanguageCode;
   name: string;
   plan: 'free' | 'premium';
   restrictionIds: RestrictionId[];

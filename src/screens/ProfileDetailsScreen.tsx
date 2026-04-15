@@ -6,10 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AchievementBadgeStrip from '../components/AchievementBadgeStrip';
 import AuthTextField from '../components/AuthTextField';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
+import FeatureTipCard from '../components/FeatureTipCard';
 import PrimaryButton from '../components/PrimaryButton';
 import QuestActionCard from '../components/QuestActionCard';
 import ScreenLoadingView from '../components/ScreenLoadingView';
+import TutorialTarget from '../components/TutorialTarget';
 import { AuthServiceError } from '../services/authHelpers';
 import { toGamificationSummary } from '../services/gamificationService';
 import {
@@ -18,6 +21,7 @@ import {
 } from '../services/sessionDataService';
 import { saveUserProfile } from '../services/userProfileService';
 import { useDelayedVisibility } from '../utils/useDelayedVisibility';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 import type { RootStackParamList } from '../navigation/types';
 
 type ProfileDetailsScreenProps = NativeStackScreenProps<
@@ -28,6 +32,7 @@ type ProfileDetailsScreenProps = NativeStackScreenProps<
 export default function ProfileDetailsScreen({
   navigation,
 }: ProfileDetailsScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [email, setEmail] = useState('');
@@ -39,6 +44,7 @@ export default function ProfileDetailsScreen({
     typeof toGamificationSummary
   > | null>(null);
   const shouldShowLoadingScreen = useDelayedVisibility(isLoadingProfile);
+  const profileTutorial = useFeatureTutorial('profile');
 
   useFocusEffect(
     useCallback(() => {
@@ -112,13 +118,23 @@ export default function ProfileDetailsScreen({
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Profile</Text>
-          <Text style={styles.title}>Your profile and achievements</Text>
-          <Text style={styles.subtitle}>
-            Keep your account details here and jump into achievements whenever you want.
-          </Text>
-        </View>
+        <TutorialTarget targetId="profile-hero">
+          <View style={styles.header}>
+            <Text style={styles.eyebrow}>{t('Profile')}</Text>
+            <Text style={styles.title}>{t('Your profile and achievements')}</Text>
+            <Text style={styles.subtitle}>
+              {t('Keep your account details here and jump into achievements whenever you want.')}
+            </Text>
+          </View>
+        </TutorialTarget>
+
+        <FeatureTipCard
+          body="Profile keeps your account details and achievements together. Settings handles preferences."
+          icon="person-circle-outline"
+          onDismiss={profileTutorial.dismiss}
+          title="Profile is your identity hub"
+          visible={profileTutorial.isVisible}
+        />
 
         <QuestActionCard
           badge="Achievements"
@@ -150,13 +166,17 @@ export default function ProfileDetailsScreen({
             placeholder="How should we address you?"
             value={name}
           />
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+          {message ? <Text style={styles.message}>{t(message)}</Text> : null}
           <PrimaryButton
             disabled={isSaving}
             label={isSaving ? 'Saving...' : 'Save Profile'}
             onPress={() => void handleSave()}
           />
-          <PrimaryButton label="Open Settings" onPress={() => navigation.navigate('Settings')} />
+          <PrimaryButton
+            label="Open Settings"
+            onPress={() => navigation.navigate('Settings')}
+            tutorialTargetId="profile-open-settings"
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

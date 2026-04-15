@@ -4,10 +4,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import AchievementBadgeStrip from '../components/AchievementBadgeStrip';
+import FeatureTipCard from '../components/FeatureTipCard';
 import FeaturePageLayout from '../components/FeaturePageLayout';
 import QuestActionCard from '../components/QuestActionCard';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import WeeklyMomentumCard from '../components/WeeklyMomentumCard';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import { createDefaultPremiumEntitlement } from '../models/premium';
 import { toGamificationSummary } from '../services/gamificationService';
@@ -16,10 +18,12 @@ import {
   loadSessionPremiumEntitlement,
 } from '../services/sessionDataService';
 import type { RootStackParamList } from '../navigation/types';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type ProgressScreenProps = NativeStackScreenProps<RootStackParamList, 'Progress'>;
 
 export default function ProgressScreen({ navigation }: ProgressScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +31,7 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
   const [summary, setSummary] = useState<ReturnType<typeof toGamificationSummary> | null>(
     null
   );
+  const progressTutorial = useFeatureTutorial('progress');
 
   useFocusEffect(
     useCallback(() => {
@@ -70,12 +75,22 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
       <FeaturePageLayout
         eyebrow="Progress"
         subtitle="Your weekly habit loop will appear after a few meaningful scans."
+        tutorialTargetId="progress-hero"
         title="This week"
       >
+        <FeatureTipCard
+          body="Progress turns meaningful scans into weekly momentum and calm achievement milestones."
+          icon="trophy-outline"
+          onDismiss={progressTutorial.dismiss}
+          title="Track better shopping habits"
+          visible={progressTutorial.isVisible}
+        />
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Nothing to show yet</Text>
+          <Text style={styles.emptyTitle}>{t('Nothing to show yet')}</Text>
           <Text style={styles.emptyBody}>
-            Scan a few products and Inqoura will start tracking momentum, goals, and quiet wins.
+            {t(
+              'Scan a few products and Inqoura will start tracking momentum, goals, and quiet wins.'
+            )}
           </Text>
         </View>
       </FeaturePageLayout>
@@ -86,25 +101,33 @@ export default function ProgressScreen({ navigation }: ProgressScreenProps) {
     <FeaturePageLayout
       eyebrow="Progress"
       subtitle="Momentum, streaks, and badges now live here instead of crowding Home and History."
+      tutorialTargetId="progress-hero"
       title="This week"
     >
+      <FeatureTipCard
+        body="Progress turns meaningful scans into weekly momentum, streaks, and badges without changing product scores."
+        icon="trophy-outline"
+        onDismiss={progressTutorial.dismiss}
+        title="Track better shopping habits"
+        visible={progressTutorial.isVisible}
+      />
       <WeeklyMomentumCard premium={isPremium} summary={summary} />
       <AchievementBadgeStrip badges={summary.recentUnlockedAchievements} />
 
       <View style={styles.statsCard}>
-        <Text style={styles.statsLabel}>Lifetime</Text>
+        <Text style={styles.statsLabel}>{t('Lifetime')}</Text>
         <View style={styles.statsRow}>
           <View style={styles.statBlock}>
             <Text style={styles.statValue}>{summary.lifetimeStats.totalScans}</Text>
-            <Text style={styles.statTitle}>scan sessions</Text>
+            <Text style={styles.statTitle}>{t('scan sessions')}</Text>
           </View>
           <View style={styles.statBlock}>
             <Text style={styles.statValue}>{summary.lifetimeStats.swapWins}</Text>
-            <Text style={styles.statTitle}>better swaps</Text>
+            <Text style={styles.statTitle}>{t('better swaps')}</Text>
           </View>
           <View style={styles.statBlock}>
             <Text style={styles.statValue}>{summary.lifetimeStats.tripCompletions}</Text>
-            <Text style={styles.statTitle}>completed trips</Text>
+            <Text style={styles.statTitle}>{t('completed trips')}</Text>
           </View>
         </View>
       </View>

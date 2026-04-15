@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 
+import { useI18n } from '../components/AppLanguageProvider';
+import FeatureTipCard from '../components/FeatureTipCard';
 import PopupSheetLayout from '../components/PopupSheetLayout';
 import PrimaryButton from '../components/PrimaryButton';
 import SubscriptionOptionCard from '../components/SubscriptionOptionCard';
@@ -34,6 +36,7 @@ import {
 import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import { useDelayedVisibility } from '../utils/useDelayedVisibility';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type PremiumSheetProps = {
   featureId?: PremiumFeatureId;
@@ -41,6 +44,7 @@ type PremiumSheetProps = {
 };
 
 export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -54,6 +58,7 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
   const shouldShowLoadingScreen = useDelayedVisibility(
     isLoadingPremium && !hasLoadedOnce
   );
+  const premiumTutorial = useFeatureTutorial('premium');
   const highlightedFeature = featureId ? PREMIUM_FEATURE_COPY[featureId] : null;
   const revenueCatAvailable = isRevenueCatAvailable();
   const billingState = getRevenueCatPremiumState(customerInfo);
@@ -133,14 +138,14 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
         }
 
         Alert.alert(
-          'Premium unavailable',
-          getRevenueCatErrorMessage(error, 'We could not load premium right now.')
+          t('Premium unavailable'),
+          t(getRevenueCatErrorMessage(error, 'We could not load premium right now.'))
         );
       } finally {
         setIsLoadingPremium(false);
       }
     },
-    [hasLoadedOnce, loadPremiumState]
+    [hasLoadedOnce, loadPremiumState, t]
   );
 
   useEffect(() => {
@@ -165,12 +170,15 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
     try {
       await purchaseRevenueCatPackage(selectedPackage.packageRef);
       await loadPremiumState();
-      Alert.alert('Premium updated', `${selectedPackage.title} is now active.`);
+      Alert.alert(
+        t('Premium updated'),
+        t('{plan} is now active.', { plan: selectedPackage.title })
+      );
     } catch (error) {
       if (!isRevenueCatPurchaseCancelled(error)) {
         Alert.alert(
-          'Purchase failed',
-          getRevenueCatErrorMessage(error, 'We could not start that subscription right now.')
+          t('Purchase failed'),
+          t(getRevenueCatErrorMessage(error, 'We could not start that subscription right now.'))
         );
       }
     } finally {
@@ -179,14 +187,19 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
   };
 
   return (
-    <PopupSheetLayout onClose={onClose} subtitle={sheetSubtitle} title={sheetTitle}>
+    <PopupSheetLayout
+      onClose={onClose}
+      subtitle={sheetSubtitle}
+      title={sheetTitle}
+      tutorialTargetId="premium-sheet-header"
+    >
       {shouldShowLoadingScreen ? (
         <View style={styles.stateCard}>
           <ActivityIndicator color={colors.primary} size="small" />
           <View style={styles.stateCopy}>
-            <Text style={styles.stateTitle}>Loading premium</Text>
+            <Text style={styles.stateTitle}>{t('Loading premium')}</Text>
             <Text style={styles.stateText}>
-              Checking your subscription status and available plans.
+              {t('Checking your subscription status and available plans.')}
             </Text>
           </View>
         </View>
@@ -194,9 +207,9 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
         <View style={styles.flow}>
           <View style={styles.stateCard}>
             <View style={styles.stateCopy}>
-              <Text style={styles.stateTitle}>Premium needs a connection</Text>
+              <Text style={styles.stateTitle}>{t('Premium needs a connection')}</Text>
               <Text style={styles.stateText}>
-                Premium plans need internet to verify your subscription and load offers.
+                {t('Premium plans need internet to verify your subscription and load offers.')}
               </Text>
             </View>
           </View>
@@ -220,7 +233,7 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
                       : styles.statusBadgeTextInactive,
                   ]}
                 >
-                  {entitlement.isPremium ? 'Premium active' : 'Free plan'}
+                  {entitlement.isPremium ? t('Premium active') : t('Free plan')}
                 </Text>
               </View>
               <View style={styles.planPill}>
@@ -228,24 +241,34 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
               </View>
             </View>
             <Text style={styles.subtitle}>
-              {highlightedFeature?.description ||
-                `Deeper guidance, smarter history, better trips, and unlimited OCR. ${PREMIUM_PRICE_PREVIEW_COPY}`}
+              {t(
+                highlightedFeature?.description ||
+                  `Deeper guidance, smarter history, better trips, and unlimited OCR. ${PREMIUM_PRICE_PREVIEW_COPY}`
+              )}
             </Text>
           </View>
 
+          <FeatureTipCard
+            body="Premium adds deeper guidance and unlimited OCR, but product scores and achievements stay independent."
+            icon="sparkles-outline"
+            onDismiss={premiumTutorial.dismiss}
+            title="Premium never changes scores"
+            visible={premiumTutorial.isVisible}
+          />
+
           <View style={styles.featureCard}>
-            <Text style={styles.sectionTitle}>Why upgrade</Text>
+            <Text style={styles.sectionTitle}>{t('Why upgrade')}</Text>
             {PREMIUM_PRIMARY_VALUE_FEATURES.slice(0, 4).map((item) => (
               <View key={item} style={styles.featureRow}>
                 <View style={styles.featureDot} />
-                <Text style={styles.featureText}>{item}</Text>
+                <Text style={styles.featureText}>{t(item)}</Text>
               </View>
             ))}
           </View>
 
           {packageOptions.length > 0 ? (
             <View style={styles.subscriptionSection}>
-              <Text style={styles.sectionTitle}>Plans</Text>
+              <Text style={styles.sectionTitle}>{t('Plans')}</Text>
               {packageOptions.map((option) => (
                 <SubscriptionOptionCard
                   key={option.id}
@@ -270,9 +293,9 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
 
           {highlightedFeature ? (
             <View style={styles.highlightCard}>
-              <Text style={styles.highlightLabel}>Selected feature</Text>
-              <Text style={styles.highlightTitle}>{highlightedFeature.title}</Text>
-              <Text style={styles.highlightText}>{highlightedFeature.description}</Text>
+              <Text style={styles.highlightLabel}>{t('Selected feature')}</Text>
+              <Text style={styles.highlightTitle}>{t(highlightedFeature.title)}</Text>
+              <Text style={styles.highlightText}>{t(highlightedFeature.description)}</Text>
             </View>
           ) : null}
 
@@ -286,10 +309,12 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
                   .then(loadPremiumState)
                   .catch((error) => {
                     Alert.alert(
-                      'Paywall unavailable',
-                      getRevenueCatErrorMessage(
-                        error,
-                        'We could not open premium checkout right now.'
+                      t('Paywall unavailable'),
+                      t(
+                        getRevenueCatErrorMessage(
+                          error,
+                          'We could not open premium checkout right now.'
+                        )
                       )
                     );
                   })
@@ -305,16 +330,16 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
                   .then(async (restoredCustomerInfo) => {
                     await loadPremiumState();
                     Alert.alert(
-                      'Restore complete',
+                      t('Restore complete'),
                       getRevenueCatPremiumState(restoredCustomerInfo).isActive
-                        ? 'Your premium access is active again.'
-                        : 'No active premium subscription was found on this store account.'
+                        ? t('Your premium access is active again.')
+                        : t('No active premium subscription was found on this store account.')
                     );
                   })
                   .catch((error) => {
                     Alert.alert(
-                      'Restore failed',
-                      getRevenueCatErrorMessage(error, 'We could not restore purchases right now.')
+                      t('Restore failed'),
+                      t(getRevenueCatErrorMessage(error, 'We could not restore purchases right now.'))
                     );
                   })
                   .finally(() => setPendingActionId(null));
@@ -330,10 +355,12 @@ export function PremiumSheet({ featureId, onClose }: PremiumSheetProps) {
                     .then(loadPremiumState)
                     .catch((error) => {
                       Alert.alert(
-                        'Customer Center unavailable',
-                        getRevenueCatErrorMessage(
-                          error,
-                          'We could not open subscription management right now.'
+                        t('Customer Center unavailable'),
+                        t(
+                          getRevenueCatErrorMessage(
+                            error,
+                            'We could not open subscription management right now.'
+                          )
                         )
                       );
                     })

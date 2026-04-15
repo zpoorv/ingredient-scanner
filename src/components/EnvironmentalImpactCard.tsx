@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { EnvironmentalImpactInsight } from '../utils/environmentalImpact';
 
@@ -35,15 +36,16 @@ function getToneColors(
 export default function EnvironmentalImpactCard({
   insight,
 }: EnvironmentalImpactCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const toneColors = getToneColors(colors, insight.tone);
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Environmental View</Text>
-      <Text style={styles.title}>{insight.title}</Text>
-      <Text style={styles.summary}>{insight.summary}</Text>
+      <Text style={styles.label}>{t('Environmental View')}</Text>
+      <Text style={styles.title}>{t(insight.title)}</Text>
+      <Text style={styles.summary}>{t(insight.summary)}</Text>
       <View style={styles.highlightWrap}>
         {insight.highlights.map((highlight) => (
           <View
@@ -51,7 +53,7 @@ export default function EnvironmentalImpactCard({
             style={[styles.highlightChip, { backgroundColor: toneColors.backgroundColor }]}
           >
             <Text style={[styles.highlightText, { color: toneColors.textColor }]}>
-              {highlight}
+              {t(highlight)}
             </Text>
           </View>
         ))}

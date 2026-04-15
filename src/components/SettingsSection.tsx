@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 type SettingsSectionProps = PropsWithChildren<{
@@ -13,14 +14,15 @@ export default function SettingsSection({
   description,
   title,
 }: SettingsSectionProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = createStyles(colors);
 
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {description ? <Text style={styles.description}>{description}</Text> : null}
+        <Text style={styles.title}>{t(title)}</Text>
+        {description ? <Text style={styles.description}>{t(description)}</Text> : null}
       </View>
       <View style={styles.card}>{children}</View>
     </View>

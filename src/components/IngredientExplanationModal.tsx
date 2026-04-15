@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { DietProfileId } from '../constants/dietProfiles';
 import type { RestrictionId } from '../models/restrictions';
@@ -29,11 +30,12 @@ type DetailRowProps = {
 
 function DetailRow(props: DetailRowProps) {
   const { label, styles, value } = props;
+  const { t } = useI18n();
 
   return (
     <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+      <Text style={styles.detailLabel}>{t(label)}</Text>
+      <Text style={styles.detailValue}>{t(value)}</Text>
     </View>
   );
 }
@@ -45,6 +47,7 @@ export default function IngredientExplanationModal({
   restrictionIds,
   visible,
 }: IngredientExplanationModalProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const education = useMemo(
@@ -63,14 +66,14 @@ export default function IngredientExplanationModal({
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Text style={styles.eyebrow}>Ingredient</Text>
+            <Text style={styles.eyebrow}>{t('Ingredient')}</Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeLabel}>Close</Text>
+              <Text style={styles.closeLabel}>{t('Close')}</Text>
             </Pressable>
           </View>
 
           <Text style={styles.ingredientName}>
-            {lookup?.explanation?.name || lookup?.ingredientName || 'Ingredient'}
+            {lookup?.explanation?.name || lookup?.ingredientName || t('Ingredient')}
           </Text>
 
           {lookup?.explanation ? (
@@ -107,9 +110,9 @@ export default function IngredientExplanationModal({
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No quick note yet</Text>
+              <Text style={styles.emptyTitle}>{t('No quick note yet')}</Text>
               <Text style={styles.emptyBody}>
-                We do not have a short note for this ingredient yet.
+                {t('We do not have a short note for this ingredient yet.')}
               </Text>
             </View>
           )}

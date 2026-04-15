@@ -1,5 +1,6 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import type { AppColors } from '../constants/theme';
 import type { RestrictionDefinition } from '../constants/restrictions';
 import type { RestrictionId } from '../models/restrictions';
@@ -23,13 +24,14 @@ export default function RestrictionPickerModal({
   selectedIds,
   visible,
 }: RestrictionPickerModalProps) {
+  const { t } = useI18n();
   const styles = createStyles(colors);
 
   return (
     <Modal animationType="fade" onRequestClose={onRequestClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>Avoid ingredients and allergens</Text>
+          <Text style={styles.title}>{t('Avoid ingredients and allergens')}</Text>
           <ScrollView contentContainerStyle={styles.optionList} showsVerticalScrollIndicator={false}>
             {restrictions.map((restriction) => {
               const isSelected = selectedIds.includes(restriction.id);
@@ -49,16 +51,16 @@ export default function RestrictionPickerModal({
                       isSelected && styles.optionTitleSelected,
                     ]}
                   >
-                    {restriction.label}
+                    {t(restriction.label)}
                   </Text>
-                  <Text style={styles.optionDescription}>{restriction.description}</Text>
+                  <Text style={styles.optionDescription}>{t(restriction.description)}</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
 
           <Pressable onPress={onApply} style={styles.applyButton}>
-            <Text style={styles.applyButtonText}>Apply</Text>
+            <Text style={styles.applyButtonText}>{t('Apply')}</Text>
           </Pressable>
         </View>
       </View>

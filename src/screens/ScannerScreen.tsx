@@ -15,9 +15,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import BarcodeScannerPanel from '../components/BarcodeScannerPanel';
+import FeatureTipCard from '../components/FeatureTipCard';
 import PrimaryButton from '../components/PrimaryButton';
+import TutorialTarget from '../components/TutorialTarget';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
 import {
   ProductLookupError,
@@ -30,8 +33,15 @@ import type {
   ScannerState,
 } from '../types/scanner';
 import { normalizeBarcode } from '../utils/barcode';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type ScannerScreenProps = NativeStackScreenProps<RootStackParamList, 'Scanner'>;
+type ScannerStatusContent = {
+  body: string;
+  bodyValues?: Record<string, number | string | null | undefined>;
+  eyebrow: string;
+  title: string;
+};
 
 const DUPLICATE_SCAN_WINDOW_MS = 2000;
 const RETRY_SCAN_PROMPT_MS = 2500;
@@ -82,12 +92,13 @@ function getStatusContent(
   lastScan: LastScanResult | null,
   errorMessage: string | null,
   scanQuality: ScanQuality
-) {
+): ScannerStatusContent {
   if (scannerState === 'loading') {
     return {
       body: lastScan
-        ? `Loading ${lastScan.barcode}.`
+        ? 'Loading {barcode}.'
         : 'Loading product.',
+      bodyValues: lastScan ? { barcode: lastScan.barcode } : undefined,
       eyebrow: 'Loading',
       title: 'Checking product',
     };
@@ -96,8 +107,9 @@ function getStatusContent(
   if (scannerState === 'empty') {
     return {
       body: lastScan
-        ? `No match for ${lastScan.barcode}.`
+        ? 'No match for {barcode}.'
         : 'No match found yet.',
+      bodyValues: lastScan ? { barcode: lastScan.barcode } : undefined,
       eyebrow: 'No Match',
       title: 'Try another scan',
     };
@@ -137,6 +149,7 @@ function getStatusContent(
 }
 
 export default function ScannerScreen({ navigation, route }: ScannerScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [cameraPermission, requestPermission] = useCameraPermissions();
@@ -155,6 +168,7 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
   const { height: windowHeight } = useWindowDimensions();
   const selectedProfileId =
     route.params?.profileId || DEFAULT_DIET_PROFILE_ID;
+  const scannerTutorial = useFeatureTutorial('scanner');
 
   useEffect(() => {
     if (!isFocused) {
@@ -355,33 +369,35 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
         >
           <View style={styles.content}>
             {hasPermission ? (
-              <BarcodeScannerPanel
-                cameraKey={cameraKey}
-                helperText={getHelperText(scannerState, scanQuality)}
-                height={scannerHeight}
-                // Unmount the camera when the screen is paused or backgrounded so
-                // Android can reclaim camera and preview memory immediately.
-                isActive={shouldRenderLiveCamera}
-                isFocused={isFocused && isAppActive}
-                onCameraMountError={handleCameraMountError}
-                onBarcodeScanned={handleBarcodeScanned}
-                onOverlayActionPress={
-                  scannerState === 'error' || scannerState === 'empty'
-                    ? handleResetScanner
-                    : undefined
-                }
-                overlayLabel={getOverlayLabel(scannerState, scanQuality)}
-                overlayActionLabel={
-                  scannerState === 'error'
-                    ? 'Try again'
-                    : scannerState === 'empty'
-                      ? 'Scan again'
+              <TutorialTarget targetId="scanner-panel">
+                <BarcodeScannerPanel
+                  cameraKey={cameraKey}
+                  helperText={getHelperText(scannerState, scanQuality)}
+                  height={scannerHeight}
+                  // Unmount the camera when the screen is paused or backgrounded so
+                  // Android can reclaim camera and preview memory immediately.
+                  isActive={shouldRenderLiveCamera}
+                  isFocused={isFocused && isAppActive}
+                  onCameraMountError={handleCameraMountError}
+                  onBarcodeScanned={handleBarcodeScanned}
+                  onOverlayActionPress={
+                    scannerState === 'error' || scannerState === 'empty'
+                      ? handleResetScanner
                       : undefined
-                }
-              />
+                  }
+                  overlayLabel={getOverlayLabel(scannerState, scanQuality)}
+                  overlayActionLabel={
+                    scannerState === 'error'
+                      ? 'Try again'
+                      : scannerState === 'empty'
+                        ? 'Scan again'
+                        : undefined
+                  }
+                />
+              </TutorialTarget>
             ) : (
               <View style={styles.permissionCard}>
-                <Text style={styles.permissionTitle}>Camera access needed</Text>
+                <Text style={styles.permissionTitle}>{t('Camera access needed')}</Text>
                 <PrimaryButton
                   label="Allow Camera Access"
                   onPress={handlePermissionRequest}
@@ -391,19 +407,23 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
           </View>
 
           <View style={styles.statusCard}>
-            <Text style={styles.statusEyebrow}>{statusContent.eyebrow}</Text>
-            <Text style={styles.statusTitle}>{statusContent.title}</Text>
-            <Text style={styles.statusBody}>{statusContent.body}</Text>
+            <Text style={styles.statusEyebrow}>{t(statusContent.eyebrow)}</Text>
+            <Text style={styles.statusTitle}>{t(statusContent.title)}</Text>
+            <Text style={styles.statusBody}>
+              {t(statusContent.body, statusContent.bodyValues)}
+            </Text>
 
             {scannerState === 'loading' ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.primary} size="small" />
-                <Text style={styles.loadingText}>Loading...</Text>
+                <Text style={styles.loadingText}>{t('Loading...')}</Text>
               </View>
             ) : null}
 
             {scannerState === 'error' ? (
-              <Text style={styles.inlineHint}>The retry button now appears on the camera.</Text>
+              <Text style={styles.inlineHint}>
+                {t('The retry button now appears on the camera.')}
+              </Text>
             ) : null}
 
             {scannerState === 'empty' ? (
@@ -414,10 +434,20 @@ export default function ScannerScreen({ navigation, route }: ScannerScreenProps)
             ) : null}
           </View>
 
+          <FeatureTipCard
+            body="Point at the barcode first. If the label needs a closer read, ingredient OCR is at the bottom."
+            icon="scan-outline"
+            onDismiss={scannerTutorial.dismiss}
+            title="Barcode first, OCR second"
+            visible={scannerTutorial.isVisible}
+          />
+
           <View style={styles.ocrCard}>
-            <Text style={styles.ocrLabel}>Need ingredient OCR?</Text>
+            <Text style={styles.ocrLabel}>{t('Need ingredient OCR?')}</Text>
             <Text style={styles.ocrText}>
-              Barcode scan stays clean here. Ingredient photo OCR now sits at the bottom when you need it.
+              {t(
+                'Barcode scan stays clean here. Ingredient photo OCR now sits at the bottom when you need it.'
+              )}
             </Text>
             <PrimaryButton
               label="Scan Ingredients"

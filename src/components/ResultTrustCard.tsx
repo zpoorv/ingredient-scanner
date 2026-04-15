@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { ResultTrustSnapshot } from '../utils/resultAnalysis';
 
@@ -12,6 +13,7 @@ function formatValue(value: string) {
 }
 
 export default function ResultTrustCard({ trust }: ResultTrustCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
   const rows = [
@@ -24,13 +26,13 @@ export default function ResultTrustCard({ trust }: ResultTrustCardProps) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Trust check</Text>
-      <Text style={styles.title}>How solid this read is</Text>
+      <Text style={styles.label}>{t('Trust check')}</Text>
+      <Text style={styles.title}>{t('How solid this read is')}</Text>
       <View style={styles.grid}>
         {rows.map(([name, value]) => (
           <View key={name} style={styles.row}>
-            <Text style={styles.rowLabel}>{name}</Text>
-            <Text style={styles.rowValue}>{value}</Text>
+            <Text style={styles.rowLabel}>{t(name)}</Text>
+            <Text style={styles.rowValue}>{t(value)}</Text>
           </View>
         ))}
       </View>

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { ProductTimelineEntry } from '../models/productTimeline';
 
@@ -22,6 +23,7 @@ export default function ProductTimelineCard({
   entries,
   title = 'Product timeline',
 }: ProductTimelineCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
@@ -31,12 +33,12 @@ export default function ProductTimelineCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>{title}</Text>
+      <Text style={styles.label}>{t(title)}</Text>
       {entries.map((entry) => (
         <View key={entry.id} style={styles.row}>
           <View style={styles.copy}>
             <Text style={styles.title}>{entry.productName}</Text>
-            <Text style={styles.summary}>{entry.summary}</Text>
+            <Text style={styles.summary}>{t(entry.summary)}</Text>
           </View>
           <Text style={styles.time}>{formatTimestamp(entry.detectedAt)}</Text>
         </View>

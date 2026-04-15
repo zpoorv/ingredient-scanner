@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import type { GamificationSummary } from '../models/gamification';
 import { useAppTheme } from './AppThemeProvider';
 
@@ -21,6 +22,7 @@ export default function WeeklyMomentumCard({
   premium = false,
   summary,
 }: WeeklyMomentumCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const progressWidth = `${Math.max(summary.momentum.progressRatio, 0.06) * 100}%` as const;
@@ -29,18 +31,23 @@ export default function WeeklyMomentumCard({
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.copyBlock}>
-          <Text style={styles.label}>This Week</Text>
+          <Text style={styles.label}>{t('This Week')}</Text>
           <Text style={styles.title}>
-            {summary.momentum.points}/{summary.momentum.goal} momentum
+            {t('{points}/{goal} momentum', {
+              goal: summary.momentum.goal,
+              points: summary.momentum.points,
+            })}
           </Text>
           <Text style={styles.body}>
-            {summary.activeGoal?.body ??
-              'Keep scanning and stronger choices will start shaping your week.'}
+            {t(
+              summary.activeGoal?.body ??
+                'Keep scanning and stronger choices will start shaping your week.'
+            )}
           </Text>
         </View>
         <View style={styles.streakPill}>
           <Text style={styles.streakValue}>{summary.streakCount}</Text>
-          <Text style={styles.streakLabel}>week streak</Text>
+          <Text style={styles.streakLabel}>{t('week streak')}</Text>
         </View>
       </View>
 
@@ -49,15 +56,17 @@ export default function WeeklyMomentumCard({
       </View>
       <Text style={styles.progressCaption}>
         {summary.momentum.isComplete
-          ? 'Weekly goal reached. Keep the streak moving.'
-          : `${summary.momentum.remainingPoints} point${summary.momentum.remainingPoints === 1 ? '' : 's'} left to finish this week.`}
+          ? t('Weekly goal reached. Keep the streak moving.')
+          : t('{count} points left to finish this week.', {
+              count: summary.momentum.remainingPoints,
+            })}
       </Text>
 
       <View style={styles.goalRow}>
         <View style={styles.goalBlock}>
-          <Text style={styles.goalLabel}>Weekly goal</Text>
+          <Text style={styles.goalLabel}>{t('Weekly goal')}</Text>
           <Text style={styles.goalTitle}>
-            {summary.activeGoal?.title ?? 'Keep building momentum'}
+            {t(summary.activeGoal?.title ?? 'Keep building momentum')}
           </Text>
         </View>
         <View style={styles.goalProgressPill}>
@@ -71,26 +80,26 @@ export default function WeeklyMomentumCard({
 
       <View style={styles.footerRow}>
         <View style={styles.footerBlock}>
-          <Text style={styles.goalLabel}>Next badge</Text>
+          <Text style={styles.goalLabel}>{t('Next badge')}</Text>
           <Text style={styles.goalTitle}>
-            {summary.nextAchievement?.title ?? 'More soon'}
+            {t(summary.nextAchievement?.title ?? 'More soon')}
           </Text>
         </View>
-        <Text style={styles.footerMeta}>{formatBadgeProgress(summary)}</Text>
+        <Text style={styles.footerMeta}>{t(formatBadgeProgress(summary))}</Text>
       </View>
 
       {premium ? (
         <View style={styles.premiumRow}>
           <View style={styles.premiumMetric}>
-            <Text style={styles.goalLabel}>Completed weeks</Text>
+            <Text style={styles.goalLabel}>{t('Completed weeks')}</Text>
             <Text style={styles.premiumValue}>{summary.lifetimeStats.completedWeeks}</Text>
           </View>
           <View style={styles.premiumMetric}>
-            <Text style={styles.goalLabel}>Swap wins</Text>
+            <Text style={styles.goalLabel}>{t('Swap wins')}</Text>
             <Text style={styles.premiumValue}>{summary.lifetimeStats.swapWins}</Text>
           </View>
           <View style={styles.premiumMetric}>
-            <Text style={styles.goalLabel}>Trips</Text>
+            <Text style={styles.goalLabel}>{t('Trips')}</Text>
             <Text style={styles.premiumValue}>{summary.lifetimeStats.tripCompletions}</Text>
           </View>
         </View>

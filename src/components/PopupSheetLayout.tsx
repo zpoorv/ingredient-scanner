@@ -3,11 +3,15 @@ import type { PropsWithChildren } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
+import TutorialTarget from './TutorialTarget';
+import type { GuidedTutorialTargetId } from '../services/guidedTutorialService';
 
 type PopupSheetLayoutProps = PropsWithChildren<{
   onClose: () => void;
   subtitle: string;
+  tutorialTargetId?: GuidedTutorialTargetId;
   title: string;
 }>;
 
@@ -15,8 +19,10 @@ export default function PopupSheetLayout({
   children,
   onClose,
   subtitle,
+  tutorialTargetId,
   title,
 }: PopupSheetLayoutProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, typography);
@@ -26,15 +32,17 @@ export default function PopupSheetLayout({
       <Pressable onPress={onClose} style={styles.backdrop} />
       <View style={styles.sheetWrap}>
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <View style={styles.header}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
+          <TutorialTarget targetId={tutorialTargetId}>
+            <View style={styles.header}>
+              <View style={styles.headerCopy}>
+                <Text style={styles.title}>{t(title)}</Text>
+                <Text style={styles.subtitle}>{t(subtitle)}</Text>
+              </View>
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <Ionicons color={colors.text} name="close" size={22} />
+              </Pressable>
             </View>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons color={colors.text} name="close" size={22} />
-            </Pressable>
-          </View>
+          </TutorialTarget>
           <ScrollView
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}

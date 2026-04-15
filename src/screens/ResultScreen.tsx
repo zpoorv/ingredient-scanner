@@ -18,8 +18,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import EnvironmentalImpactCard from '../components/EnvironmentalImpactCard';
+import FeatureTipCard from '../components/FeatureTipCard';
 import HouseholdFitCard from '../components/HouseholdFitCard';
 import IngredientExplanationModal from '../components/IngredientExplanationModal';
 import MicroCelebrationBanner from '../components/MicroCelebrationBanner';
@@ -122,6 +124,7 @@ import { assessProductRestrictions } from '../utils/restrictionMatching';
 import { buildShareableResultCaption } from '../utils/shareableResult';
 import { buildEnvironmentalImpactInsight } from '../utils/environmentalImpact';
 import type { UserProfile } from '../models/userProfile';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type ResultScreenProps = NativeStackScreenProps<RootStackParamList, 'Result'>;
 
@@ -316,6 +319,7 @@ function getConfidenceLabel(confidence: ResultConfidence | null) {
 }
 
 export default function ResultScreen({ navigation, route }: ResultScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const {
@@ -376,6 +380,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
   const [isSecondaryStageReady, setIsSecondaryStageReady] = useState(false);
   const [gamificationCelebration, setGamificationCelebration] =
     useState<GamificationCelebration | null>(null);
+  const resultTutorial = useFeatureTutorial('result');
   const displayProductName = useMemo(
     () => formatProductName(product?.name),
     [product?.name]
@@ -1286,7 +1291,9 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                     </Text>
                   ) : null}
                   {topConcern ? (
-                    <Text style={styles.topConcernText}>Main issue: {topConcern}</Text>
+                    <Text style={styles.topConcernText}>
+                      {t('Main issue: {topConcern}', { topConcern })}
+                    </Text>
                   ) : null}
                 </View>
               </View>
@@ -1307,7 +1314,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 <View style={styles.messageGroup}>
                   {insights.cautions.slice(0, 2).map((caution) => (
                     <Text key={caution} style={styles.cautionText}>
-                      • {caution}
+                      • {t(caution)}
                     </Text>
                   ))}
                 </View>
@@ -1315,7 +1322,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 <View style={styles.messageGroup}>
                   {insights.highlights.slice(0, 2).map((highlight) => (
                     <Text key={highlight} style={styles.goodText}>
-                      • {highlight}
+                      • {t(highlight)}
                     </Text>
                   ))}
                 </View>
@@ -1331,7 +1338,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
             <View style={styles.trustBlock}>
               <Text style={styles.scoreHeroVerdict}>{quickUseGuidance}</Text>
               <Text style={styles.scoreHeroSummary}>
-                {confidenceReason || insights?.summary || 'We need clearer product details before scoring this.'}
+                {confidenceReason || insights?.summary || t('We need clearer product details before scoring this.')}
               </Text>
               <Text style={styles.disclaimerText}>{disclaimerText}</Text>
             </View>
@@ -1341,15 +1348,17 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         {householdFit ? <HouseholdFitCard fit={householdFit} /> : null}
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>Quick actions</Text>
+          <Text style={styles.label}>{t('Quick actions')}</Text>
           {product.adminMetadata?.reviewStatus &&
           product.adminMetadata.reviewStatus !== 'draft' ? (
             <View style={styles.reviewBadge}>
               <Text style={styles.reviewBadgeText}>
-                {product.adminMetadata.reviewBadgeCopy ||
+                {t(
+                  product.adminMetadata.reviewBadgeCopy ||
                   (product.adminMetadata.reviewStatus === 'reviewed'
                     ? 'Reviewed by Inqoura'
-                    : 'Improved by Inqoura')}
+                    : 'Improved by Inqoura')
+                )}
               </Text>
             </View>
           ) : null}
@@ -1366,13 +1375,13 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               ) : null}
               <View style={styles.savedActionRow}>
                 <Pressable onPress={handleOpenShelfMode} style={styles.savedActionChip}>
-                  <Text style={styles.savedActionText}>Open Shelf Mode</Text>
+                  <Text style={styles.savedActionText}>{t('Open Shelf Mode')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setIsReportModalVisible(true)}
                   style={styles.savedActionChip}
                 >
-                  <Text style={styles.savedActionText}>Report Wrong Info</Text>
+                  <Text style={styles.savedActionText}>{t('Report Wrong Info')}</Text>
                 </Pressable>
               </View>
               <View style={styles.savedActionRow}>
@@ -1389,7 +1398,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                       isFavorite && styles.savedActionTextSelected,
                     ]}
                   >
-                    {isFavorite ? 'Saved Favorite' : 'Save Favorite'}
+                    {isFavorite ? t('Saved Favorite') : t('Save Favorite')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -1405,34 +1414,36 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                       isSavedForCompare && styles.savedActionTextSelected,
                     ]}
                   >
-                    {isSavedForCompare ? 'Saved For Compare' : 'Save For Compare'}
+                    {isSavedForCompare ? t('Saved For Compare') : t('Save For Compare')}
                   </Text>
                 </Pressable>
               </View>
               {!canUseSavedProducts ? (
                 <Text style={styles.statusText}>
-                  Premium saves favorites and keeps two products ready to compare.
+                  {t('Premium saves favorites and keeps two products ready to compare.')}
                 </Text>
               ) : null}
             </>
           ) : (
-            <Text style={styles.statusText}>No product details yet.</Text>
+            <Text style={styles.statusText}>{t('No product details yet.')}</Text>
           )}
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>Trust check</Text>
+          <Text style={styles.label}>{t('Trust check')}</Text>
           <Text style={styles.statusText}>
             {historyEntry?.scanCount && historyEntry.scanCount >= 2
               ? historyEntry.scanCount === 2
-                ? 'You have scanned this before.'
-                : `You have scanned this ${historyEntry.scanCount} times.`
-              : 'Confirm whether this pack still matches what you are holding.'}
+                ? t('You have scanned this before.')
+                : t('You have scanned this {count} times.', {
+                    count: historyEntry.scanCount,
+                  })
+              : t('Confirm whether this pack still matches what you are holding.')}
           </Text>
           {timelinePreview.length > 0 ? (
             <ProductTimelineCard entries={timelinePreview} title="Changed since last buy" />
           ) : (
-            <Text style={styles.statusText}>No meaningful pack changes seen yet.</Text>
+            <Text style={styles.statusText}>{t('No meaningful pack changes seen yet.')}</Text>
           )}
           <View style={styles.savedActionRow}>
             <Pressable
@@ -1440,14 +1451,14 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               onPress={() => void handleTrustConfirmation('matches-pack')}
               style={styles.savedActionChip}
             >
-              <Text style={styles.savedActionText}>Matches pack today</Text>
+              <Text style={styles.savedActionText}>{t('Matches pack today')}</Text>
             </Pressable>
             <Pressable
               disabled={isSubmittingTrustConfirmation}
               onPress={() => void handleTrustConfirmation('looks-different')}
               style={styles.savedActionChip}
             >
-              <Text style={styles.savedActionText}>Looks different today</Text>
+              <Text style={styles.savedActionText}>{t('Looks different today')}</Text>
             </Pressable>
           </View>
           {trustConfirmation ? (
@@ -1484,7 +1495,7 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
         ) : null}
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>What&apos;s inside</Text>
+          <Text style={styles.label}>{t('What&apos;s inside')}</Text>
           {!ingredientAnalysis ? (
             <ResultCardSkeleton />
           ) : ingredientAnalysis.explainedIngredients.length > 0 ? (
@@ -1533,52 +1544,64 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
                 ))}
               </View>
               <Text style={styles.statusText}>
-                Tap any ingredient to learn more.
+                {t('Tap any ingredient to learn more.')}
               </Text>
             </>
           ) : (
-            <Text style={styles.statusText}>No ingredient list available.</Text>
+            <Text style={styles.statusText}>{t('No ingredient list available.')}</Text>
           )}
 
           {ingredientAnalysis?.highRiskIngredients.length ? (
             <Text style={styles.highRiskText}>
-              High-risk: {ingredientAnalysis.highRiskIngredients.join(', ')}
+              {t('High-risk: {items}', {
+                items: ingredientAnalysis.highRiskIngredients.join(', '),
+              })}
             </Text>
           ) : null}
 
           {ingredientAnalysis?.cautionIngredients.length ? (
             <Text style={styles.cautionText}>
-              Caution: {ingredientAnalysis.cautionIngredients.join(', ')}
+              {t('Caution: {items}', {
+                items: ingredientAnalysis.cautionIngredients.join(', '),
+              })}
             </Text>
           ) : product?.ingredientsText ? (
             <Text style={styles.safeText}>
-              Current rule set marks the listed ingredients as safe.
+              {t('Current rule set marks the listed ingredients as safe.')}
             </Text>
           ) : (
-            <Text style={styles.statusText}>No ingredient flags found.</Text>
+            <Text style={styles.statusText}>{t('No ingredient flags found.')}</Text>
           )}
 
           {product?.allergens.length ? (
             <Text style={styles.highRiskText}>
-              Allergens: {product.allergens.join(', ')}
+              {t('Allergens: {items}', { items: product.allergens.join(', ') })}
             </Text>
           ) : null}
           {product && product.additiveCount > 0 ? (
             <Text style={styles.statusText}>
-              Additives listed: {product.additiveCount}
+              {t('Additives listed: {count}', { count: product.additiveCount })}
             </Text>
           ) : null}
         </View>
 
+        <FeatureTipCard
+          body="Use the top score for the quick call, then scroll for household fit, recipes, ingredients, and trust details."
+          icon="document-text-outline"
+          onDismiss={resultTutorial.dismiss}
+          title="Read results top to bottom"
+          visible={resultTutorial.isVisible}
+        />
+
         {recipeText ? (
           <View style={styles.infoCard}>
-            <Text style={styles.label}>Recipe</Text>
+            <Text style={styles.label}>{t('Recipe')}</Text>
             <Text style={styles.bodyText}>{recipeText}</Text>
           </View>
         ) : null}
 
         <View style={styles.infoCard}>
-          <Text style={styles.label}>Nutrition</Text>
+          <Text style={styles.label}>{t('Nutrition')}</Text>
           {!analysisResult ? (
             <ResultCardSkeleton compact />
           ) : insights?.metrics.length ? (
@@ -1588,18 +1611,18 @@ export default function ResultScreen({ navigation, route }: ResultScreenProps) {
               ))}
             </View>
           ) : (
-            <Text style={styles.statusText}>Nutrition details not available.</Text>
+            <Text style={styles.statusText}>{t('Nutrition details not available.')}</Text>
           )}
 
           {insights?.processingLabel ? (
             <Text style={styles.statusText}>
-              Processing level: {insights.processingLabel}
+              {t('Processing level: {label}', { label: insights.processingLabel })}
             </Text>
           ) : null}
 
           {product?.nutriScore ? (
             <View style={styles.scoreRow}>
-              <Text style={styles.statusText}>Nutrition grade</Text>
+              <Text style={styles.statusText}>{t('Nutrition grade')}</Text>
               <View
                 style={[
                   styles.gradeBadge,

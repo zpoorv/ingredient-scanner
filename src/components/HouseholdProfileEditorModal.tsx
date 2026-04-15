@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import { DIET_PROFILE_DEFINITIONS, type DietProfileId } from '../constants/dietProfiles';
 import { RESTRICTION_DEFINITIONS } from '../constants/restrictions';
@@ -41,6 +42,7 @@ export default function HouseholdProfileEditorModal({
   onToggleRestriction,
   visible,
 }: HouseholdProfileEditorModalProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
@@ -48,15 +50,15 @@ export default function HouseholdProfileEditorModal({
     <Modal animationType="fade" onRequestClose={onRequestClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>Household profile</Text>
+          <Text style={styles.title}>{t('Household profile')}</Text>
           <TextInput
             onChangeText={onChangeName}
-            placeholder="Name"
+            placeholder={t('Name')}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             value={draftName}
           />
-          <Text style={styles.sectionLabel}>Diet profile</Text>
+          <Text style={styles.sectionLabel}>{t('Diet profile')}</Text>
           <View style={styles.optionWrap}>
             {DIET_PROFILE_DEFINITIONS.map((profile) => {
               const isSelected = profile.id === draftDietProfileId;
@@ -68,13 +70,13 @@ export default function HouseholdProfileEditorModal({
                   style={[styles.chip, isSelected && styles.chipSelected]}
                 >
                   <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                    {profile.shortLabel}
+                    {t(profile.shortLabel)}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
-          <Text style={styles.sectionLabel}>Food filters</Text>
+          <Text style={styles.sectionLabel}>{t('Food filters')}</Text>
           <ScrollView contentContainerStyle={styles.optionWrap} showsVerticalScrollIndicator={false}>
             {RESTRICTION_DEFINITIONS.map((restriction) => {
               const isSelected = draftRestrictionIds.includes(restriction.id);
@@ -86,13 +88,13 @@ export default function HouseholdProfileEditorModal({
                   style={[styles.chip, isSelected && styles.chipSelected]}
                 >
                   <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                    {restriction.label}
+                    {t(restriction.label)}
                   </Text>
                 </Pressable>
               );
             })}
           </ScrollView>
-          <Text style={styles.sectionLabel}>Filter strictness</Text>
+          <Text style={styles.sectionLabel}>{t('Filter strictness')}</Text>
           <View style={styles.optionWrap}>
             {(['caution', 'strict'] as RestrictionSeverity[]).map((value) => {
               const isSelected = value === draftRestrictionSeverity;
@@ -104,7 +106,7 @@ export default function HouseholdProfileEditorModal({
                   style={[styles.chip, isSelected && styles.chipSelected]}
                 >
                   <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                    {value === 'strict' ? 'Strict' : 'Caution'}
+                    {value === 'strict' ? t('Strict') : t('Caution')}
                   </Text>
                 </Pressable>
               );
@@ -112,10 +114,10 @@ export default function HouseholdProfileEditorModal({
           </View>
           <View style={styles.footer}>
             <Pressable onPress={onSave} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Save profile</Text>
+              <Text style={styles.primaryButtonText}>{t('Save profile')}</Text>
             </Pressable>
             <Pressable onPress={onRequestClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Cancel</Text>
+              <Text style={styles.closeButtonText}>{t('Cancel')}</Text>
             </Pressable>
           </View>
         </View>

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { HouseholdFitResult } from '../models/householdFit';
 
@@ -22,27 +23,28 @@ function getVerdictLabel(verdict: HouseholdFitResult['verdict']) {
 }
 
 export default function HouseholdFitCard({ fit }: HouseholdFitCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Household fit</Text>
-      <Text style={styles.title}>{getVerdictLabel(fit.verdict)}</Text>
-      <Text style={styles.summary}>{fit.summary}</Text>
+      <Text style={styles.label}>{t('Household fit')}</Text>
+      <Text style={styles.title}>{t(getVerdictLabel(fit.verdict))}</Text>
+      <Text style={styles.summary}>{t(fit.summary)}</Text>
       <View style={styles.memberList}>
         {fit.members.map((member) => (
           <View key={member.id} style={styles.memberRow}>
             <Text style={styles.memberName}>
               {member.name}
-              {member.isActiveShopper ? ' • Shopping now' : ''}
+              {member.isActiveShopper ? ` • ${t('Shopping now')}` : ''}
             </Text>
             <Text style={styles.memberStatus}>
               {member.status === 'clear'
-                ? 'Clear'
+                ? t('Clear')
                 : member.status === 'caution'
-                  ? 'Caution'
-                  : 'Avoid'}
+                  ? t('Caution')
+                  : t('Avoid')}
             </Text>
           </View>
         ))}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import type { AchievementProgress } from '../models/gamification';
 import { useAppTheme } from './AppThemeProvider';
 
@@ -11,6 +12,7 @@ type AchievementBadgeStripProps = {
 export default function AchievementBadgeStrip({
   badges,
 }: AchievementBadgeStripProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const visibleBadges = badges
@@ -24,8 +26,8 @@ export default function AchievementBadgeStrip({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Badges</Text>
-      <Text style={styles.title}>Quiet wins worth keeping</Text>
+      <Text style={styles.label}>{t('Badges')}</Text>
+      <Text style={styles.title}>{t('Quiet wins worth keeping')}</Text>
       <ScrollView
         contentContainerStyle={styles.row}
         horizontal
@@ -33,7 +35,7 @@ export default function AchievementBadgeStrip({
       >
         {visibleBadges.map((badge) => (
           <View key={badge.achievementId} style={styles.badge}>
-            <Text style={styles.badgeTitle}>{badge.title}</Text>
+            <Text style={styles.badgeTitle}>{t(badge.title)}</Text>
             <Text style={styles.badgeMeta}>
               {badge.target}/{badge.target}
             </Text>

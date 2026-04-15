@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { ScanHistoryEntry } from '../services/scanHistoryStorage';
 import { getDietProfileDefinition } from '../utils/dietProfiles';
@@ -37,6 +38,7 @@ function HistoryListItem({
   onPress,
   selectionMode = false,
 }: HistoryListItemProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const gradeTone = getGradeTone(entry.gradeLabel);
@@ -66,18 +68,20 @@ function HistoryListItem({
           ]}
         >
           <Text style={[styles.scoreText, { color: gradeTone.color }]}>
-            {entry.score === null ? 'N/A' : `${entry.score}/100`}
+            {entry.score === null ? t('N/A') : `${entry.score}/100`}
           </Text>
         </View>
       </View>
 
       <Text style={styles.metaText}>
-        {entry.barcode} • {profile.label}
-        {isFavorite ? ' • Favorite' : ''}
+        {entry.barcode} • {t(profile.label)}
+        {isFavorite ? ` • ${t('Favorite')}` : ''}
       </Text>
-      <Text style={styles.summaryText}>{entry.riskSummary}</Text>
+      <Text style={styles.summaryText}>{t(entry.riskSummary)}</Text>
       {latestTimelineSummary ? (
-        <Text style={styles.timelineText}>Changed: {latestTimelineSummary}</Text>
+        <Text style={styles.timelineText}>
+          {t('Changed')}: {t(latestTimelineSummary)}
+        </Text>
       ) : null}
 
       <View style={styles.footerRow}>
@@ -96,16 +100,18 @@ function HistoryListItem({
                   isSelected && styles.selectionChipTextSelected,
                 ]}
               >
-                {isSelected ? 'Selected' : 'Select'}
+                {isSelected ? t('Selected') : t('Select')}
               </Text>
             </View>
           ) : (
             <Pressable onPress={onDelete} style={styles.deleteChip}>
-              <Text style={styles.deleteChipText}>Delete</Text>
+              <Text style={styles.deleteChipText}>{t('Delete')}</Text>
             </Pressable>
           )}
           <Text style={[styles.gradeText, { color: gradeTone.color }]}>
-            {entry.gradeLabel ? `Grade ${entry.gradeLabel}` : 'Not Scored'}
+            {entry.gradeLabel
+              ? t('Grade {grade}', { grade: entry.gradeLabel })
+              : t('Not Scored')}
           </Text>
         </View>
       </View>

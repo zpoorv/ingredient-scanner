@@ -4,6 +4,7 @@ import {
   DEFAULT_DIET_PROFILE_ID,
   isDietProfileId,
 } from '../constants/dietProfiles';
+import { isAppLanguageCode } from '../constants/languages';
 import { isRestrictionId } from '../constants/restrictions';
 import type { AuthUser } from '../models/auth';
 import type { HouseholdProfile } from '../models/householdProfile';
@@ -28,6 +29,7 @@ import {
   saveStoredUserProfile,
 } from './userProfileStorage';
 import { loadRemoteUserProfile, saveRemoteUserProfile } from './cloudUserDataService';
+import { getDeviceLanguageCode } from './languagePreferenceStorage';
 
 function buildDefaultProfileFromAuthUser(authUser: AuthUser): UserProfile {
   const now = new Date().toISOString();
@@ -46,6 +48,7 @@ function buildDefaultProfileFromAuthUser(authUser: AuthUser): UserProfile {
     historyNotificationCadence: 'weekly',
     historyNotificationsEnabled: false,
     householdProfiles: [],
+    languageCode: getDeviceLanguageCode(),
     name: authUser.displayName ?? '',
     plan: 'free',
     restrictionIds: [],
@@ -142,6 +145,22 @@ function resolveHistoryNotificationCadenceValue(
   return baseCadence;
 }
 
+function resolveLanguageCodeValue(
+  remoteLanguageCode: string | null | undefined,
+  localLanguageCode: string | null | undefined,
+  baseLanguageCode: UserProfile['languageCode']
+): UserProfile['languageCode'] {
+  if (isAppLanguageCode(remoteLanguageCode)) {
+    return remoteLanguageCode;
+  }
+
+  if (isAppLanguageCode(localLanguageCode)) {
+    return localLanguageCode;
+  }
+
+  return baseLanguageCode;
+}
+
 function resolveRestrictionSeverityValue(
   remoteSeverity: string | null | undefined,
   localSeverity: string | null | undefined,
@@ -236,6 +255,8 @@ async function resolveUserProfile(baseProfile: UserProfile) {
   const localDietProfileId = localProfile?.dietProfileId;
   const remoteShareCardStyleId = remoteProfile?.shareCardStyleId;
   const localShareCardStyleId = localProfile?.shareCardStyleId;
+  const remoteLanguageCode = remoteProfile?.languageCode;
+  const localLanguageCode = localProfile?.languageCode;
   const householdProfiles = resolveHouseholdProfiles(
     remoteProfile?.householdProfiles,
     localProfile?.householdProfiles
@@ -285,6 +306,11 @@ async function resolveUserProfile(baseProfile: UserProfile) {
         remoteProfile?.historyNotificationCadence,
         localProfile?.historyNotificationCadence,
         baseProfile.historyNotificationCadence
+      ),
+      languageCode: resolveLanguageCodeValue(
+        remoteLanguageCode,
+        localLanguageCode,
+        baseProfile.languageCode
       ),
       historyNotificationsEnabled:
         remoteProfile?.historyNotificationsEnabled ??
@@ -384,6 +410,7 @@ async function saveUserProfilePatch(
       | 'historyNotificationCadence'
       | 'historyNotificationsEnabled'
       | 'householdProfiles'
+      | 'languageCode'
       | 'name'
       | 'comparisonProductCodes'
       | 'restrictionIds'
@@ -482,6 +509,7 @@ export async function saveCurrentUserPreferences(
       | 'historyNotificationCadence'
       | 'historyNotificationsEnabled'
       | 'householdProfiles'
+      | 'languageCode'
       | 'activeHouseholdProfileId'
       | 'restrictionIds'
       | 'restrictionSeverity'
@@ -499,6 +527,7 @@ export async function saveCurrentUserPreferences(
     historyNotificationCadence: input.historyNotificationCadence,
     historyNotificationsEnabled: input.historyNotificationsEnabled,
     householdProfiles: input.householdProfiles,
+    languageCode: input.languageCode,
     activeHouseholdProfileId: input.activeHouseholdProfileId,
     restrictionIds: input.restrictionIds,
     restrictionSeverity: input.restrictionSeverity,

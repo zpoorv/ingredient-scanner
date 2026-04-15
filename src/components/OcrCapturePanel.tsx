@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 type OcrCapturePanelProps = {
@@ -25,6 +26,7 @@ export default function OcrCapturePanel({
   onCapture,
   onMountError,
 }: OcrCapturePanelProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const cameraRef = useRef<CameraView | null>(null);
@@ -60,7 +62,7 @@ export default function OcrCapturePanel({
         <View pointerEvents="none" style={styles.overlay}>
           <View style={styles.overlayTop}>
             <View style={styles.overlayBadge}>
-              <Text style={styles.overlayBadgeText}>Ingredients</Text>
+              <Text style={styles.overlayBadgeText}>{t('Ingredients')}</Text>
             </View>
           </View>
 
@@ -79,7 +81,7 @@ export default function OcrCapturePanel({
 
       <View style={styles.footer}>
         <Pressable onPress={onCancel} style={styles.secondaryButton}>
-          <Text style={styles.secondaryButtonText}>Cancel</Text>
+          <Text style={styles.secondaryButtonText}>{t('Cancel')}</Text>
         </Pressable>
 
         <Pressable
@@ -94,7 +96,7 @@ export default function OcrCapturePanel({
           {isBusy ? (
             <ActivityIndicator color={colors.surface} size="small" />
           ) : (
-            <Text style={styles.captureButtonText}>Capture</Text>
+            <Text style={styles.captureButtonText}>{t('Capture')}</Text>
           )}
         </Pressable>
       </View>

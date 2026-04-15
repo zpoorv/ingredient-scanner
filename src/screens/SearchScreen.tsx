@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
+import FeatureTipCard from '../components/FeatureTipCard';
 import NativeSponsoredCard from '../components/NativeSponsoredCard';
 import ProductSearchResultRow from '../components/ProductSearchResultRow';
 import ScreenReveal from '../components/ScreenReveal';
 import SearchSuggestionRow from '../components/SearchSuggestionRow';
+import TutorialTarget from '../components/TutorialTarget';
 import { SEARCH_QUERY_DEBOUNCE_MS } from '../constants/search';
 import type { DietProfileId } from '../constants/dietProfiles';
 import type {
@@ -28,6 +31,7 @@ import {
 } from '../services/sessionDataService';
 import { getPremiumSession, subscribePremiumSession } from '../store';
 import { buildHouseholdFitResult } from '../utils/householdFit';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type SearchScreenProps = NativeStackScreenProps<RootStackParamList, 'Search'>;
 type SearchListRow =
@@ -37,6 +41,7 @@ type SearchListRow =
   | SearchSuggestion;
 
 export default function SearchScreen({ navigation }: SearchScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [query, setQuery] = useState('');
@@ -49,6 +54,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     getPremiumSession()
   );
   const latestRequestIdRef = useRef(0);
+  const searchTutorial = useFeatureTutorial('search');
 
   useEffect(() => {
     let isMounted = true;
@@ -231,32 +237,44 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
       <View style={styles.screen}>
         <ScreenReveal style={styles.container}>
-          <View style={styles.heroCard}>
-            <View style={styles.heroHeader}>
-              <View>
-                <Text style={styles.heroLabel}>Instant search</Text>
-                <Text style={styles.heroTitle}>Find the right product faster</Text>
-              </View>
-              {isLoading ? (
-                <View style={styles.statusPill}>
-                  <Ionicons color={colors.primary} name="sync-outline" size={14} />
-                  <Text style={styles.statusPillText}>Updating</Text>
+          <TutorialTarget targetId="search-hero">
+            <View style={styles.heroCard}>
+              <View style={styles.heroHeader}>
+                <View>
+                  <Text style={styles.heroLabel}>{t('Instant search')}</Text>
+                  <Text style={styles.heroTitle}>{t('Find the right product faster')}</Text>
                 </View>
-              ) : null}
-            </View>
-            <Text style={styles.heroSubtitle}>
-              Search by product name, brand, or barcode. New scans and admin-added products show up here from the shared Firestore catalog.
-            </Text>
-            <View style={styles.heroMetaRow}>
-              <View style={styles.heroPill}>
-                <Text style={styles.heroPillText}>
-                  {resultCount > 0
-                    ? `${resultCount} product${resultCount === 1 ? '' : 's'} ready`
-                    : 'Ready when you are'}
-                </Text>
+                {isLoading ? (
+                  <View style={styles.statusPill}>
+                    <Ionicons color={colors.primary} name="sync-outline" size={14} />
+                    <Text style={styles.statusPillText}>{t('Updating')}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.heroSubtitle}>
+                {t(
+                  'Search by product name, brand, or barcode. New scans and admin-added products show up here from the shared Firestore catalog.'
+                )}
+              </Text>
+              <View style={styles.heroMetaRow}>
+                <View style={styles.heroPill}>
+                  <Text style={styles.heroPillText}>
+                    {resultCount > 0
+                      ? t('{count} products ready', { count: resultCount })
+                      : t('Ready when you are')}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
+          </TutorialTarget>
+
+          <FeatureTipCard
+            body="Search reads saved Firestore product records first, so scanned and admin-added products are easy to find by name."
+            icon="search-outline"
+            onDismiss={searchTutorial.dismiss}
+            title="Search the shared product catalog"
+            visible={searchTutorial.isVisible}
+          />
 
           <View style={styles.searchInputWrap}>
             <Ionicons color={colors.textMuted} name="search-outline" size={18} />
@@ -264,7 +282,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
               autoCapitalize="none"
               autoCorrect={false}
               onChangeText={setQuery}
-              placeholder="Search products, brands, or barcode"
+              placeholder={t('Search products, brands, or barcode')}
               placeholderTextColor={colors.textMuted}
               style={styles.searchInput}
               value={query}
@@ -284,7 +302,7 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => {
                 if (item.type === 'header') {
-                  return <Text style={styles.sectionTitle}>{item.title}</Text>;
+                  return <Text style={styles.sectionTitle}>{t(item.title)}</Text>;
                 }
 
                 if (item.type === 'ad') {
@@ -305,16 +323,18 @@ export default function SearchScreen({ navigation }: SearchScreenProps) {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>
                 {isLoading
-                  ? 'Finding strong matches...'
+                  ? t('Finding strong matches...')
                   : searchError
-                    ? 'Search needs a connection'
-                    : 'No products found'}
+                    ? t('Search needs a connection')
+                    : t('No products found')}
               </Text>
               <Text style={styles.emptyText}>
-                {searchError ||
-                (query.trim()
-                  ? 'Try a shorter name, a brand, or the barcode number.'
-                  : 'Search by product, brand, or barcode to jump straight into a result.')}
+                {t(
+                  searchError ||
+                    (query.trim()
+                      ? 'Try a shorter name, a brand, or the barcode number.'
+                      : 'Search by product, brand, or barcode to jump straight into a result.')
+                )}
               </Text>
             </View>
           )}

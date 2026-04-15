@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import AuthTextField from '../components/AuthTextField';
 import PrimaryButton from '../components/PrimaryButton';
@@ -19,6 +20,7 @@ type ResetPasswordScreenProps = NativeStackScreenProps<
 export default function ResetPasswordScreen({
   navigation,
 }: ResetPasswordScreenProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
@@ -37,8 +39,8 @@ export default function ResetPasswordScreen({
     } catch (error) {
       setErrorMessage(
         error instanceof AuthServiceError
-          ? error.message
-          : 'We could not check that email right now.'
+          ? t(error.message)
+          : t('We could not check that email right now.')
       );
     } finally {
       setIsSubmitting(false);
@@ -49,8 +51,10 @@ export default function ResetPasswordScreen({
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Password Reset</Text>
-          <Text style={styles.title}>Reset your {APP_NAME} password</Text>
+          <Text style={styles.eyebrow}>{t('Password Reset')}</Text>
+          <Text style={styles.title}>
+            {t('Reset your {appName} password', { appName: APP_NAME })}
+          </Text>
         </View>
 
         <View style={styles.card}>
@@ -58,18 +62,18 @@ export default function ResetPasswordScreen({
             autoComplete="email"
             errorMessage={errorMessage}
             keyboardType="email-address"
-            label="Email"
+            label={t('Email')}
             onChangeText={setEmail}
-            placeholder="you@example.com"
+            placeholder={t('you@example.com')}
             value={email}
           />
-          {infoMessage ? <Text style={styles.infoText}>{infoMessage}</Text> : null}
+          {infoMessage ? <Text style={styles.infoText}>{t(infoMessage)}</Text> : null}
           <PrimaryButton
             disabled={isSubmitting}
-            label={isSubmitting ? 'Sending...' : 'Send Reset Email'}
+            label={isSubmitting ? t('Sending...') : t('Send Reset Email')}
             onPress={() => void handleResetRequest()}
           />
-          <PrimaryButton label="Back to Login" onPress={() => navigation.goBack()} />
+          <PrimaryButton label={t('Back to Login')} onPress={() => navigation.goBack()} />
         </View>
       </ScrollView>
     </SafeAreaView>

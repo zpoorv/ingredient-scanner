@@ -10,6 +10,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import {
   buildNativeAdRequestOptions,
@@ -38,6 +39,7 @@ export default function NativeSponsoredCard({
   style,
   surface,
 }: NativeSponsoredCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(
     () => createStyles(colors, typography, compact),
@@ -128,7 +130,7 @@ export default function NativeSponsoredCard({
   return (
     <NativeAdView nativeAd={nativeAd} style={[styles.card, style]}>
       <View style={styles.topRow}>
-        <Text style={styles.sponsoredLabel}>Sponsored</Text>
+        <Text style={styles.sponsoredLabel}>{t('Sponsored')}</Text>
         {nativeAd.advertiser ? (
           <Text numberOfLines={1} style={styles.advertiser}>
             {nativeAd.advertiser}

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { ProductSuggestion } from '../utils/productSuggestions';
 
@@ -11,6 +12,7 @@ type ProductSuggestionsCardProps = {
 export default function ProductSuggestionsCard({
   suggestions,
 }: ProductSuggestionsCardProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -24,27 +26,29 @@ export default function ProductSuggestionsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Better Alternatives</Text>
+      <Text style={styles.label}>{t('Better Alternatives')}</Text>
       <Text style={styles.title}>
-        {hasAdminSuggestions ? 'Admin-picked alternatives' : 'What to look for next time'}
+        {hasAdminSuggestions
+          ? t('Admin-picked alternatives')
+          : t('What to look for next time')}
       </Text>
       <Text style={styles.subtitle}>
         {hasAdminSuggestions
-          ? 'These were added to help you compare better picks for this product.'
-          : 'These are simpler directions to look for the next time you shop.'}
+          ? t('These were added to help you compare better picks for this product.')
+          : t('These are simpler directions to look for the next time you shop.')}
       </Text>
 
       <View style={styles.list}>
         {suggestions.map((suggestion) => (
           <View key={suggestion.id} style={styles.item}>
             <View style={styles.issueChip}>
-              <Text style={styles.issueChipText}>{suggestion.issue}</Text>
+              <Text style={styles.issueChipText}>{t(suggestion.issue)}</Text>
             </View>
-            <Text style={styles.itemTitle}>{suggestion.title}</Text>
-            <Text style={styles.itemDescription}>{suggestion.description}</Text>
+            <Text style={styles.itemTitle}>{t(suggestion.title)}</Text>
+            <Text style={styles.itemDescription}>{t(suggestion.description)}</Text>
             {suggestion.url ? (
               <Pressable onPress={() => void Linking.openURL(suggestion.url || '')}>
-                <Text style={styles.link}>Open Link</Text>
+                <Text style={styles.link}>{t('Open Link')}</Text>
               </Pressable>
             ) : null}
           </View>

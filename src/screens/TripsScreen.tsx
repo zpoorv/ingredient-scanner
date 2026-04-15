@@ -3,22 +3,27 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import FeatureTipCard from '../components/FeatureTipCard';
 import FeaturePageLayout from '../components/FeaturePageLayout';
 import PrimaryButton from '../components/PrimaryButton';
 import ScreenLoadingView from '../components/ScreenLoadingView';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import type { ComparisonSession } from '../models/comparisonSession';
 import type { RootStackParamList } from '../navigation/types';
 import { loadSessionComparisonSession } from '../services/sessionDataService';
 import { buildShelfComparisonSummary } from '../utils/shelfComparison';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type TripsScreenProps = NativeStackScreenProps<RootStackParamList, 'Trips'>;
 
 export default function TripsScreen({ navigation }: TripsScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [isLoading, setIsLoading] = useState(true);
   const [comparisonSession, setComparisonSession] = useState<ComparisonSession | null>(null);
+  const tripsTutorial = useFeatureTutorial('trips');
 
   useFocusEffect(
     useCallback(() => {
@@ -60,16 +65,29 @@ export default function TripsScreen({ navigation }: TripsScreenProps) {
     <FeaturePageLayout
       eyebrow="Trips"
       subtitle="Comparison sessions and recaps now live together instead of being scattered through Home."
+      tutorialTargetId="trips-hero"
       title="Shopping trips"
     >
+      <FeatureTipCard
+        body="Trips is for shopping comparisons: start Shelf Mode, compare products, then finish with a recap."
+        icon="bag-handle-outline"
+        onDismiss={tripsTutorial.dismiss}
+        title="Compare during a store trip"
+        visible={tripsTutorial.isVisible}
+      />
+
       <View style={styles.card}>
-        <Text style={styles.label}>Active trip</Text>
+        <Text style={styles.label}>{t('Active trip')}</Text>
         <Text style={styles.title}>
-          {currentEntries.length > 0 ? `${currentEntries.length} products in play` : 'No active comparison yet'}
+          {currentEntries.length > 0
+            ? t('{count} products in play', { count: currentEntries.length })
+            : t('No active comparison yet')}
         </Text>
         <Text style={styles.body}>
-          {activeSummary?.tripRecapLine ??
-            'Start Shelf Mode when you want to compare products during a store trip.'}
+          {t(
+            activeSummary?.tripRecapLine ??
+              'Start Shelf Mode when you want to compare products during a store trip.'
+          )}
         </Text>
         <PrimaryButton
           label={currentEntries.length > 0 ? 'Continue Shelf Mode' : 'Start Shelf Mode'}
@@ -79,33 +97,34 @@ export default function TripsScreen({ navigation }: TripsScreenProps) {
 
       {activeSummary ? (
         <View style={styles.card}>
-          <Text style={styles.label}>Current suggestions</Text>
-          <Text style={styles.listItem}>{activeSummary.whyThisWins}</Text>
+          <Text style={styles.label}>{t('Current suggestions')}</Text>
+          <Text style={styles.listItem}>{t(activeSummary.whyThisWins)}</Text>
         </View>
       ) : null}
 
       <View style={styles.card}>
-        <Text style={styles.label}>Recent recaps</Text>
+        <Text style={styles.label}>{t('Recent recaps')}</Text>
         {recentTrips.length > 0 ? (
           recentTrips.slice(0, 4).map((trip) => (
             <View key={trip.id} style={styles.tripRow}>
               <View style={styles.tripCopy}>
                 <Text style={styles.tripTitle}>{trip.summary.recapLine}</Text>
                 <Text style={styles.tripMeta}>
-                  {new Date(trip.endedAt).toLocaleDateString()} • {trip.entries.length} products
+                  {new Date(trip.endedAt).toLocaleDateString()} •{' '}
+                  {t('{count} products', { count: trip.entries.length })}
                 </Text>
               </View>
               <Pressable
                 onPress={() => navigation.navigate('ShelfMode')}
                 style={styles.linkChip}
               >
-                <Text style={styles.linkText}>Open</Text>
+                <Text style={styles.linkText}>{t('Open')}</Text>
               </Pressable>
             </View>
           ))
         ) : (
           <Text style={styles.body}>
-            Finish one comparison trip and its recap will show up here.
+            {t('Finish one comparison trip and its recap will show up here.')}
           </Text>
         )}
       </View>

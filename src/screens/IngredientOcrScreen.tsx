@@ -17,7 +17,9 @@ import {
 } from 'expo-camera';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
+import FeatureTipCard from '../components/FeatureTipCard';
 import OcrCapturePanel from '../components/OcrCapturePanel';
 import PrimaryButton from '../components/PrimaryButton';
 import { DEFAULT_DIET_PROFILE_ID } from '../constants/dietProfiles';
@@ -40,6 +42,7 @@ import { showRewardedOcrUnlockAd } from '../services/rewardedAdService';
 import { loadSessionPremiumEntitlement } from '../services/sessionDataService';
 import { getPremiumSession } from '../store';
 import { buildResolvedProductFromOcr } from '../utils/ocrResolvedProduct';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type IngredientOcrScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -56,6 +59,7 @@ export default function IngredientOcrScreen({
   navigation,
   route,
 }: IngredientOcrScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const insets = useSafeAreaInsets();
@@ -75,6 +79,7 @@ export default function IngredientOcrScreen({
   const [pendingAsset, setPendingAsset] = useState<PendingOcrAsset | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const selectedProfileId = route.params?.profileId || DEFAULT_DIET_PROFILE_ID;
+  const ocrTutorial = useFeatureTutorial('ingredient-ocr');
 
   useEffect(() => {
     if (!isFocused) {
@@ -243,23 +248,25 @@ export default function IngredientOcrScreen({
   };
 
   const helperCopy = isCropEnabled
-    ? 'Crop before reading.'
-    : 'Use the full image.';
+    ? t('Crop before reading.')
+    : t('Use the full image.');
   const quotaSummaryText = featureQuotaSnapshot?.isUnlimited
-    ? 'Premium keeps ingredient photo scans unlimited and ad-free.'
+    ? t('Premium keeps ingredient photo scans unlimited and ad-free.')
     : featureQuotaSnapshot
-      ? `${featureQuotaSnapshot.remaining} of 5 daily ingredient scans left.`
-      : 'Checking your daily ingredient scans...';
+      ? t('{count} of 5 daily ingredient scans left.', {
+          count: featureQuotaSnapshot.remaining,
+        })
+      : t('Checking your daily ingredient scans...');
 
   const liveCaptureTips = [
-    'Center the ingredient lines inside the capture box.',
-    'Fill most of the frame with text before capturing.',
-    'Avoid reflections and strong glare on glossy packaging.',
+    t('Center the ingredient lines inside the capture box.'),
+    t('Fill most of the frame with text before capturing.'),
+    t('Avoid reflections and strong glare on glossy packaging.'),
   ];
 
   const captureStatusMessage =
     cameraPermission && !cameraPermission.granted
-      ? 'Allow camera access to use the guided ingredient capture flow.'
+      ? t('Allow camera access to use the guided ingredient capture flow.')
       : cameraError;
 
   const handleCloseGuidedCamera = () => {
@@ -294,9 +301,11 @@ export default function IngredientOcrScreen({
     if (isGuidedCameraVisible) {
       return (
         <View style={styles.captureFlowCard}>
-          <Text style={styles.captureFlowLabel}>Live guided capture</Text>
-          <Text style={styles.captureFlowTitle}>Frame the ingredient block tightly</Text>
-          <Text style={styles.captureFlowText}>Capture the ingredient lines clearly, then confirm the photo before OCR starts.</Text>
+          <Text style={styles.captureFlowLabel}>{t('Live guided capture')}</Text>
+          <Text style={styles.captureFlowTitle}>{t('Frame the ingredient block tightly')}</Text>
+          <Text style={styles.captureFlowText}>
+            {t('Capture the ingredient lines clearly, then confirm the photo before OCR starts.')}
+          </Text>
           <OcrCapturePanel
             isBusy={isProcessing}
             onCancel={handleCloseGuidedCamera}
@@ -313,15 +322,17 @@ export default function IngredientOcrScreen({
     }
 
     return (
-      <View style={styles.actionCard}>
-        <View style={styles.usageCard}>
-          <Text style={styles.usageLabel}>Daily scans</Text>
+        <View style={styles.actionCard}>
+          <View style={styles.usageCard}>
+          <Text style={styles.usageLabel}>{t('Daily scans')}</Text>
           <Text style={styles.usageTitle}>
             {featureQuotaSnapshot?.isUnlimited
-              ? 'Unlimited scans'
+              ? t('Unlimited scans')
               : featureQuotaSnapshot
-                ? `${featureQuotaSnapshot.remaining} scan${featureQuotaSnapshot.remaining === 1 ? '' : 's'} left today`
-                : 'Loading...'}
+                ? t('{count} scans left today', {
+                    count: featureQuotaSnapshot.remaining,
+                  })
+                : t('Loading...')}
           </Text>
           <Text style={styles.usageText}>{quotaSummaryText}</Text>
           {!premiumEntitlement.isPremium &&
@@ -359,7 +370,7 @@ export default function IngredientOcrScreen({
                 isCropEnabled && styles.cropToggleLabelActive,
               ]}
             >
-              Crop Before OCR
+              {t('Crop Before OCR')}
             </Text>
             <Text
               style={[
@@ -368,8 +379,8 @@ export default function IngredientOcrScreen({
               ]}
             >
               {isCropEnabled
-                ? 'Crop before reading.'
-                : 'Use the full image.'}
+                ? t('Crop before reading.')
+                : t('Use the full image.')}
             </Text>
           </View>
           <View
@@ -431,16 +442,24 @@ export default function IngredientOcrScreen({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>Ingredient Photo</Text>
-          <Text style={styles.title}>Photograph the ingredient list</Text>
+          <Text style={styles.eyebrow}>{t('Ingredient Photo')}</Text>
+          <Text style={styles.title}>{t('Photograph the ingredient list')}</Text>
         </View>
+
+        <FeatureTipCard
+          body="Use OCR when a barcode is missing or the ingredient panel needs a closer check."
+          icon="camera-outline"
+          onDismiss={ocrTutorial.dismiss}
+          title="OCR is the backup scanner"
+          visible={ocrTutorial.isVisible}
+        />
 
         {renderActionCard()}
 
         {previewUri ? (
           <View style={styles.previewCard}>
             <Text style={styles.previewLabel}>
-              {pendingAsset ? 'Confirm photo' : 'Selected image'}
+              {pendingAsset ? t('Confirm photo') : t('Selected image')}
             </Text>
             <Image source={{ uri: previewUri }} style={styles.previewImage} />
             {pendingAsset ? (
@@ -467,14 +486,14 @@ export default function IngredientOcrScreen({
         {isProcessing ? (
           <View style={styles.stateCard}>
             <ActivityIndicator color={colors.primary} size="small" />
-            <Text style={styles.stateText}>Reading label...</Text>
+            <Text style={styles.stateText}>{t('Reading label...')}</Text>
           </View>
         ) : null}
 
         {errorMessage ? (
           <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>Try again</Text>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+            <Text style={styles.errorTitle}>{t('Try again')}</Text>
+            <Text style={styles.errorText}>{t(errorMessage)}</Text>
           </View>
         ) : null}
       </ScrollView>

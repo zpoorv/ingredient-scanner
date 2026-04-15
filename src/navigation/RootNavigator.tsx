@@ -5,8 +5,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Alert, InteractionManager, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import BottomMenuBar from '../components/BottomMenuBar';
+import GuidedTutorialOverlay from '../components/GuidedTutorialOverlay';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import ScreenLoadingView from '../components/ScreenLoadingView';
+import TutorialTarget from '../components/TutorialTarget';
 import { APP_NAME } from '../constants/branding';
 import {
   flushPendingHistoryNavigation,
@@ -14,6 +17,7 @@ import {
   rootNavigationRef,
   type MainNavigationRoute,
 } from './navigationRef';
+import AccountIntroScreen from '../screens/AccountIntroScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import FeaturedProductsScreen from '../screens/FeaturedProductsScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -41,11 +45,20 @@ import {
   measurePerformanceTrace,
 } from '../services/performanceTrace';
 import { refreshCurrentPremiumEntitlement } from '../services/premiumEntitlementService';
-import { clearSessionResourceCache } from '../services/sessionResourceCache';
 import {
+  advanceGuidedTutorialFromTarget,
+  openGuidedTutorialStep,
+} from '../services/guidedTutorialService';
+import { clearSessionResourceCache } from '../services/sessionResourceCache';
+import { shouldShowWelcomeTutorial } from '../services/tutorialProgressService';
+import {
+  getGuidedTutorialSession,
   clearPremiumSession,
   getAuthSession,
+  startGuidedTutorial,
   setAuthSession,
+  subscribeGuidedTutorialSession,
+  stopGuidedTutorial,
   subscribeAuthSession,
 } from '../store';
 import type { RootStackParamList } from './types';
@@ -125,6 +138,10 @@ export default function RootNavigator() {
   const [isHandlingEmailLink, setIsHandlingEmailLink] = useState(false);
   const [hasNavigationReady, setHasNavigationReady] = useState(false);
   const [hasQueuedAuthHydration, setHasQueuedAuthHydration] = useState(false);
+  const [guidedTutorialSession, setGuidedTutorialSession] = useState(
+    getGuidedTutorialSession()
+  );
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const currentUserId = authSession.user?.id ?? null;
   const isAuthenticated = authSession.status === 'authenticated';
@@ -179,6 +196,11 @@ export default function RootNavigator() {
     };
   }, [initialBootstrapSnapshot]);
 
+  useEffect(
+    () => subscribeGuidedTutorialSession((nextSession) => setGuidedTutorialSession(nextSession)),
+    []
+  );
+
   useEffect(() => {
     if (!hasNavigationReady || hasQueuedAuthHydration) {
       return;
@@ -211,6 +233,46 @@ export default function RootNavigator() {
       clearPremiumSession();
     }
   }, [authSession.status, currentUserId, hasNavigationReady]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let interactionHandle: ReturnType<typeof InteractionManager.runAfterInteractions> | null =
+      null;
+
+    if (
+      !isAuthenticated ||
+      !currentUserId ||
+      !hasNavigationReady ||
+      guidedTutorialSession.status === 'active'
+    ) {
+      return () => {
+        isMounted = false;
+        interactionHandle?.cancel();
+      };
+    }
+
+    void shouldShowWelcomeTutorial(currentUserId)
+      .then((shouldShow) => {
+        if (!isMounted || !shouldShow) {
+          return;
+        }
+
+        interactionHandle = InteractionManager.runAfterInteractions(() => {
+          if (!rootNavigationRef.isReady() || getGuidedTutorialSession().status === 'active') {
+            return;
+          }
+
+          startGuidedTutorial(0);
+          void openGuidedTutorialStep(0);
+        });
+      })
+      .catch(() => null);
+
+    return () => {
+      isMounted = false;
+      interactionHandle?.cancel();
+    };
+  }, [currentUserId, guidedTutorialSession.status, hasNavigationReady, isAuthenticated]);
 
   useEffect(() => {
     flushPendingHistoryNavigation(isAuthenticated);
@@ -282,6 +344,23 @@ export default function RootNavigator() {
     rootNavigationRef.navigate('Settings');
   }, [currentRouteName]);
 
+  const handleReplayTutorial = useCallback(() => {
+    stopGuidedTutorial();
+    startGuidedTutorial(0);
+
+    if (!rootNavigationRef.isReady()) {
+      return;
+    }
+
+    if (rootNavigationRef.getCurrentRoute()?.name === 'Settings' && rootNavigationRef.canGoBack()) {
+      rootNavigationRef.goBack();
+    }
+
+    InteractionManager.runAfterInteractions(() => {
+      void openGuidedTutorialStep(0);
+    });
+  }, []);
+
   const handleBottomRoutePress = useCallback(
     async (route: MainNavigationRoute | 'Scanner') => {
       if (route === 'Scanner') {
@@ -348,17 +427,25 @@ export default function RootNavigator() {
               headerRight: HEADER_ACTION_ROUTES.has(route.name)
                 ? () => (
                     <View style={styles.headerActions}>
-                      <Pressable
-                        accessibilityLabel="Open profile"
-                        accessibilityRole="button"
-                        onPress={handleOpenProfile}
-                        style={({ pressed }) => [
-                          styles.headerButton,
-                          pressed && styles.headerButtonPressed,
-                        ]}
+                      <TutorialTarget
+                        style={styles.headerButtonTarget}
+                        targetId="header-profile-button"
                       >
-                        <Ionicons color={colors.text} name="person-circle-outline" size={20} />
-                      </Pressable>
+                        <Pressable
+                          accessibilityLabel="Open profile"
+                          accessibilityRole="button"
+                          onPress={() => {
+                            advanceGuidedTutorialFromTarget('header-profile-button');
+                            handleOpenProfile();
+                          }}
+                          style={({ pressed }) => [
+                            styles.headerButton,
+                            pressed && styles.headerButtonPressed,
+                          ]}
+                        >
+                          <Ionicons color={colors.text} name="person-circle-outline" size={20} />
+                        </Pressable>
+                      </TutorialTarget>
                       <Pressable
                         accessibilityLabel="Open settings"
                         accessibilityRole="button"
@@ -370,17 +457,25 @@ export default function RootNavigator() {
                       >
                         <Ionicons color={colors.text} name="settings-outline" size={20} />
                       </Pressable>
-                      <Pressable
-                        accessibilityLabel="Open premium"
-                        accessibilityRole="button"
-                        onPress={handleOpenPremium}
-                        style={({ pressed }) => [
-                          styles.headerButton,
-                          pressed && styles.headerButtonPressed,
-                        ]}
+                      <TutorialTarget
+                        style={styles.headerButtonTarget}
+                        targetId="header-premium-button"
                       >
-                        <Ionicons color={colors.primary} name="sparkles-outline" size={20} />
-                      </Pressable>
+                        <Pressable
+                          accessibilityLabel="Open premium"
+                          accessibilityRole="button"
+                          onPress={() => {
+                            advanceGuidedTutorialFromTarget('header-premium-button');
+                            handleOpenPremium();
+                          }}
+                          style={({ pressed }) => [
+                            styles.headerButton,
+                            pressed && styles.headerButtonPressed,
+                          ]}
+                        >
+                          <Ionicons color={colors.primary} name="sparkles-outline" size={20} />
+                        </Pressable>
+                      </TutorialTarget>
                     </View>
                   )
                 : undefined,
@@ -410,7 +505,7 @@ export default function RootNavigator() {
                 <Stack.Screen
                   name="FeaturedProducts"
                   component={FeaturedProductsScreen}
-                  options={{ title: 'Featured' }}
+                  options={{ title: t('Featured') }}
                 />
                 <Stack.Screen
                   name="Settings"
@@ -425,12 +520,12 @@ export default function RootNavigator() {
                 <Stack.Screen
                   name="Alerts"
                   component={AlertsScreen}
-                  options={{ title: 'Alerts' }}
+                  options={{ title: t('Alerts') }}
                 />
                 <Stack.Screen
                   name="Trips"
                   component={TripsScreen}
-                  options={{ title: 'Trips' }}
+                  options={{ title: t('Trips') }}
                 />
                 <Stack.Screen
                   name="Premium"
@@ -445,105 +540,110 @@ export default function RootNavigator() {
                 <Stack.Screen
                   name="AccountSettings"
                   component={AccountSettingsScreen}
-                  options={{ title: 'Account' }}
+                  options={{ title: t('Account') }}
                 />
                 <Stack.Screen
                   name="NotificationSettings"
                   component={NotificationSettingsScreen}
-                  options={{ title: 'Notifications' }}
+                  options={{ title: t('Notifications') }}
                 />
                 <Stack.Screen
                   name="AppearanceSettings"
                   component={AppearanceSettingsScreen}
-                  options={{ title: 'Appearance' }}
+                  options={{ title: t('Appearance') }}
                 />
                 <Stack.Screen
                   name="HouseholdSettings"
                   component={HouseholdSettingsScreen}
-                  options={{ title: 'Household' }}
+                  options={{ title: t('Household') }}
                 />
                 <Stack.Screen
                   name="SupportSettings"
                   component={SupportSettingsScreen}
-                  options={{ title: 'Support' }}
+                  options={{ title: t('Support') }}
                 />
                 <Stack.Screen
                   name="ProfileDetails"
                   component={ProfileDetailsScreen}
-                  options={{ title: 'Profile' }}
+                  options={{ title: t('Profile') }}
                 />
                 <Stack.Screen
                   name="Progress"
                   component={ProgressScreen}
-                  options={{ title: 'Achievements' }}
+                  options={{ title: t('Achievements') }}
                 />
                 <Stack.Screen
                   name="History"
                   component={HistoryScreen}
-                  options={{ title: 'History' }}
+                  options={{ title: t('History') }}
                 />
                 <Stack.Screen
                   name="Search"
                   component={SearchScreen}
-                  options={{ title: 'Search' }}
+                  options={{ title: t('Search') }}
                 />
                 <Stack.Screen
                   name="ShelfMode"
                   component={ShelfModeScreen}
-                  options={{ title: 'Shelf Mode' }}
+                  options={{ title: t('Shelf Mode') }}
                 />
                 <Stack.Screen
                   name="Scanner"
                   component={ScannerScreen}
-                  options={{ title: 'Scan Barcode' }}
+                  options={{ title: t('Scan Barcode') }}
                 />
                 <Stack.Screen
                   name="IngredientOcr"
                   component={IngredientOcrScreen}
-                  options={{ title: 'Scan Ingredients' }}
+                  options={{ title: t('Scan Ingredients') }}
                 />
                 <Stack.Screen
                   name="Result"
                   component={ResultScreen}
-                  options={{ title: 'Product Details' }}
+                  options={{ title: t('Product Details') }}
                 />
                 <Stack.Screen
                   name="Help"
                   component={HelpScreen}
-                  options={{ title: 'Help' }}
+                  options={{ title: t('Help') }}
                 />
                 <Stack.Screen
                   name="PrivacyPolicy"
                   component={PrivacyPolicyScreen}
-                  options={{ title: 'Privacy Policy' }}
+                  options={{ title: t('Privacy Policy') }}
                 />
                 <Stack.Screen
                   name="About"
                   component={AboutScreen}
-                  options={{ title: 'About' }}
+                  options={{ title: t('About') }}
                 />
                 <Stack.Screen
                   name="Feedback"
                   component={FeedbackScreen}
-                  options={{ title: 'Send Feedback' }}
+                  options={{ title: t('Send Feedback') }}
                 />
               </>
             ) : (
               <>
                 <Stack.Screen
+                  name="AccountIntro"
+                  component={AccountIntroScreen}
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="Login"
                   component={LoginScreen}
-                  options={{ title: 'Log In' }}
+                  options={{ title: t('Log In') }}
                 />
                 <Stack.Screen
                   name="SignUp"
                   component={SignUpScreen}
-                  options={{ title: 'Create Account' }}
+                  options={{ title: t('Create Account') }}
                 />
                 <Stack.Screen
                   name="ResetPassword"
                   component={ResetPasswordScreen}
-                  options={{ title: 'Reset Password' }}
+                  options={{ title: t('Reset Password') }}
                 />
               </>
             )}
@@ -565,6 +665,7 @@ export default function RootNavigator() {
               <SettingsSheet
                 onClose={() => rootNavigationRef.goBack()}
                 onNavigate={(route) => rootNavigationRef.navigate(route)}
+                onReplayTutorial={handleReplayTutorial}
               />
             </View>
           ) : null}
@@ -577,6 +678,11 @@ export default function RootNavigator() {
               />
             </View>
           ) : null}
+
+          <GuidedTutorialOverlay
+            currentRouteName={currentRouteName}
+            userId={currentUserId}
+          />
         </View>
       </NavigationContainer>
     </Suspense>
@@ -614,6 +720,10 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
     },
     headerButtonPressed: {
       opacity: 0.82,
+    },
+    headerButtonTarget: {
+      height: 36,
+      width: 36,
     },
     modalOverlay: {
       ...StyleSheet.absoluteFillObject,

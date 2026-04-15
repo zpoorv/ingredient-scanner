@@ -2,14 +2,18 @@ import type { PropsWithChildren, ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import ScreenReveal from './ScreenReveal';
+import TutorialTarget from './TutorialTarget';
+import type { GuidedTutorialTargetId } from '../services/guidedTutorialService';
 
 type FeaturePageLayoutProps = PropsWithChildren<{
   eyebrow?: string;
   footerInset?: number;
   header?: ReactNode;
   subtitle: string;
+  tutorialTargetId?: GuidedTutorialTargetId;
   title: string;
 }>;
 
@@ -19,8 +23,10 @@ export default function FeaturePageLayout({
   footerInset = 132,
   header,
   subtitle,
+  tutorialTargetId,
   title,
 }: FeaturePageLayoutProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
@@ -30,11 +36,13 @@ export default function FeaturePageLayout({
         contentContainerStyle={[styles.content, { paddingBottom: footerInset }]}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenReveal style={styles.hero}>
-          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </ScreenReveal>
+        <TutorialTarget targetId={tutorialTargetId}>
+          <ScreenReveal style={styles.hero}>
+            {eyebrow ? <Text style={styles.eyebrow}>{t(eyebrow)}</Text> : null}
+            <Text style={styles.title}>{t(title)}</Text>
+            <Text style={styles.subtitle}>{t(subtitle)}</Text>
+          </ScreenReveal>
+        </TutorialTarget>
         {header}
         {children}
       </ScrollView>

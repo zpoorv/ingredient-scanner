@@ -5,10 +5,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import DietProfileModal from '../components/DietProfileModal';
+import FeatureTipCard from '../components/FeatureTipCard';
 import PrimaryButton from '../components/PrimaryButton';
 import QuestActionCard from '../components/QuestActionCard';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import ScreenReveal from '../components/ScreenReveal';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import { APP_NAME } from '../constants/branding';
 import {
@@ -29,11 +31,13 @@ import {
   loadSessionUserProfile,
 } from '../services/sessionDataService';
 import { measurePerformanceTrace } from '../services/performanceTrace';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 import type { RootStackParamList } from '../navigation/types';
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [effectiveProfileId, setEffectiveProfileId] =
@@ -46,6 +50,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const [profileName, setProfileName] = useState(APP_NAME);
   const [premiumLabel, setPremiumLabel] = useState('Basic');
   const [draftProfileId, setDraftProfileId] = useState<DietProfileId>(DEFAULT_DIET_PROFILE_ID);
+  const homeTutorial = useFeatureTutorial('home');
 
   useFocusEffect(
     useCallback(() => {
@@ -95,16 +100,16 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     return (
       <ScreenLoadingView
         subtitle="Preparing your shopper dashboard and the fastest way back into scanning..."
-        title={`Loading ${APP_NAME}`}
+        title={t('Loading {appName}', { appName: APP_NAME })}
       />
     );
   }
 
   const ocrLabel = ocrQuotaSnapshot?.isUnlimited
-    ? 'Unlimited OCR'
+    ? t('Unlimited OCR')
     : ocrQuotaSnapshot && ocrQuotaSnapshot.remaining !== null
-      ? `${ocrQuotaSnapshot.remaining} OCR left today`
-      : 'OCR ready';
+      ? t('{count} OCR left today', { count: ocrQuotaSnapshot.remaining })
+      : t('OCR ready');
 
   return (
     <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
@@ -112,12 +117,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <ScreenReveal style={styles.screen}>
           <View style={styles.content}>
           <View style={styles.heroCard}>
-            <Text style={styles.eyebrow}>Dashboard</Text>
+            <Text style={styles.eyebrow}>{t('Dashboard')}</Text>
             <Text style={styles.heroTitle}>{profileName}</Text>
             <Text style={styles.heroBody}>
               {isHouseholdProfileActive
-                ? `Shopping for ${activeShopperName} right now.`
-                : `Shopping as ${activeShopperName}.`}
+                ? t('Shopping for {name} right now.', { name: activeShopperName })
+                : t('Shopping as {name}.', { name: activeShopperName })}
             </Text>
             <View style={styles.heroMetaRow}>
               <Pressable
@@ -135,15 +140,24 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </View>
           </View>
 
+          <FeatureTipCard
+            body="Home is your launchpad: scan, search, and open Progress, Alerts, or Trips from clear entry cards."
+            icon="home-outline"
+            onDismiss={homeTutorial.dismiss}
+            title="Use Home as the dashboard"
+            visible={homeTutorial.isVisible}
+          />
+
           <View style={styles.scanCard}>
-            <Text style={styles.scanLabel}>Ready to scan</Text>
-            <Text style={styles.scanTitle}>Start with one product</Text>
+            <Text style={styles.scanLabel}>{t('Ready to scan')}</Text>
+            <Text style={styles.scanTitle}>{t('Start with one product')}</Text>
             <Text style={styles.scanBody}>
-              Scan lives on its own page now, so Home stays fast and focused.
+              {t('Scan lives on its own page now, so Home stays fast and focused.')}
             </Text>
             <PrimaryButton
               label="Open scanner"
               onPress={() => navigation.navigate('Scanner', { profileId: effectiveProfileId })}
+              tutorialTargetId="home-open-scanner"
             />
           </View>
 
@@ -152,6 +166,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             icon="trophy-outline"
             onPress={() => navigation.navigate('Progress')}
             subtitle="See your weekly momentum, streak, goal, and recent badges."
+            tutorialTargetId="home-open-progress"
             title="Open progress"
           />
           <QuestActionCard
@@ -159,6 +174,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             icon="alert-circle-outline"
             onPress={() => navigation.navigate('Alerts')}
             subtitle="Check changed products, watch-outs, and replace-first nudges."
+            tutorialTargetId="home-open-alerts"
             title="Review alerts"
           />
           <QuestActionCard
@@ -166,6 +182,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             icon="bag-handle-outline"
             onPress={() => navigation.navigate('Trips')}
             subtitle="Continue Shelf Mode and review recent comparison trip recaps."
+            tutorialTargetId="home-open-trips"
             title="Open trips"
           />
           <QuestActionCard

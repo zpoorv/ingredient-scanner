@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import { AuthServiceError } from '../services/authHelpers';
 import { signInWithGoogleIdToken } from '../services/authService';
@@ -21,6 +22,7 @@ type GoogleSignInButtonProps = {
 export default function GoogleSignInButton({
   label = 'Continue with Google',
 }: GoogleSignInButtonProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -75,10 +77,10 @@ export default function GoogleSignInButton({
         {isSubmitting ? (
           <ActivityIndicator color={colors.primary} />
         ) : (
-          <Text style={styles.buttonText}>{label}</Text>
+          <Text style={styles.buttonText}>{t(label)}</Text>
         )}
       </Pressable>
-      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+      {errorMessage ? <Text style={styles.errorText}>{t(errorMessage)}</Text> : null}
     </View>
   );
 }

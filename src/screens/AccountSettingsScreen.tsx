@@ -3,6 +3,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import FeaturePageLayout from '../components/FeaturePageLayout';
 import ScreenLoadingView from '../components/ScreenLoadingView';
 import SettingsRow from '../components/SettingsRow';
@@ -27,6 +28,7 @@ type AccountSettingsScreenProps = NativeStackScreenProps<
 export default function AccountSettingsScreen({
   navigation,
 }: AccountSettingsScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,22 +80,24 @@ export default function AccountSettingsScreen({
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete account?',
-      'This removes your account, local history, and saved profile settings from this device.',
+      t('Delete account?'),
+      t(
+        'This removes your account, local history, and saved profile settings from this device.'
+      ),
       [
-        { style: 'cancel', text: 'Cancel' },
+        { style: 'cancel', text: t('Cancel') },
         {
           style: 'destructive',
-          text: 'Delete',
+          text: t('Delete'),
           onPress: () => {
             setIsDeleting(true);
             void deleteCurrentAccount()
               .catch((error) => {
                 Alert.alert(
-                  'Delete account failed',
+                  t('Delete account failed'),
                   error instanceof AuthServiceError
-                    ? error.message
-                    : 'We could not delete your account right now.'
+                    ? t(error.message)
+                    : t('We could not delete your account right now.')
                 );
               })
               .finally(() => setIsDeleting(false));
@@ -120,8 +124,10 @@ export default function AccountSettingsScreen({
     >
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>{summary.name}</Text>
-        <Text style={styles.summaryBody}>{summary.email || 'Signed in'}</Text>
-        <Text style={styles.summaryMeta}>{`${summary.roleLabel} • ${summary.premiumLabel}`}</Text>
+        <Text style={styles.summaryBody}>{summary.email || t('Signed in')}</Text>
+        <Text style={styles.summaryMeta}>
+          {`${t(summary.roleLabel)} • ${t(summary.premiumLabel)}`}
+        </Text>
       </View>
 
       <SettingsSection title="Account tools">

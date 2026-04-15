@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { CorrectionReportReason } from '../models/correctionReport';
 
@@ -22,6 +23,7 @@ export default function ReportProductIssueModal({
   onSelectReason,
   visible,
 }: ReportProductIssueModalProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
@@ -29,19 +31,19 @@ export default function ReportProductIssueModal({
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.label}>Review request</Text>
-          <Text style={styles.title}>What looks off?</Text>
+          <Text style={styles.label}>{t('Review request')}</Text>
+          <Text style={styles.title}>{t('What looks off?')}</Text>
           {REASONS.map((item) => (
             <Pressable
               key={item.reason}
               onPress={() => onSelectReason(item.reason)}
               style={styles.option}
             >
-              <Text style={styles.optionText}>{item.label}</Text>
+              <Text style={styles.optionText}>{t(item.label)}</Text>
             </Pressable>
           ))}
           <Pressable onPress={onClose} style={styles.cancel}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{t('Cancel')}</Text>
           </Pressable>
         </View>
       </View>

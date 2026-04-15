@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import PrimaryButton from './PrimaryButton';
 
@@ -18,6 +19,7 @@ export default function NoInternetScreen({
   title = 'No internet connection',
   onRetry,
 }: NoInternetScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
@@ -26,9 +28,9 @@ export default function NoInternetScreen({
       <View style={styles.container}>
         <View style={styles.glow} />
         <View style={styles.card}>
-          <Text style={styles.eyebrow}>Offline</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
+          <Text style={styles.eyebrow}>{t('Offline')}</Text>
+          <Text style={styles.title}>{t(title)}</Text>
+          <Text style={styles.subtitle}>{t(subtitle)}</Text>
           {onRetry ? <PrimaryButton label={actionLabel} onPress={onRetry} /> : null}
         </View>
       </View>

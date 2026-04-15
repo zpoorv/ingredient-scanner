@@ -1,5 +1,6 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import type { AppColors } from '../constants/theme';
 
 export type OptionPickerItem<T extends string> = {
@@ -30,13 +31,14 @@ export default function OptionPickerModal<T extends string>({
   title,
   visible,
 }: OptionPickerModalProps<T>) {
+  const { t } = useI18n();
   const styles = createStyles(colors);
 
   return (
     <Modal animationType="fade" onRequestClose={onRequestClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.title}>{t(title)}</Text>
           <ScrollView
             contentContainerStyle={styles.optionList}
             showsVerticalScrollIndicator={false}
@@ -61,11 +63,11 @@ export default function OptionPickerModal<T extends string>({
                       isSelected && styles.optionTitleSelected,
                     ]}
                   >
-                    {option.label}
+                    {t(option.label)}
                   </Text>
-                  <Text style={styles.optionDescription}>{option.description}</Text>
+                  <Text style={styles.optionDescription}>{t(option.description)}</Text>
                   {option.disabled ? (
-                    <Text style={styles.disabledLabel}>Premium</Text>
+                    <Text style={styles.disabledLabel}>{t('Premium')}</Text>
                   ) : null}
                 </Pressable>
               );
@@ -73,7 +75,7 @@ export default function OptionPickerModal<T extends string>({
           </ScrollView>
 
           <Pressable onPress={onApply} style={styles.applyButton}>
-            <Text style={styles.applyButtonText}>Apply</Text>
+            <Text style={styles.applyButtonText}>{t('Apply')}</Text>
           </Pressable>
         </View>
       </View>

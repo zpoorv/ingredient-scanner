@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import PrimaryButton from '../components/PrimaryButton';
 import { APP_NAME, SUPPORT_EMAIL } from '../constants/branding';
 import { loadAdminAppConfig } from '../services/adminAppConfigService';
 
 export default function FeedbackScreen() {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [message, setMessage] = useState('');
@@ -37,7 +39,7 @@ export default function FeedbackScreen() {
 
   const handleSendFeedback = async () => {
     const subject = encodeURIComponent(`${APP_NAME} feedback`);
-    const body = encodeURIComponent(message || 'Shared from the Inqoura feedback screen.');
+    const body = encodeURIComponent(message || t('Shared from the Inqoura feedback screen.'));
 
     await Linking.openURL(`mailto:${supportEmail}?subject=${subject}&body=${body}`);
   };
@@ -45,14 +47,14 @@ export default function FeedbackScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>Feedback</Text>
-        <Text style={styles.title}>Tell us what to improve</Text>
+        <Text style={styles.eyebrow}>{t('Feedback')}</Text>
+        <Text style={styles.title}>{t('Tell us what to improve')}</Text>
         <View style={styles.card}>
-          {supportMessage ? <Text style={styles.subtitle}>{supportMessage}</Text> : null}
+          {supportMessage ? <Text style={styles.subtitle}>{t(supportMessage)}</Text> : null}
           <TextInput
             multiline
             onChangeText={setMessage}
-            placeholder="Share bugs, missing features, or ideas..."
+            placeholder={t('Share bugs, missing features, or ideas...')}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             textAlignVertical="top"

@@ -3,13 +3,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 
+import FeatureTipCard from '../components/FeatureTipCard';
 import FeaturePageLayout from '../components/FeaturePageLayout';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import type { ProductOverrideRecord } from '../models/productOverride';
 import type { RootStackParamList } from '../navigation/types';
 import { loadFeaturedProductRecords } from '../services/productCatalogService';
 import { applyProductOverride } from '../services/productOverrideService';
 import type { ResolvedProduct } from '../types/product';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type FeaturedProductsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -24,10 +27,12 @@ type FeaturedProduct = {
 export default function FeaturedProductsScreen({
   navigation,
 }: FeaturedProductsScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [featuredProducts, setFeaturedProducts] = useState<FeaturedProduct[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const featuredTutorial = useFeatureTutorial('featured');
 
   useEffect(() => {
     let isMounted = true;
@@ -79,18 +84,27 @@ export default function FeaturedProductsScreen({
     <FeaturePageLayout
       eyebrow="Featured"
       subtitle="Curated picks from Inqoura product records. Add or reorder these from the admin panel."
+      tutorialTargetId="featured-hero"
       title="Featured products"
     >
+      <FeatureTipCard
+        body="Featured products are curated records. Product scores and warnings still stay independent."
+        icon="star-outline"
+        onDismiss={featuredTutorial.dismiss}
+        title="Browse curated picks"
+        visible={featuredTutorial.isVisible}
+      />
+
       {!hasLoaded ? (
         <View style={styles.card}>
-          <Text style={styles.title}>Loading picks</Text>
-          <Text style={styles.body}>Checking the latest curated product records.</Text>
+          <Text style={styles.title}>{t('Loading picks')}</Text>
+          <Text style={styles.body}>{t('Checking the latest curated product records.')}</Text>
         </View>
       ) : featuredProducts.length === 0 ? (
         <View style={styles.card}>
-          <Text style={styles.title}>No featured products yet</Text>
+          <Text style={styles.title}>{t('No featured products yet')}</Text>
           <Text style={styles.body}>
-            Mark products as featured in the admin panel and they will appear here.
+            {t('Mark products as featured in the admin panel and they will appear here.')}
           </Text>
         </View>
       ) : (
@@ -126,9 +140,9 @@ export default function FeaturedProductsScreen({
         ))
       )}
       <View style={styles.card}>
-        <Text style={styles.title}>How this list works</Text>
+        <Text style={styles.title}>{t('How this list works')}</Text>
         <Text style={styles.body}>
-          Featured items are admin-curated. Scores and warnings still stay independent.
+          {t('Featured items are admin-curated. Scores and warnings still stay independent.')}
         </Text>
       </View>
     </FeaturePageLayout>

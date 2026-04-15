@@ -6,6 +6,7 @@ import type { ScanResultSource } from '../types/scanner';
 
 export type RootStackParamList = {
   About: undefined;
+  AccountIntro: undefined;
   AccountSettings: undefined;
   Alerts: undefined;
   AppearanceSettings: undefined;

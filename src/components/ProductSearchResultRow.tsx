@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { SearchProductHit } from '../models/search';
 
@@ -13,6 +14,7 @@ export default function ProductSearchResultRow({
   onPress,
   result,
 }: ProductSearchResultRowProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
@@ -34,7 +36,7 @@ export default function ProductSearchResultRow({
               {result.product.name}
             </Text>
             <Text style={styles.badge}>
-              {result.sourceLabel === 'saved' ? 'Saved' : 'Catalog'}
+              {result.sourceLabel === 'saved' ? t('Saved') : t('Catalog')}
             </Text>
           </View>
           {result.product.brand ? <Text style={styles.meta}>{result.product.brand}</Text> : null}
@@ -48,15 +50,15 @@ export default function ProductSearchResultRow({
           {result.householdFit ? (
             <Text style={styles.householdFit}>
               {result.householdFit.verdict === 'works-for-everyone'
-                ? 'Works for everyone'
+                ? t('Works for everyone')
                 : result.householdFit.verdict === 'one-household-caution'
-                  ? 'One household caution'
+                  ? t('One household caution')
                   : result.householdFit.verdict === 'works-for-you-only'
-                    ? 'Works for you only'
-                    : "Doesn't fit this household"}
+                    ? t('Works for you only')
+                    : t("Doesn't fit this household")}
             </Text>
           ) : null}
-          {result.isFavorite ? <Text style={styles.favorite}>Favorite</Text> : null}
+          {result.isFavorite ? <Text style={styles.favorite}>{t('Favorite')}</Text> : null}
         </View>
       </View>
     </Pressable>

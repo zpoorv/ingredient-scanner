@@ -3,27 +3,33 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import TrustPromiseCard from '../components/TrustPromiseCard';
 import { APP_NAME } from '../constants/branding';
 
 export default function AboutScreen() {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>About</Text>
+        <Text style={styles.eyebrow}>{t('About')}</Text>
         <Text style={styles.title}>{APP_NAME}</Text>
         <View style={styles.card}>
           <Text style={styles.body}>
-            Scan products, check ingredients, and get trust-backed grocery guidance.
+            {t('Scan products, check ingredients, and get trust-backed grocery guidance.')}
           </Text>
           <Text style={styles.body}>
-            Inqoura is built so scores stay independent. Premium adds deeper explanations and habit help, not better grades.
+            {t(
+              'Inqoura is built so scores stay independent. Premium adds deeper explanations and habit help, not better grades.'
+            )}
           </Text>
-          <Text style={styles.meta}>Version: {Constants.expoConfig?.version ?? '1.0.0'}</Text>
+          <Text style={styles.meta}>
+            {t('Version')}: {Constants.expoConfig?.version ?? '1.0.0'}
+          </Text>
         </View>
         <TrustPromiseCard compact />
       </ScrollView>

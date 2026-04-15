@@ -6,6 +6,7 @@ import {
   DIET_PROFILE_DEFINITIONS,
   type DietProfileId,
 } from '../constants/dietProfiles';
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import PrimaryButton from './PrimaryButton';
 
@@ -24,6 +25,7 @@ export default function DietProfileModal({
   selectedProfileId,
   visible,
 }: DietProfileModalProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const selectedProfile =
@@ -36,17 +38,17 @@ export default function DietProfileModal({
         <View style={styles.backdrop} />
         <View style={styles.sheet}>
           <Text style={styles.eyebrow}>
-            {isFirstLaunch ? 'Choose Your Diet Profile' : 'Diet Profile'}
+            {isFirstLaunch ? t('Choose Your Diet Profile') : t('Diet Profile')}
           </Text>
           <Text style={styles.title}>
             {isFirstLaunch
-              ? 'Pick the mode that should shape your score'
-              : 'Adjust how this app scores products for you'}
+              ? t('Pick the mode that should shape your score')
+              : t('Adjust how this app scores products for you')}
           </Text>
           <Text style={styles.subtitle}>
             {isFirstLaunch
-              ? 'You can change this later from the top-right profile button on the home screen.'
-              : 'Select the mode you want to use, then apply it.'}
+              ? t('You can change this later from the top-right profile button on the home screen.')
+              : t('Select the mode you want to use, then apply it.')}
           </Text>
 
           <ScrollView
@@ -72,16 +74,16 @@ export default function DietProfileModal({
                         isSelected && styles.profileNameSelected,
                       ]}
                     >
-                      {profile.label}
+                      {t(profile.label)}
                     </Text>
                     {isSelected ? (
                       <View style={styles.selectedBadge}>
-                        <Text style={styles.selectedBadgeText}>Selected</Text>
+                        <Text style={styles.selectedBadgeText}>{t('Selected')}</Text>
                       </View>
                     ) : null}
                   </View>
                   <Text style={styles.profileDescription}>
-                    {profile.description}
+                    {t(profile.description)}
                   </Text>
                 </Pressable>
               );

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { RestrictionMatch } from '../utils/restrictionMatching';
 
@@ -16,6 +17,7 @@ export default function ProductRestrictionCard({
   summary,
   tone,
 }: ProductRestrictionCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
   const toneColor =
@@ -34,9 +36,9 @@ export default function ProductRestrictionCard({
 
   return (
     <View style={[styles.card, { backgroundColor: toneBackground, borderColor: toneColor }]}>
-      <Text style={[styles.label, { color: toneColor }]}>Your food filters</Text>
-      <Text style={styles.summary}>{summary}</Text>
-      {detailText ? <Text style={styles.detail}>{detailText}</Text> : null}
+      <Text style={[styles.label, { color: toneColor }]}>{t('Your food filters')}</Text>
+      <Text style={styles.summary}>{t(summary)}</Text>
+      {detailText ? <Text style={styles.detail}>{t(detailText)}</Text> : null}
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 import type { SearchSuggestion } from '../models/search';
 
@@ -13,6 +14,7 @@ export default function SearchSuggestionRow({
   onPress,
   suggestion,
 }: SearchSuggestionRowProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography);
 
@@ -28,7 +30,9 @@ export default function SearchSuggestionRow({
       <View style={styles.copy}>
         <Text style={styles.title}>{suggestion.query}</Text>
         <Text style={styles.meta}>
-          {suggestion.sourceLabel === 'recent' ? 'Recent search' : 'Suggested match'}
+          {suggestion.sourceLabel === 'recent'
+            ? t('Recent search')
+            : t('Suggested match')}
         </Text>
       </View>
       <Ionicons color={colors.textMuted} name="arrow-up-outline" size={18} />

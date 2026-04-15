@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 type TrustPromiseCardProps = {
@@ -16,17 +17,18 @@ const TRUST_POINTS = [
 export default function TrustPromiseCard({
   compact = false,
 }: TrustPromiseCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography, compact), [colors, typography, compact]);
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Trust Promise</Text>
-      <Text style={styles.title}>Scores stay independent</Text>
+      <Text style={styles.label}>{t('Trust Promise')}</Text>
+      <Text style={styles.title}>{t('Scores stay independent')}</Text>
       {TRUST_POINTS.map((point) => (
         <View key={point} style={styles.pointRow}>
           <View style={styles.dot} />
-          <Text style={styles.pointText}>{point}</Text>
+          <Text style={styles.pointText}>{t(point)}</Text>
         </View>
       ))}
     </View>

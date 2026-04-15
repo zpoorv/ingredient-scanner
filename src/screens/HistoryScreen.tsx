@@ -12,10 +12,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import FeatureTipCard from '../components/FeatureTipCard';
 import HistoryListItem from '../components/HistoryListItem';
 import HistoryListItemSkeleton from '../components/HistoryListItemSkeleton';
 import NativeSponsoredCard from '../components/NativeSponsoredCard';
 import ScreenReveal from '../components/ScreenReveal';
+import TutorialTarget from '../components/TutorialTarget';
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import type { PremiumEntitlement } from '../models/premium';
 import { openMainRoute } from '../navigation/navigationRef';
@@ -33,6 +36,7 @@ import {
 } from '../services/scanHistoryStorage';
 import { getDietProfileDefinition } from '../utils/dietProfiles';
 import { getPremiumSession } from '../store';
+import { useFeatureTutorial } from '../utils/useFeatureTutorial';
 
 type HistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'History'>;
 type SortOrder = 'newest' | 'oldest';
@@ -57,6 +61,7 @@ function isHistoryAdRow(item: HistoryListRow): item is HistoryAdRow {
 }
 
 export default function HistoryScreen({ navigation }: HistoryScreenProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const [favoriteProductCodes, setFavoriteProductCodes] = useState<string[]>([]);
@@ -70,6 +75,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const historyTutorial = useFeatureTutorial('history');
 
   useFocusEffect(
     useCallback(() => {
@@ -196,31 +202,43 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
 
   const headerContent = (
     <ScreenReveal style={styles.headerContent}>
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>History</Text>
-        <Text style={styles.title}>Your scan timeline</Text>
-        <Text style={styles.subtitle}>
-          Search, sort, select, and reopen past scans without mixing in progress or alert widgets.
-        </Text>
-        <View style={styles.heroStatsRow}>
-          <View style={styles.heroStatPill}>
-            <Text style={styles.heroStatLabel}>Scans</Text>
-            <Text style={styles.heroStatValue}>{historyEntries.length}</Text>
+      <TutorialTarget targetId="history-hero">
+        <View style={styles.heroCard}>
+          <Text style={styles.eyebrow}>{t('History')}</Text>
+          <Text style={styles.title}>{t('Your scan timeline')}</Text>
+          <Text style={styles.subtitle}>
+            {t(
+              'Search, sort, select, and reopen past scans without mixing in progress or alert widgets.'
+            )}
+          </Text>
+          <View style={styles.heroStatsRow}>
+            <View style={styles.heroStatPill}>
+              <Text style={styles.heroStatLabel}>{t('Scans')}</Text>
+              <Text style={styles.heroStatValue}>{historyEntries.length}</Text>
+            </View>
+            <View style={styles.heroStatPill}>
+              <Text style={styles.heroStatLabel}>{t('Saved')}</Text>
+              <Text style={styles.heroStatValue}>{favoriteProductCodes.length}</Text>
+            </View>
+            <Pressable onPress={() => openMainRoute('Search')} style={styles.searchShortcut}>
+              <Text style={styles.searchShortcutText}>{t('Search products')}</Text>
+            </Pressable>
           </View>
-          <View style={styles.heroStatPill}>
-            <Text style={styles.heroStatLabel}>Saved</Text>
-            <Text style={styles.heroStatValue}>{favoriteProductCodes.length}</Text>
-          </View>
-          <Pressable onPress={() => openMainRoute('Search')} style={styles.searchShortcut}>
-            <Text style={styles.searchShortcutText}>Search products</Text>
-          </Pressable>
         </View>
-      </View>
+      </TutorialTarget>
+
+      <FeatureTipCard
+        body="History is only your scan timeline now. Search, sort, reopen, select, or delete past scans here."
+        icon="time-outline"
+        onDismiss={historyTutorial.dismiss}
+        title="Review saved scans"
+        visible={historyTutorial.isVisible}
+      />
 
       <View style={styles.controlsCard}>
         <TextInput
           onChangeText={setSearchQuery}
-          placeholder="Search scan history"
+          placeholder={t('Search scan history')}
           placeholderTextColor={colors.textMuted}
           style={styles.searchInput}
           value={searchQuery}
@@ -238,7 +256,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 <Text
                   style={[styles.sortChipText, isSelected && styles.sortChipTextSelected]}
                 >
-                  {option === 'newest' ? 'Newest' : 'Oldest'}
+                  {option === 'newest' ? t('Newest') : t('Oldest')}
                 </Text>
               </Pressable>
             );
@@ -257,7 +275,9 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
               style={styles.selectionActionChip}
             >
               <Text style={styles.selectionActionText}>
-                {selectedEntryIds.length === visibleEntries.length ? 'Clear All' : 'Select All'}
+                {selectedEntryIds.length === visibleEntries.length
+                  ? t('Clear All')
+                  : t('Select All')}
               </Text>
             </Pressable>
             {selectionMode ? (
@@ -266,13 +286,13 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                   onPress={() => setSelectedEntryIds([])}
                   style={styles.selectionActionChip}
                 >
-                  <Text style={styles.selectionActionText}>Cancel</Text>
+                  <Text style={styles.selectionActionText}>{t('Cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => void handleDeleteEntries(selectedEntryIds)}
                   style={styles.deleteActionChip}
                 >
-                  <Text style={styles.deleteActionText}>Delete Selected</Text>
+                  <Text style={styles.deleteActionText}>{t('Delete Selected')}</Text>
                 </Pressable>
               </>
             ) : null}
@@ -294,12 +314,14 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           !isLoading ? (
             <View style={styles.stateCard}>
               <Text style={styles.stateTitle}>
-                {searchQuery.trim() ? 'No scans matched your search' : 'No saved scans yet'}
+                {searchQuery.trim()
+                  ? t('No scans matched your search')
+                  : t('No saved scans yet')}
               </Text>
               <Text style={styles.stateText}>
                 {searchQuery.trim()
-                  ? 'Try a different name, barcode, or risk note.'
-                  : 'Scan a packaged product and it will appear here automatically.'}
+                  ? t('Try a different name, barcode, or risk note.')
+                  : t('Scan a packaged product and it will appear here automatically.')}
               </Text>
             </View>
           ) : null

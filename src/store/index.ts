@@ -13,3 +13,10 @@ export {
   setPremiumSession,
   subscribePremiumSession,
 } from './premiumSessionStore';
+export {
+  getGuidedTutorialSession,
+  setGuidedTutorialStep,
+  startGuidedTutorial,
+  stopGuidedTutorial,
+  subscribeGuidedTutorialSession,
+} from './guidedTutorialStore';

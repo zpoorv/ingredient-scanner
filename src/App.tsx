@@ -5,6 +5,7 @@ import { AppState, InteractionManager, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import AppLanguageProvider from './components/AppLanguageProvider';
 import AppThemeProvider, { useAppTheme } from './components/AppThemeProvider';
 import { queueHistoryNavigation } from './navigation/navigationRef';
 import RootNavigator from './navigation/RootNavigator';
@@ -27,9 +28,11 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppThemeProvider>
-          <AppShell />
-        </AppThemeProvider>
+        <AppLanguageProvider>
+          <AppThemeProvider>
+            <AppShell />
+          </AppThemeProvider>
+        </AppLanguageProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

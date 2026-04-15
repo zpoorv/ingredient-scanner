@@ -3,6 +3,7 @@ import {
   isDietProfileId,
   type DietProfileId,
 } from '../constants/dietProfiles';
+import type { AppLanguageCode } from '../constants/languages';
 import type { AuthSession } from '../models/auth';
 import type { AppLookId, AppearanceMode } from '../models/preferences';
 import type { UserProfile } from '../models/userProfile';
@@ -10,11 +11,13 @@ import { loadAppLookIdForUser } from './appLookPreferenceStorage';
 import { loadStoredAuthSessionUser } from './authStorage';
 import { loadAppearanceModeForUser } from './themePreferenceStorage';
 import { loadStoredUserProfile } from './userProfileStorage';
+import { loadSavedLanguageCode } from './languagePreferenceStorage';
 
 export type AppBootstrapSnapshot = {
   appLookId: AppLookId;
   appearanceMode: AppearanceMode;
   authSession: AuthSession;
+  languageCode: AppLanguageCode;
   lastSelectedProfileId: DietProfileId;
 };
 
@@ -62,10 +65,11 @@ export async function loadAppBootstrapSnapshot() {
 
   bootstrapSnapshotPromise = (async () => {
     const storedUser = await loadStoredAuthSessionUser();
-    const [appearanceMode, appLookId, storedProfile] = await Promise.all([
+    const [appearanceMode, appLookId, storedProfile, savedLanguageCode] = await Promise.all([
       loadAppearanceModeForUser(storedUser?.id ?? null),
       loadAppLookIdForUser(storedUser?.id ?? null),
       storedUser ? loadStoredUserProfile(storedUser.id) : Promise.resolve(null),
+      loadSavedLanguageCode(),
     ]);
 
     const resolvedSnapshot: AppBootstrapSnapshot = {
@@ -80,6 +84,7 @@ export async function loadAppBootstrapSnapshot() {
             status: 'guest',
             user: null,
           },
+      languageCode: storedProfile?.languageCode ?? savedLanguageCode,
       lastSelectedProfileId: resolveLastSelectedProfileId(storedProfile),
     };
 

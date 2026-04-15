@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 type SettingsRowProps = {
@@ -19,6 +20,7 @@ export default function SettingsRow({
   title,
   value,
 }: SettingsRowProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = createStyles(colors, typography, danger);
 
@@ -33,10 +35,10 @@ export default function SettingsRow({
       ]}
     >
       <View style={styles.copy}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text style={styles.title}>{t(title)}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{t(subtitle)}</Text> : null}
       </View>
-      {value ? <Text style={styles.value}>{value}</Text> : null}
+      {value ? <Text style={styles.value}>{t(value)}</Text> : null}
     </Pressable>
   );
 }

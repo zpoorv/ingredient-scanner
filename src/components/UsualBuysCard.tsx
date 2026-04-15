@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 export type UsualBuyCardItem = {
@@ -41,6 +42,7 @@ export default function UsualBuysCard({
   onOpenHistory,
   onOpenSearch,
 }: UsualBuysCardProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
@@ -50,29 +52,29 @@ export default function UsualBuysCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Usual Buys</Text>
-      <Text style={styles.title}>What you reach for most</Text>
+      <Text style={styles.label}>{t('Usual Buys')}</Text>
+      <Text style={styles.title}>{t('What you reach for most')}</Text>
       {items.map((item) => (
         <View key={item.id} style={styles.row}>
           <View style={styles.copy}>
             <Text style={styles.name}>
               {item.name}
-              {item.isFavorite ? ' • Favorite' : ''}
+              {item.isFavorite ? ` • ${t('Favorite')}` : ''}
             </Text>
             <Text style={styles.meta}>
-              {item.usageCount} scan{item.usageCount === 1 ? '' : 's'} • {item.summary}
+              {t('{count} scans', { count: item.usageCount })} • {t(item.summary)}
             </Text>
           </View>
-          <Text style={styles.status}>{getStatusLabel(item.score)}</Text>
+          <Text style={styles.status}>{t(getStatusLabel(item.score))}</Text>
         </View>
       ))}
       <View style={styles.actions}>
         <Pressable onPress={onOpenSearch} style={styles.actionChip}>
-          <Text style={styles.actionText}>Search usual buys</Text>
+          <Text style={styles.actionText}>{t('Search usual buys')}</Text>
         </Pressable>
         {!hideHistoryAction ? (
           <Pressable onPress={onOpenHistory} style={styles.actionChip}>
-            <Text style={styles.actionText}>Open history</Text>
+            <Text style={styles.actionText}>{t('Open history')}</Text>
           </Pressable>
         ) : null}
       </View>

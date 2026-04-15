@@ -6,6 +6,7 @@ import {
 import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 const SUPPORTED_BARCODE_TYPES = [
@@ -45,6 +46,7 @@ function BarcodeScannerPanel({
   onOverlayActionPress,
   overlayLabel,
 }: BarcodeScannerPanelProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const frameHeight = Math.min(220, Math.max(164, Math.round(height * 0.52)));
@@ -71,7 +73,7 @@ function BarcodeScannerPanel({
         <View style={styles.overlay}>
           <View style={styles.overlayTopRow}>
             <View style={styles.overlayPill}>
-              <Text style={styles.overlayPillText}>{overlayLabel}</Text>
+              <Text style={styles.overlayPillText}>{t(overlayLabel)}</Text>
             </View>
           </View>
 
@@ -83,10 +85,10 @@ function BarcodeScannerPanel({
           </View>
 
           <View style={styles.overlayBottom}>
-            <Text style={styles.helperText}>{helperText}</Text>
+            <Text style={styles.helperText}>{t(helperText)}</Text>
             {overlayActionLabel && onOverlayActionPress ? (
               <Pressable onPress={onOverlayActionPress} style={styles.overlayAction}>
-                <Text style={styles.overlayActionText}>{overlayActionLabel}</Text>
+                <Text style={styles.overlayActionText}>{t(overlayActionLabel)}</Text>
               </Pressable>
             ) : null}
           </View>

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useI18n } from '../components/AppLanguageProvider';
 import { useAppTheme } from '../components/AppThemeProvider';
 import {
   ACCOUNT_DELETION_URL,
@@ -10,26 +11,27 @@ import {
 } from '../constants/branding';
 
 export default function PrivacyPolicyScreen() {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eyebrow}>Privacy</Text>
-        <Text style={styles.title}>Privacy</Text>
+        <Text style={styles.eyebrow}>{t('Privacy')}</Text>
+        <Text style={styles.title}>{t('Privacy')}</Text>
         <View style={styles.card}>
           <Text style={styles.body}>
-            Read the full privacy policy here.
+            {t('Read the full privacy policy here.')}
           </Text>
           <Pressable onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)} style={styles.link}>
-            <Text style={styles.linkText}>Open privacy policy</Text>
+            <Text style={styles.linkText}>{t('Open privacy policy')}</Text>
           </Pressable>
           <Pressable onPress={() => void Linking.openURL(TERMS_OF_SERVICE_URL)} style={styles.link}>
-            <Text style={styles.linkText}>Open terms of use</Text>
+            <Text style={styles.linkText}>{t('Open terms of use')}</Text>
           </Pressable>
           <Pressable onPress={() => void Linking.openURL(ACCOUNT_DELETION_URL)} style={styles.link}>
-            <Text style={styles.linkText}>Open account deletion page</Text>
+            <Text style={styles.linkText}>{t('Open account deletion page')}</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import { useAppTheme } from './AppThemeProvider';
 
 type ScreenLoadingViewProps = {
@@ -12,6 +13,7 @@ export default function ScreenLoadingView({
   subtitle = 'Preparing the next screen...',
   title = 'Loading',
 }: ScreenLoadingViewProps) {
+  const { t } = useI18n();
   const { colors, typography } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
@@ -19,8 +21,8 @@ export default function ScreenLoadingView({
     <View style={styles.container}>
       <View style={styles.card}>
         <ActivityIndicator color={colors.primary} size="large" />
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.title}>{t(title)}</Text>
+        <Text style={styles.subtitle}>{t(subtitle)}</Text>
       </View>
     </View>
   );

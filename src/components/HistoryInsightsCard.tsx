@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useI18n } from './AppLanguageProvider';
 import type { AppColors } from '../constants/theme';
 import type { HistoryInsight } from '../utils/historyPersonalization';
 
@@ -24,6 +25,7 @@ export default function HistoryInsightsCard({
   colors,
   insights,
 }: HistoryInsightsCardProps) {
+  const { t } = useI18n();
   const styles = createStyles(colors);
 
   if (insights.length === 0) {
@@ -32,8 +34,8 @@ export default function HistoryInsightsCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>Shopping Notes</Text>
-      <Text style={styles.title}>What your saves mean</Text>
+      <Text style={styles.label}>{t('Shopping Notes')}</Text>
+      <Text style={styles.title}>{t('What your saves mean')}</Text>
       {insights.map((insight) => (
         <View key={insight.id} style={styles.insightRow}>
           <View
@@ -43,8 +45,8 @@ export default function HistoryInsightsCard({
             ]}
           />
           <View style={styles.insightTextBlock}>
-            <Text style={styles.insightTitle}>{insight.title}</Text>
-            <Text style={styles.insightBody}>{insight.body}</Text>
+            <Text style={styles.insightTitle}>{t(insight.title)}</Text>
+            <Text style={styles.insightBody}>{t(insight.body)}</Text>
           </View>
         </View>
       ))}
